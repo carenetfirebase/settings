@@ -316,6 +316,91 @@ def ingest_political_cmd(
     )
 
 
+@ingest_app.command("macro")
+def ingest_macro_cmd(
+    series: list[str] = typer.Argument(None, help="FRED series IDs; omit for the core set."),
+    start: str | None = typer.Option(None, help="ISO start date."),
+) -> None:
+    """Fetch macro series from FRED."""
+    from datetime import date as _date
+
+    from invest.ingest.macro import ingest_series
+    from invest.providers.fred import CORE_SERIES, FredProvider
+
+    try:
+        provider = FredProvider()
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    targets = series or list(CORE_SERIES)
+    start_date = _date.fromisoformat(start) if start else None
+    failures = 0
+
+    try:
+        with session_scope() as session:
+            for series_id in targets:
+                result = ingest_series(session, provider, series_id, start=start_date)
+                if not result.ok:
+                    typer.echo(f"{series_id:<16} FAILED   {result.error}", err=True)
+                    failures += 1
+                    continue
+                description = CORE_SERIES.get(series_id, "")
+                typer.echo(
+                    f"{series_id:<16} +{result.written:<6} skipped={result.skipped:<6} "
+                    f"null={result.null_values:<4} {description}"
+                )
+    finally:
+        provider.close()
+
+    if failures:
+        typer.echo(f"\n{failures} series failed.", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command("regime")
+def regime_cmd(
+    as_of: str | None = typer.Option(None, help="Point-in-time cutoff (ISO date)."),
+) -> None:
+    """Classify the current market regime from stored macro data."""
+    from datetime import date as _date
+
+    from invest.engines.regime import Regime, classify_from_database
+
+    cutoff = _date.fromisoformat(as_of) if as_of else _date.today()
+
+    with session_scope() as session:
+        assessment = classify_from_database(session, as_of=cutoff)
+
+    typer.echo(f"Market regime as of {cutoff}: {assessment.regime.value.upper()}")
+    if assessment.risk_score is not None:
+        typer.echo(f"Risk score: {assessment.risk_score:+.2f}  (-1 risk-off .. +1 risk-on)")
+    typer.echo(f"Signal coverage: {assessment.coverage:.0%}\n")
+
+    typer.echo(f"{'SIGNAL':<22} {'READING':>10}  {'DIR':<5} DETAIL")
+    for signal in assessment.signals:
+        if signal.available:
+            arrow = {-1: "  -  ", 0: "  =  ", 1: "  +  "}[signal.direction]
+            value = f"{signal.value:,.2f}" if signal.value is not None else "-"
+        else:
+            arrow = "  ?  "
+            value = "n/a"
+        typer.echo(f"{signal.name:<22} {value:>10}  {arrow} {signal.detail}")
+        if signal.unavailable_reason:
+            typer.echo(f"{'':<22} {'':>10}        -> {signal.unavailable_reason}")
+
+    if assessment.regime == Regime.INSUFFICIENT_DATA:
+        typer.echo(
+            "\nINSUFFICIENT DATA — too few signals to name a regime. "
+            "Run `invest ingest macro`."
+        )
+
+    typer.echo(
+        "\nThis is a descriptive summary using conventional thresholds. It is not "
+        "a forecast,\nnot a trading signal, and carries no weight in any security score."
+    )
+
+
 @app.command("disclosures")
 def disclosures_cmd(
     ticker: str,

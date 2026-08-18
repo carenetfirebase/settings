@@ -263,6 +263,120 @@ def ingest_filings_cmd(
         raise typer.Exit(code=1)
 
 
+@ingest_app.command("political")
+def ingest_political_cmd(
+    file: str = typer.Option(..., "--file", help="CSV export of disclosures."),
+    source: str = typer.Option("house_clerk", help="house_clerk or senate_efd."),
+    chamber: str | None = typer.Option(None, help="Default chamber if absent from the file."),
+    universe_only: bool = typer.Option(False, help="Keep only tickers in the universe."),
+) -> None:
+    """Ingest congressional disclosures — FIREWALLED, never a score input.
+
+    Requires a structured CSV: the official sources publish PDFs and a search
+    UI, and parsing transaction tables out of PDFs would risk writing a
+    plausible-looking wrong number into the database.
+    """
+    from pathlib import Path
+
+    from invest.ingest.political import ingest_political_trades
+    from invest.providers.congress import parse_disclosure_csv
+
+    path = Path(file)
+    if not path.exists():
+        typer.echo(f"No such file: {file}", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        records = parse_disclosure_csv(
+            path.read_text(), source=source, default_chamber=chamber
+        )
+    except Exception as exc:
+        typer.echo(f"Could not parse {file}: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if not records:
+        typer.echo("No usable rows found.")
+        return
+
+    with session_scope() as session:
+        result = ingest_political_trades(session, records, universe_only=universe_only)
+
+    typer.echo(
+        f"Parsed {len(records)} rows -> wrote {result.written}, skipped {result.skipped}"
+    )
+    if result.out_of_universe:
+        typer.echo(f"  {result.out_of_universe} referenced tickers outside the universe")
+    if result.unresolved_tickers:
+        typer.echo(f"  {result.unresolved_tickers} rows had no usable ticker")
+        for example in result.unresolved_examples:
+            typer.echo(f"    e.g. {example}")
+    typer.echo(
+        "\nAll rows stored with firewall_status='investigate_only'. "
+        "This data contributes nothing to any score."
+    )
+
+
+@app.command("disclosures")
+def disclosures_cmd(
+    ticker: str,
+    as_of: str | None = typer.Option(None, help="Point-in-time cutoff (ISO date)."),
+    lookback: int = typer.Option(365, help="Days of history."),
+) -> None:
+    """Show congressional disclosures for a security — research context only."""
+    from datetime import date as _date
+
+    from invest.ingest.political import get_disclosure_context
+
+    cutoff = _date.fromisoformat(as_of) if as_of else _date.today()
+
+    with session_scope() as session:
+        try:
+            security = resolve(session, ticker)
+        except LookupError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=1) from exc
+
+        context = get_disclosure_context(
+            session, security.security_id, as_of=cutoff, lookback_days=lookback
+        )
+
+        if not context.count:
+            typer.echo(f"No disclosures on file for {security.ticker} through {cutoff}.")
+            return
+
+        typer.echo(
+            f"{security.ticker} congressional disclosures through {cutoff}  "
+            f"[FIREWALLED — not a score input]\n"
+        )
+        typer.echo(
+            f"{'DISCLOSED':<12} {'TRADED':<12} {'LAG':>5} {'TYPE':<10} "
+            f"{'AMOUNT RANGE':<28} WHO"
+        )
+        for trade in context.trades:
+            lag = (trade.disclosure_date - trade.transaction_date).days
+            low = trade.amount_range_low
+            high = trade.amount_range_high
+            if low is None:
+                amount = "INSUFFICIENT DATA"
+            elif high is None:
+                amount = f"over ${float(low):,.0f}"
+            else:
+                amount = f"${float(low):,.0f} - ${float(high):,.0f}"
+            typer.echo(
+                f"{trade.disclosure_date.isoformat():<12} "
+                f"{trade.transaction_date.isoformat():<12} {lag:>5} "
+                f"{(trade.transaction_type or '?'):<10} {amount:<28} "
+                f"{trade.politician_name}"
+            )
+
+        median = context.median_disclosure_lag_days
+        typer.echo(f"\n{context.count} disclosures. Median lag: {median:.0f} days.")
+        typer.echo(
+            "Amounts are the brackets as filed. No midpoint is computed — that "
+            "would be a number nobody reported."
+        )
+
+
 @app.command("insider")
 def insider_cmd(
     ticker: str,

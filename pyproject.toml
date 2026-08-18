@@ -20,6 +20,9 @@ dependencies = [
   "scipy>=1.12,<2.0",
   "fastapi>=0.110,<1.0",
   "uvicorn>=0.29,<1.0",
+  # Swagger UI assets served locally instead of from a CDN — see api/app.py.
+  # Must be a 5.x build: FastAPI emits OpenAPI 3.1, which 4.x cannot render.
+  "swagger-ui-py>=23.0",
 ]
 
 [project.optional-dependencies]

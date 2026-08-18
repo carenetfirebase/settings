@@ -19,11 +19,18 @@ Design notes:
 
 from __future__ import annotations
 
+import pathlib
 from datetime import UTC, date, datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from invest import __version__
 from invest.api.deps import as_of_param, get_readonly_session, resolve_ticker
@@ -78,13 +85,76 @@ def _meta(as_of: date | None = None, note: str | None = None) -> Meta:
     )
 
 
+def _swagger_asset_dir() -> str | None:
+    """Locate the bundled Swagger UI assets, if they are installed.
+
+    FastAPI's stock `/docs` loads its CSS and JS from cdn.jsdelivr.net and its
+    favicon from fastapi.tiangolo.com. For this project that is a real defect,
+    not a cosmetic one: a tool whose premise is local, zero-cost and private
+    should not reach out to two third parties in order to render the docs for
+    a page that then displays your research. It also breaks entirely on an
+    air-gapped or egress-filtered machine — which is exactly where a personal
+    research database is most likely to live.
+
+    Serving the assets from the local package fixes all of that.
+
+    Note on versions: FastAPI emits an OpenAPI **3.1** document, and only
+    Swagger UI 5.x can parse that — a 4.x bundle renders "Unable to render
+    this definition" instead. `swagger-ui-py` ships a current build, so it is
+    preferred; the older `swagger-ui-bundle` is accepted only as a fallback.
+    """
+    try:
+        import swagger_ui
+
+        candidate = pathlib.Path(swagger_ui.__file__).parent / "static"
+        if (candidate / "swagger-ui-bundle.js").exists():
+            return str(candidate)
+    except ImportError:  # pragma: no cover
+        pass
+
+    try:
+        import swagger_ui_bundle
+    except ImportError:  # pragma: no cover - only when neither is installed
+        return None
+
+    root = pathlib.Path(swagger_ui_bundle.__file__).parent / "vendor"
+    for candidate in sorted(root.glob("swagger-ui-*"), reverse=True):
+        if (candidate / "swagger-ui-bundle.js").exists():
+            return str(candidate)
+    return None  # pragma: no cover
+
+
 def create_app() -> FastAPI:
+    swagger_dir = _swagger_asset_dir()
+
     app = FastAPI(
         title="invest — research API",
         description=DESCRIPTION,
         version=__version__,
-        docs_url="/docs",
+        # Replaced below with a self-hosted page when the assets are present.
+        docs_url=None if swagger_dir else "/docs",
+        redoc_url=None,
     )
+
+    if swagger_dir:
+        app.mount(
+            "/static/swagger",
+            StaticFiles(directory=swagger_dir),
+            name="swagger-ui-assets",
+        )
+
+        @app.get("/docs", include_in_schema=False, response_class=HTMLResponse)
+        def swagger_docs() -> HTMLResponse:
+            """Interactive API docs, served entirely from this machine."""
+            return get_swagger_ui_html(
+                openapi_url="/openapi.json",
+                title=f"{app.title} — docs",
+                swagger_js_url="/static/swagger/swagger-ui-bundle.js",
+                swagger_css_url="/static/swagger/swagger-ui.css",
+                # An empty data URI: the stock value fetches a favicon from
+                # fastapi.tiangolo.com, which is the last outbound call left.
+                swagger_favicon_url="data:,",
+            )
 
     # ---------------------------------------------------------------- health
 
@@ -581,7 +651,49 @@ def create_app() -> FastAPI:
             counts[table] = session.scalar(select(func.count()).select_from(text(table))) or 0
         return {"tables": counts, "generated_at": datetime.now(UTC).isoformat()}
 
+    _allow_head(app)
     return app
+
+
+class HeadMiddleware(BaseHTTPMiddleware):
+    """Answer HEAD wherever we answer GET.
+
+    RFC 9110 §9.1: "All general-purpose servers MUST support the methods GET
+    and HEAD." Starlette's own router pairs HEAD with GET automatically, but
+    FastAPI's APIRoute does not, so `curl -I` against every endpoint came back
+    405 with `allow: GET`.
+
+    Done as middleware rather than by adding HEAD to each route's methods:
+    FastAPI generates one OpenAPI operation per method, so widening the routes
+    emits a duplicate operation for every path — same operationId, spec noise,
+    and a warning apiece. Rewriting the method here keeps the published
+    contract exactly what it should be, fourteen GETs and nothing else.
+
+    Note what this does and does not save. The response is still computed in
+    full; HEAD spares the client the download, not the server the work.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        if request.method != "HEAD":
+            return await call_next(request)
+
+        request.scope["method"] = "GET"
+        response = await call_next(request)
+
+        body = b"".join([chunk async for chunk in response.body_iterator])
+        headers = dict(response.headers)
+        # Report the length the equivalent GET would return — that is the
+        # entire point of asking — while sending no body.
+        headers["content-length"] = str(len(body))
+        return Response(
+            status_code=response.status_code,
+            headers=headers,
+            media_type=response.media_type,
+        )
+
+
+def _allow_head(app: FastAPI) -> None:
+    app.add_middleware(HeadMiddleware)
 
 
 def _maybe_float(value) -> float | None:

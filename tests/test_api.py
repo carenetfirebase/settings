@@ -112,17 +112,57 @@ def test_every_route_is_read_only() -> None:
     """'Read-only' must not be able to quietly stop being true.
 
     Enumerates the route table; any POST/PUT/PATCH/DELETE fails the build.
+    Mounts are checked separately, since a Mount carries no `.methods` and
+    would otherwise slip through this loop unexamined.
     """
+    from starlette.routing import Mount
+    from starlette.staticfiles import StaticFiles
+
     application = create_app()
     offending: list[str] = []
 
     for route in application.routes:
+        if isinstance(route, Mount):
+            # The only mount we permit is static assets, which serve GET/HEAD.
+            assert isinstance(route.app, StaticFiles), (
+                f"Unexpected non-static mount at {route.path}: {type(route.app)}"
+            )
+            continue
         methods = getattr(route, "methods", set()) or set()
         mutating = methods - {"GET", "HEAD", "OPTIONS"}
         if mutating:
             offending.append(f"{getattr(route, 'path', route)}: {sorted(mutating)}")
 
     assert not offending, f"Non-read-only routes found: {offending}"
+
+
+# --------------------------------------------------------------------------
+# Offline docs — no third-party calls
+# --------------------------------------------------------------------------
+
+
+def test_docs_page_references_no_external_hosts(client) -> None:
+    """A local research tool must not fetch its own docs assets from a CDN.
+
+    The stock FastAPI docs page pulls CSS/JS from cdn.jsdelivr.net and a
+    favicon from fastapi.tiangolo.com. Both are replaced with local paths, so
+    /docs works air-gapped and renders nothing third-party alongside your
+    research data.
+    """
+    body = client.get("/docs").text
+    assert "cdn.jsdelivr.net" not in body
+    assert "fastapi.tiangolo.com" not in body
+    assert "/static/swagger/swagger-ui-bundle.js" in body
+    assert "/static/swagger/swagger-ui.css" in body
+
+
+def test_swagger_assets_are_served_locally(client) -> None:
+    css = client.get("/static/swagger/swagger-ui.css")
+    js = client.get("/static/swagger/swagger-ui-bundle.js")
+    assert css.status_code == 200
+    assert js.status_code == 200
+    assert len(css.content) > 10_000
+    assert len(js.content) > 100_000
 
 
 def test_database_itself_refuses_writes(db_engine) -> None:
@@ -625,3 +665,40 @@ def test_api_description_states_the_conventions(client) -> None:
     assert "Nothing here is investment advice" in description
     assert "`null` never means zero" in description
     assert "firewalled" in description
+
+
+def test_head_is_answered_wherever_get_is(client, aapl) -> None:
+    """RFC 9110: a general-purpose server must support HEAD alongside GET.
+
+    FastAPI's APIRoute does not add it the way Starlette's router does, so
+    without the fix every endpoint answered `curl -I` with 405.
+    """
+    for path in ("/health", "/universe", "/securities/AAPL"):
+        response = client.head(path)
+        assert response.status_code == 200, f"HEAD {path} -> {response.status_code}"
+        assert response.content == b""
+
+
+def test_head_reports_the_same_length_as_get(client, aapl) -> None:
+    """The point of HEAD is asking the size without paying for the body."""
+    head = client.head("/universe")
+    get = client.get("/universe")
+    assert head.headers["content-length"] == get.headers["content-length"]
+
+
+def test_mutating_verbs_are_still_refused(client, aapl) -> None:
+    """Adding HEAD must not have widened anything else."""
+    for method in ("post", "put", "patch", "delete"):
+        response = getattr(client, method)("/universe")
+        assert response.status_code == 405
+        assert "GET" in response.headers.get("allow", "")
+
+
+def test_openapi_contract_declares_only_get(client) -> None:
+    """HEAD is handled by middleware precisely so the published contract stays
+    clean. If a future change widens routes instead, this catches the spec
+    noise it would create.
+    """
+    paths = client.get("/openapi.json").json()["paths"]
+    methods = {m.upper() for ops in paths.values() for m in ops}
+    assert methods == {"GET"}, f"contract declares more than GET: {methods}"

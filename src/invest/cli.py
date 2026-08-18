@@ -147,6 +147,94 @@ def ingest_prices_cmd(
         raise typer.Exit(code=1)
 
 
+@ingest_app.command("fundamentals")
+def ingest_fundamentals_cmd(
+    tickers: list[str] = typer.Argument(None, help="Tickers; omit for the whole universe."),
+) -> None:
+    """Fetch XBRL companyfacts from SEC EDGAR through the validation gate."""
+    from invest.ingest.fundamentals import ingest_fundamentals_for_security
+    from invest.providers.edgar import EdgarProvider
+
+    try:
+        provider = EdgarProvider()
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    try:
+        with session_scope() as session:
+            targets = tickers or list(
+                session.scalars(select(Security.ticker).order_by(Security.ticker))
+            )
+            if not targets:
+                typer.echo("Universe is empty. Run `invest universe seed`.", err=True)
+                raise typer.Exit(code=1)
+
+            failures = 0
+            for ticker in targets:
+                try:
+                    security = resolve(session, ticker)
+                except LookupError as exc:
+                    typer.echo(f"{ticker:<8} SKIPPED  {exc}", err=True)
+                    failures += 1
+                    continue
+
+                result = ingest_fundamentals_for_security(session, provider, security)
+                if not result.ok:
+                    typer.echo(f"{ticker:<8} FAILED   {result.error}", err=True)
+                    failures += 1
+                    continue
+                typer.echo(
+                    f"{ticker:<8} wrote {result.written:<6} "
+                    f"accepted={result.accepted} flagged={result.flagged} "
+                    f"quarantined={result.quarantined} skipped={result.skipped}"
+                )
+    finally:
+        provider.close()
+
+    if failures:
+        typer.echo(f"\n{failures} ticker(s) failed.", err=True)
+        raise typer.Exit(code=1)
+
+
+@universe_app.command("verify")
+def universe_verify() -> None:
+    """Reconcile seeded CIKs against SEC EDGAR's company_tickers.json.
+
+    Until this has run, seeded CIKs carry data_quality_flag
+    'unverified_bootstrap' — they are claims, not confirmed identifiers.
+    """
+    from invest.providers.edgar import EdgarProvider
+    from invest.security_master import verify_ciks
+
+    try:
+        provider = EdgarProvider()
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    try:
+        authority = provider.fetch_ticker_cik_map()
+    except Exception as exc:
+        typer.echo(f"Could not reach EDGAR: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    finally:
+        provider.close()
+
+    with session_scope() as session:
+        results = verify_ciks(session, authority)
+
+    by_status: dict[str, int] = {}
+    for r in results:
+        by_status[r.status] = by_status.get(r.status, 0) + 1
+        if r.status == "corrected":
+            typer.echo(f"CORRECTED {r.ticker}: {r.seeded_cik} -> {r.authoritative_cik}")
+        elif r.status == "missing_from_authority":
+            typer.echo(f"UNCONFIRMED {r.ticker}: EDGAR does not list this ticker")
+
+    typer.echo("\n" + ", ".join(f"{k}={v}" for k, v in sorted(by_status.items())))
+
+
 @app.command("conflicts")
 def show_conflicts(limit: int = typer.Option(20, help="Rows to show.")) -> None:
     """Recent validation-gate findings — nothing is dropped silently."""

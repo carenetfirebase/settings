@@ -25,6 +25,34 @@ pip install -e ".[dev]"
 docker compose up -d        # PostgreSQL 16 on localhost:5432
 alembic upgrade head        # create the schema
 invest db check
+
+invest bootstrap            # seed, verify CIKs, ingest prices + fundamentals
+```
+
+`bootstrap` runs CIK verification *before* fetching any fundamentals — an
+unverified CIK would attach one company's financials to another company's
+price history, and that is tedious to unpick once written.
+
+## About "real-time"
+
+There isn't any, and there can't be at zero cost. Exchanges license the
+real-time consolidated feed, so no free source carries it. What this platform
+gets is:
+
+| Tier | Available | Source |
+|---|---|---|
+| End-of-day daily bars | Yes | Stooq, Alpha Vantage |
+| ~15-minute delayed intraday | Yes | Alpha Vantage |
+| Real-time consolidated quotes | **No** | exchange-licensed |
+
+Every intraday row carries `delay_seconds` in a NOT NULL column, and a CHECK
+constraint forces `is_delayed` to agree with it. You cannot store an
+unlabelled quote, and `invest quote` always prints the basis and the age:
+
+```
+AAPL  125.60
+  basis      DELAYED by 15 min
+  age now    17 min
 ```
 
 ## Using it
@@ -49,6 +77,8 @@ invest insider AAPL         # insider activity, conviction trades separated from
 invest ingest macro         # FRED series (needs FRED_API_KEY)
 invest regime               # market regime from macro data
 invest backtest AAPL --fast 50 --slow 200   # point-in-time backtest with costs
+invest ingest intraday      # delayed intraday bars (needs ALPHAVANTAGE_API_KEY)
+invest quote AAPL           # latest price, with its true age stated
 
 invest ingest political --file disclosures.csv   # firewalled, never a score input
 invest disclosures AAPL     # congressional disclosures, research context only
@@ -73,7 +103,7 @@ rather than something a caller must remember to ask for.
 ## Testing
 
 ```bash
-pytest                      # 556 tests
+pytest                      # 597 tests
 ```
 
 Tests that need a database use `TEST_DATABASE_URL` (default

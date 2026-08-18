@@ -429,6 +429,86 @@ class PoliticalTrade(Base):
 # --------------------------------------------------------------------------
 
 
+class IntradayObservation(Base):
+    """A price observed at a point in *time*, not merely on a date.
+
+    Separate from `price_observations` on purpose. A daily bar is a settled,
+    revisable summary of a session; an intraday print is a moment. Keying them
+    the same way would force one of the two to lie about what it is.
+
+    ## Delay is not optional metadata
+
+    No free source provides real-time consolidated US equity quotes — exchanges
+    license that feed, and a vendor giving it away would be breaching their own
+    agreement. What free tiers provide is delayed, typically by 15 minutes.
+
+    So `delay_seconds` is NOT NULL with no default. A caller writing a row must
+    state how stale the print was, because a number nobody has labelled will
+    eventually be read as live. `is_delayed` is derived and stored alongside so
+    a reader scanning the table sees it without doing arithmetic.
+
+    `observed_at` is when the price was true. `ingested_at` is when we learned
+    it. The gap between them is the delay, and both are recorded rather than
+    inferred.
+    """
+
+    __tablename__ = "intraday_observations"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    security_id: Mapped[int] = mapped_column(
+        ForeignKey("securities.id", ondelete="RESTRICT"), nullable=False
+    )
+    #: The instant the price was true at the venue.
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    #: Bar interval in seconds (60, 300, 900...). NULL for a point quote.
+    interval_seconds: Mapped[int | None] = mapped_column(Integer)
+
+    open: Mapped[float | None] = mapped_column(PRICE)
+    high: Mapped[float | None] = mapped_column(PRICE)
+    low: Mapped[float | None] = mapped_column(PRICE)
+    close: Mapped[float | None] = mapped_column(PRICE)
+    volume: Mapped[int | None] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="USD")
+
+    #: How far behind real time this print was, as published by the source.
+    #: Mandatory. There is no honest default.
+    delay_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_delayed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    value_type: Mapped[str] = mapped_column(
+        String(24), nullable=False, server_default=ValueType.OBSERVED.value
+    )
+    data_quality_flag: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default=DataQualityFlag.OK.value
+    )
+    ingested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "security_id", "observed_at", "interval_seconds", "source",
+            name="uq_intraday_sec_time_source",
+        ),
+        _check("value_type", ValueType, "ck_intraday_value_type"),
+        _check("data_quality_flag", DataQualityFlag, "ck_intraday_dq_flag"),
+        CheckConstraint("delay_seconds >= 0", name="ck_intraday_delay_non_negative"),
+        # Keeps the derived flag honest: it must agree with the number.
+        CheckConstraint(
+            "(delay_seconds = 0 AND is_delayed = false) "
+            "OR (delay_seconds > 0 AND is_delayed = true)",
+            name="ck_intraday_delay_agrees",
+        ),
+        CheckConstraint(
+            "(open IS NULL OR open >= 0) AND (high IS NULL OR high >= 0) "
+            "AND (low IS NULL OR low >= 0) AND (close IS NULL OR close >= 0)",
+            name="ck_intraday_non_negative",
+        ),
+        Index("ix_intraday_sec_time", "security_id", "observed_at"),
+    )
+
+
 class MacroObservation(Base):
     __tablename__ = "macro_observations"
 
@@ -633,6 +713,7 @@ APPEND_ONLY_TABLES: frozenset[str] = frozenset(
     {
         PriceObservation.__tablename__,
         Fundamental.__tablename__,
+        IntradayObservation.__tablename__,
         ResearchSnapshot.__tablename__,
     }
 )

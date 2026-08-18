@@ -223,23 +223,29 @@ def build_price_context(
     from invest.db.models import PriceObservation
 
     rows = session.execute(
-        select(PriceObservation.obs_date, PriceObservation.source, PriceObservation.close).where(
-            PriceObservation.security_id == security_id
-        )
+        select(
+            PriceObservation.obs_date,
+            PriceObservation.source,
+            PriceObservation.close,
+            PriceObservation.is_split_adjusted,
+        ).where(PriceObservation.security_id == security_id)
     ).all()
 
     known: set[date] = set()
     existing: dict[date, dict[str, Decimal]] = {}
-    for obs_date, row_source, close in rows:
+    bases: dict[date, dict[str, bool | None]] = {}
+    for obs_date, row_source, close, split_adjusted in rows:
         if row_source == source:
             known.add(obs_date)
         if close is not None:
             existing.setdefault(obs_date, {})[row_source] = Decimal(close)
+            bases.setdefault(obs_date, {})[row_source] = split_adjusted
 
     return RuleContext(
         today=today,
         known_dates=known,
         existing_closes=existing,
+        existing_bases=bases,
         staleness_days=staleness_days,
         expected_currency=expected_currency,
     )

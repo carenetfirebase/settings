@@ -14,7 +14,7 @@ against each other, and every provider declares `source_name` once.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
@@ -85,6 +85,56 @@ class PriceBar(BaseModel):
                 raise ValueError(f"{name} {value} above high {self.high}")
             if self.low is not None and value < self.low:
                 raise ValueError(f"{name} {value} below low {self.low}")
+        return self
+
+
+class IntradayBar(BaseModel):
+    """A price observed at an instant, with its staleness attached.
+
+    `delay_seconds` has no default. Every construction site must state how far
+    behind real time the print was, because an unlabelled number is eventually
+    read as a live one — and no free source provides live consolidated quotes.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    symbol: str
+    observed_at: datetime
+    interval_seconds: int | None = None
+    open: Decimal | None = None
+    high: Decimal | None = None
+    low: Decimal | None = None
+    close: Decimal | None = None
+    volume: int | None = None
+    currency: str = "USD"
+    source: str
+    delay_seconds: int
+
+    @field_validator("delay_seconds")
+    @classmethod
+    def _delay_is_plausible(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("delay_seconds may not be negative")
+        return v
+
+    @field_validator("open", "high", "low", "close")
+    @classmethod
+    def _no_negative(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v < 0:
+            raise ValueError("price may not be negative")
+        return v
+
+    @property
+    def is_delayed(self) -> bool:
+        return self.delay_seconds > 0
+
+    @model_validator(mode="after")
+    def _timezone_aware(self) -> IntradayBar:
+        """A naive timestamp on a market print is a bug waiting to happen:
+        the reader cannot tell exchange local time from UTC.
+        """
+        if self.observed_at.tzinfo is None:
+            raise ValueError("observed_at must be timezone-aware")
         return self
 
 
@@ -203,6 +253,27 @@ class PriceProvider(Protocol):
         transport failure — never returns a partial series silently.
         """
         ...
+
+
+@runtime_checkable
+class IntradayProvider(Protocol):
+    """Optional capability: not every price source offers intraday data.
+
+    Kept separate from PriceProvider so a daily-only source (Stooq) satisfies
+    its contract completely rather than raising NotImplementedError on half
+    of it.
+    """
+
+    source_name: str
+    #: Publisher-stated delay for this feed, in seconds. Declared by the
+    #: provider rather than assumed by the caller.
+    quote_delay_seconds: int
+
+    def fetch_intraday(
+        self, symbol: str, *, interval_seconds: int = 300, limit: int = 100
+    ) -> list[IntradayBar]: ...
+
+    def fetch_latest_quote(self, symbol: str) -> IntradayBar | None: ...
 
 
 @runtime_checkable

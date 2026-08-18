@@ -87,6 +87,37 @@ class HttpClient:
             f"{self.source_name}: giving up on {url} after {self.max_attempts} attempts"
         ) from last_error
 
+    def stream_to_file(self, url: str, destination: str, *, chunk_bytes: int = 1 << 20) -> int:
+        """Download a large body straight to disk, returning bytes written.
+
+        Bulk archives run to gigabytes; buffering one in memory to then write
+        it out would be a needless way to exhaust a laptop. Not retried: a
+        partial multi-gigabyte download is better resumed deliberately than
+        silently restarted from zero.
+        """
+        import pathlib
+
+        path = pathlib.Path(destination)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        self.bucket.acquire()
+        written = 0
+        try:
+            with self._client.stream("GET", url) as response:
+                if response.status_code >= 400:
+                    raise ProviderUnavailable(
+                        f"{self.source_name}: HTTP {response.status_code} for {url}"
+                    )
+                with path.open("wb") as handle:
+                    for chunk in response.iter_bytes(chunk_bytes):
+                        handle.write(chunk)
+                        written += len(chunk)
+        except httpx.HTTPError as exc:
+            raise ProviderUnavailable(
+                f"{self.source_name}: transport error streaming {url}: {exc}"
+            ) from exc
+        return written
+
     def close(self) -> None:
         self._client.close()
 

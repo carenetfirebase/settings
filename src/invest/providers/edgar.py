@@ -33,6 +33,7 @@ public, and every row carries it.
 from __future__ import annotations
 
 import logging
+import pathlib
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -53,6 +54,10 @@ SOURCE_NAME = "sec_edgar"
 COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
+
+#: The whole XBRL corpus in one archive. Published by the SEC specifically so
+#: bulk consumers do not hammer the per-company endpoint.
+BULK_COMPANYFACTS_URL = "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip"
 
 #: EDGAR's published ceiling is 10 rps. 8 leaves headroom for clock skew and
 #: for anything else sharing our IP.
@@ -419,6 +424,22 @@ class EdgarProvider:
                 )
         return records
 
+    def download_bulk_companyfacts(self, destination: str) -> str:
+        """Download the full companyfacts archive to a local path.
+
+        One request instead of one per company. At 21 tickers that is a
+        convenience; at 500 it is the difference between a polite client and
+        a rude one, and the SEC publishes this file precisely so nobody has to
+        hammer the per-company endpoint.
+
+        The archive is large — several gigabytes uncompressed — so it streams
+        to disk rather than through memory.
+        """
+        logger.info("%s: downloading bulk companyfacts to %s", SOURCE_NAME, destination)
+        written = self.client.stream_to_file(BULK_COMPANYFACTS_URL, destination)
+        logger.info("%s: wrote %.1f MB", SOURCE_NAME, written / 1e6)
+        return destination
+
     def fetch_filing_document(self, filing: FilingRecord) -> str:
         """Fetch a filing's primary document as text.
 
@@ -439,3 +460,39 @@ class EdgarProvider:
 
     def close(self) -> None:
         self.client.close()
+
+
+def iter_bulk_companyfacts(archive_path: str, ciks: set[str] | None = None):
+    """Yield (cik, facts) from a bulk companyfacts archive.
+
+    Entries are named `CIK##########.json` and hold exactly the payload the
+    per-company endpoint returns, so the same parser handles both — the bulk
+    path is a different delivery mechanism, not a different format, and gets
+    no second implementation to drift.
+
+    `ciks` filters to the universe you care about without unpacking the rest.
+    """
+    import json
+    import zipfile
+
+    wanted = {c.zfill(10) for c in ciks} if ciks else None
+
+    with zipfile.ZipFile(archive_path) as archive:
+        for name in archive.namelist():
+            if not name.endswith(".json"):
+                continue
+            stem = pathlib.Path(name).stem  # CIK0000320193
+            cik = stem.upper().removeprefix("CIK").zfill(10)
+            if wanted is not None and cik not in wanted:
+                continue
+            try:
+                with archive.open(name) as handle:
+                    payload = json.load(handle)
+            except (json.JSONDecodeError, KeyError) as exc:
+                logger.warning("%s: unreadable bulk entry %s: %s", SOURCE_NAME, name, exc)
+                continue
+            try:
+                yield cik, parse_company_facts(payload, cik)
+            except ProviderError as exc:
+                # One malformed company must not abandon the other 10,000.
+                logger.warning("%s: skipping %s in bulk archive: %s", SOURCE_NAME, cik, exc)

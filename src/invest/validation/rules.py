@@ -64,6 +64,10 @@ class RuleContext:
     known_dates: set[date] = field(default_factory=set)
     #: obs_date -> {source: close} already stored, for cross-source comparison.
     existing_closes: dict[date, dict[str, Decimal]] = field(default_factory=dict)
+    #: obs_date -> {source: is_split_adjusted}. Two sources on different
+    #: adjustment bases legitimately disagree across a split, and calling that
+    #: a data conflict would bury the real ones.
+    existing_bases: dict[date, dict[str, bool | None]] = field(default_factory=dict)
     staleness_days: int | None = None
     expected_currency: str | None = None
 
@@ -217,20 +221,38 @@ def check_cross_source_agreement(bar: PriceBar, ctx: RuleContext) -> list[Findin
     if bar.close is None or bar.close == 0:
         return []
     others = ctx.existing_closes.get(bar.obs_date, {})
+    bases = ctx.existing_bases.get(bar.obs_date, {})
     findings: list[Finding] = []
+
     for other_source, other_close in others.items():
         if other_source == bar.source or other_close is None or other_close == 0:
             continue
         diff = abs(bar.close - other_close) / other_close
-        if diff > PRICE_DISAGREEMENT_TOLERANCE:
+        if diff <= PRICE_DISAGREEMENT_TOLERANCE:
+            continue
+
+        other_basis = bases.get(other_source)
+        basis_differs = (
+            bar.is_split_adjusted is not None
+            and other_basis is not None
+            and bar.is_split_adjusted != other_basis
+        )
+
+        if basis_differs:
+            # Not a data conflict. A split-adjusted series and a raw one are
+            # both correct and must differ before the split. Recording it as
+            # a disagreement would drown the genuine ones and depress
+            # confidence for a difference we fully expect.
             findings.append(
                 Finding(
-                    rule="cross_source_disagreement",
-                    conflict_type=ConflictType.CROSS_SOURCE_DISAGREEMENT,
-                    severity=Severity.WARNING,
+                    rule="adjustment_basis_mismatch",
+                    conflict_type=ConflictType.ADJUSTMENT_INCONSISTENCY,
+                    severity=Severity.INFO,
                     detail=(
-                        f"close differs from {other_source} by {diff:.2%} "
-                        f"(tolerance {PRICE_DISAGREEMENT_TOLERANCE:.2%})"
+                        f"differs from {other_source} by {diff:.2%}, but the two "
+                        f"series are on different adjustment bases "
+                        f"(split_adjusted={bar.is_split_adjusted} vs {other_basis}); "
+                        f"expected, not a conflict"
                     ),
                     obs_date=bar.obs_date,
                     metric_name="close",
@@ -241,6 +263,26 @@ def check_cross_source_agreement(bar: PriceBar, ctx: RuleContext) -> list[Findin
                     pct_difference=diff,
                 )
             )
+            continue
+
+        findings.append(
+            Finding(
+                rule="cross_source_disagreement",
+                conflict_type=ConflictType.CROSS_SOURCE_DISAGREEMENT,
+                severity=Severity.WARNING,
+                detail=(
+                    f"close differs from {other_source} by {diff:.2%} "
+                    f"(tolerance {PRICE_DISAGREEMENT_TOLERANCE:.2%})"
+                ),
+                obs_date=bar.obs_date,
+                metric_name="close",
+                source_a=bar.source,
+                value_a=bar.close,
+                source_b=other_source,
+                value_b=other_close,
+                pct_difference=diff,
+            )
+        )
     return findings
 
 

@@ -20,7 +20,10 @@ class Settings(BaseSettings):
     # No API key exists or is needed.
     edgar_user_agent: str = "invest-research-platform (set EDGAR_USER_AGENT in .env)"
 
-    # --- Macro / commodity data providers (free API keys) ---
+    # --- Price / macro providers (free API keys) ---
+    #: Second price source, enabling cross-source validation and delayed
+    #: intraday. https://www.alphavantage.co/support/#api-key
+    alphavantage_api_key: str | None = None
     fred_api_key: str | None = None
     eia_api_key: str | None = None
     bls_api_key: str | None = None

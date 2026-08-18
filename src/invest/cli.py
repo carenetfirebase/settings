@@ -358,6 +358,247 @@ def ingest_macro_cmd(
         raise typer.Exit(code=1)
 
 
+@app.command("quote")
+def quote_cmd(
+    ticker: str,
+    refresh: bool = typer.Option(False, help="Fetch a fresh quote before showing."),
+) -> None:
+    """Latest available price, with its true age stated.
+
+    No free source provides real-time consolidated quotes — exchanges license
+    that feed. What you get here is a delayed print, and the delay is shown.
+    """
+    from invest.ingest.intraday import ingest_latest_quote, latest_quote
+
+    with session_scope() as session:
+        try:
+            security = resolve(session, ticker)
+        except LookupError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=1) from exc
+
+        if refresh:
+            from invest.providers.alphavantage import AlphaVantageProvider
+
+            try:
+                provider = AlphaVantageProvider()
+            except ValueError as exc:
+                typer.echo(str(exc), err=True)
+                raise typer.Exit(code=1) from exc
+            try:
+                result = ingest_latest_quote(session, provider, security)
+                if not result.ok:
+                    typer.echo(f"Refresh failed: {result.error}", err=True)
+            finally:
+                provider.close()
+
+        quote = latest_quote(session, security.security_id)
+
+    if quote is None:
+        typer.echo(f"No intraday quote on file for {security.ticker}.")
+        typer.echo("INSUFFICIENT DATA — run `invest ingest intraday` or pass --refresh.")
+        raise typer.Exit(code=1)
+
+    typer.echo(f"{security.ticker}  {quote.price:,.2f}")
+    typer.echo(f"  observed   {quote.observed_at.isoformat()}")
+    typer.echo(f"  source     {quote.source}")
+    typer.echo(
+        f"  basis      {'REAL-TIME' if quote.is_realtime else f'DELAYED by {quote.delay_seconds // 60} min'}"
+    )
+    typer.echo(f"  age now    {quote.age_seconds // 60} min")
+    if not quote.is_realtime:
+        typer.echo(
+            "\nThis is not a live price. Free feeds are delayed because exchanges\n"
+            "license real-time data; treat it as indicative, never as executable."
+        )
+
+
+@ingest_app.command("intraday")
+def ingest_intraday_cmd(
+    tickers: list[str] = typer.Argument(None, help="Tickers; omit for the whole universe."),
+    interval: int = typer.Option(300, help="Bar interval in seconds (60/300/900/1800/3600)."),
+) -> None:
+    """Fetch delayed intraday bars from Alpha Vantage."""
+    from invest.ingest.intraday import ingest_intraday_for_security
+    from invest.providers.alphavantage import AlphaVantageProvider
+
+    try:
+        provider = AlphaVantageProvider()
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    failures = 0
+    try:
+        with session_scope() as session:
+            targets = tickers or list(
+                session.scalars(select(Security.ticker).order_by(Security.ticker))
+            )
+            for ticker in targets:
+                try:
+                    security = resolve(session, ticker)
+                except LookupError as exc:
+                    typer.echo(f"{ticker:<8} SKIPPED  {exc}", err=True)
+                    failures += 1
+                    continue
+                result = ingest_intraday_for_security(
+                    session, provider, security, interval_seconds=interval
+                )
+                if not result.ok:
+                    typer.echo(f"{ticker:<8} FAILED   {result.error}", err=True)
+                    failures += 1
+                    continue
+                typer.echo(
+                    f"{ticker:<8} +{result.written:<5} skipped={result.skipped} "
+                    f"quarantined={result.quarantined}  "
+                    f"({provider.quote_delay_seconds // 60}-min delayed feed)"
+                )
+    finally:
+        provider.close()
+
+    if failures:
+        typer.echo(f"\n{failures} ticker(s) failed.", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command("bootstrap")
+def bootstrap_cmd(
+    tickers: list[str] = typer.Argument(None, help="Limit to these tickers."),
+    skip_verify: bool = typer.Option(False, help="Skip the EDGAR CIK reconciliation."),
+    years: int = typer.Option(5, help="Years of price history to pull."),
+) -> None:
+    """Set up a working database from nothing: seed, verify, ingest, report.
+
+    Ordering is deliberate. CIK verification runs before any fundamentals are
+    fetched, because an unverified CIK would attach one company's financials
+    to another company's price history — and once written, that is tedious to
+    unpick.
+
+    Each stage reports and continues; a source being unreachable degrades the
+    result rather than aborting the run.
+    """
+    from datetime import date as _date
+    from datetime import timedelta
+
+    from invest.ingest.fundamentals import ingest_fundamentals_for_security
+    from invest.ingest.prices import ingest_prices_for_security
+    from invest.providers.stooq import StooqProvider
+
+    start = _date.today() - timedelta(days=365 * years)
+    step = 0
+
+    def announce(text: str) -> None:
+        nonlocal step
+        step += 1
+        typer.echo(f"\n[{step}] {text}")
+
+    # ---- seed --------------------------------------------------------
+    announce("Seeding the security master")
+    with session_scope() as session:
+        seeded = seed_universe(session)
+    typer.echo(f"    {len(seeded)} securities, CIKs flagged unverified_bootstrap")
+
+    # ---- verify ------------------------------------------------------
+    if skip_verify:
+        typer.echo(
+            "\n    WARNING: skipping CIK verification. Fundamentals may be "
+            "attached to the wrong company."
+        )
+    else:
+        announce("Verifying CIKs against SEC EDGAR")
+        from invest.providers.edgar import EdgarProvider
+        from invest.security_master import verify_ciks
+
+        try:
+            edgar = EdgarProvider()
+        except ValueError as exc:
+            typer.echo(f"    SKIPPED: {exc}", err=True)
+        else:
+            try:
+                authority = edgar.fetch_ticker_cik_map()
+                with session_scope() as session:
+                    results = verify_ciks(session, authority)
+                corrected = [r for r in results if r.status == "corrected"]
+                unconfirmed = [r for r in results if r.status == "missing_from_authority"]
+                typer.echo(
+                    f"    confirmed={len(results) - len(corrected) - len(unconfirmed)} "
+                    f"corrected={len(corrected)} unconfirmed={len(unconfirmed)}"
+                )
+                for r in corrected:
+                    typer.echo(f"    CORRECTED {r.ticker}: {r.seeded_cik} -> {r.authoritative_cik}")
+            except Exception as exc:  # noqa: BLE001 - a failed stage must
+                # degrade the bootstrap, not abort it: a later stage may still
+                # succeed, and the user gets a partial database plus the reason
+                # rather than a traceback and nothing.
+                typer.echo(f"    FAILED: {exc}", err=True)
+            finally:
+                edgar.close()
+
+    # ---- targets -----------------------------------------------------
+    with session_scope() as session:
+        targets = tickers or list(
+            session.scalars(select(Security.ticker).order_by(Security.ticker))
+        )
+
+    # ---- prices ------------------------------------------------------
+    announce(f"Ingesting {years}y of daily prices from Stooq")
+    stooq = StooqProvider()
+    written = failed = 0
+    try:
+        with session_scope() as session:
+            for ticker in targets:
+                try:
+                    security = resolve(session, ticker)
+                    result = ingest_prices_for_security(session, stooq, security, start=start)
+                    if result.ok:
+                        written += result.written
+                    else:
+                        failed += 1
+                except LookupError:
+                    failed += 1
+    finally:
+        stooq.close()
+    typer.echo(f"    {written:,} bars written, {failed} ticker(s) failed")
+
+    # ---- fundamentals ------------------------------------------------
+    announce("Ingesting XBRL fundamentals from SEC EDGAR")
+    from invest.providers.edgar import EdgarProvider
+
+    try:
+        edgar = EdgarProvider()
+    except ValueError as exc:
+        typer.echo(f"    SKIPPED: {exc}", err=True)
+    else:
+        facts = failed = 0
+        try:
+            with session_scope() as session:
+                for ticker in targets:
+                    try:
+                        security = resolve(session, ticker)
+                        result = ingest_fundamentals_for_security(session, edgar, security)
+                        if result.ok:
+                            facts += result.written
+                        else:
+                            failed += 1
+                    except LookupError:
+                        failed += 1
+        finally:
+            edgar.close()
+        typer.echo(f"    {facts:,} facts written, {failed} ticker(s) failed")
+
+    # ---- first report ------------------------------------------------
+    announce("Rendering a first report")
+    first = targets[0] if targets else None
+    if first:
+        typer.echo(f"    try: invest analyze {first}")
+
+    typer.echo("\nDone. Suggested next steps:")
+    typer.echo("    invest analyze <TICKER>       full research report")
+    typer.echo("    invest ingest filings         Form 4 insider activity")
+    typer.echo("    invest ingest macro           FRED series (needs FRED_API_KEY)")
+    typer.echo("    invest serve                  read-only API on 127.0.0.1:8000")
+
+
 @app.command("serve")
 def serve_cmd(
     host: str = typer.Option("127.0.0.1", help="Bind address. Keep this local."),

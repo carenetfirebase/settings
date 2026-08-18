@@ -279,3 +279,55 @@ def test_usability_matrix(outcome, usable) -> None:
     from invest.validation.gate import GateResult
 
     assert GateResult(outcome).is_usable is usable
+
+
+# --------------------------------------------------------------------------
+# Adjustment basis: a real difference that is not a conflict
+# --------------------------------------------------------------------------
+
+
+def test_different_adjustment_bases_are_not_a_conflict() -> None:
+    """Stooq is split-adjusted; Alpha Vantage's daily endpoint is raw. Across
+    a split they legitimately differ, and logging that as a data conflict
+    would bury the genuine ones and depress confidence for an expected gap.
+    """
+    context = ctx(
+        existing_closes={date(2026, 6, 12): {"stooq": Decimal("25.00")}},
+        existing_bases={date(2026, 6, 12): {"stooq": True}},
+    )
+    incoming = flat_bar(date(2026, 6, 12), "100.00", source="alphavantage")
+    incoming = PriceBar(**{**incoming.model_dump(), "is_split_adjusted": False})
+
+    findings = rules.check_cross_source_agreement(incoming, context)
+    assert len(findings) == 1
+    assert findings[0].rule == "adjustment_basis_mismatch"
+    assert findings[0].severity == Severity.INFO
+    assert "not a conflict" in findings[0].detail
+
+
+def test_same_basis_disagreement_is_still_a_conflict() -> None:
+    """The basis exemption must not become a blanket excuse."""
+    context = ctx(
+        existing_closes={date(2026, 6, 12): {"stooq": Decimal("120.00")}},
+        existing_bases={date(2026, 6, 12): {"stooq": True}},
+    )
+    incoming = flat_bar(date(2026, 6, 12), "100.00", source="alphavantage")
+    incoming = PriceBar(**{**incoming.model_dump(), "is_split_adjusted": True})
+
+    findings = rules.check_cross_source_agreement(incoming, context)
+    assert len(findings) == 1
+    assert findings[0].rule == "cross_source_disagreement"
+    assert findings[0].severity == Severity.WARNING
+
+
+def test_unknown_basis_falls_back_to_treating_it_as_a_conflict() -> None:
+    """When we cannot prove the difference is expected, flag it. Silence is
+    the wrong default for an unexplained gap.
+    """
+    context = ctx(
+        existing_closes={date(2026, 6, 12): {"other": Decimal("120.00")}},
+        existing_bases={date(2026, 6, 12): {"other": None}},
+    )
+    incoming = flat_bar(date(2026, 6, 12), "100.00", source="alphavantage")
+    findings = rules.check_cross_source_agreement(incoming, context)
+    assert findings[0].rule == "cross_source_disagreement"

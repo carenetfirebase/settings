@@ -15,8 +15,7 @@ models, valuation, scoring and reporting, Form 4 insider parsing, firewalled
 political disclosures, FRED macro with a regime classifier, and a
 point-in-time backtesting engine.
 
-Not built: the read-only FastAPI local API, which the original spec listed
-under the tech stack but never assigned a step.
+The read-only FastAPI local API from the spec's tech stack is also built.
 
 ## Setup
 
@@ -55,10 +54,26 @@ invest ingest political --file disclosures.csv   # firewalled, never a score inp
 invest disclosures AAPL     # congressional disclosures, research context only
 ```
 
+### The local API
+
+```bash
+invest serve                # http://127.0.0.1:8000, interactive docs at /docs
+```
+
+Read-only and unauthenticated, which is only safe because it is also local.
+Two things enforce that rather than assuming it: every route is a GET (a test
+enumerates the route table and fails on anything else), and every request runs
+inside a `SET TRANSACTION READ ONLY` transaction, so a bug in a handler cannot
+write. Binding a non-loopback address requires `--allow-public-bind`, because
+exposing it publishes your research database to whoever can reach the port.
+
+Every data endpoint takes `as_of`, so point-in-time is the default posture
+rather than something a caller must remember to ask for.
+
 ## Testing
 
 ```bash
-pytest                      # 520 tests
+pytest                      # 556 tests
 ```
 
 Tests that need a database use `TEST_DATABASE_URL` (default
@@ -79,8 +94,9 @@ src/invest/
   providers/          one adapter per source, all behind Protocols
   validation/         the single mandatory gate + its rules
   ingest/             provider -> gate -> database, per domain
-  engines/            quant, fundamentals, valuation, scoring
+  engines/            quant, fundamentals, valuation, scoring, regime, backtest
   reports/            the rendered research report
+  api/                read-only local FastAPI app
 ```
 
 Data flows one way: **provider -> validation gate -> database -> repository ->

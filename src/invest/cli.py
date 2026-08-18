@@ -358,6 +358,47 @@ def ingest_macro_cmd(
         raise typer.Exit(code=1)
 
 
+@app.command("serve")
+def serve_cmd(
+    host: str = typer.Option("127.0.0.1", help="Bind address. Keep this local."),
+    port: int = typer.Option(8000, help="Port."),
+    reload: bool = typer.Option(False, help="Auto-reload on code changes."),
+    allow_public_bind: bool = typer.Option(
+        False,
+        "--allow-public-bind",
+        help="Required to bind a non-loopback address. Read the warning first.",
+    ),
+) -> None:
+    """Serve the read-only research API on localhost.
+
+    The API has no authentication, because it is meant for one person on one
+    machine. Binding it to a public interface publishes your research database
+    to anyone who can reach the port, so that requires an explicit flag.
+    """
+    import uvicorn
+
+    loopback = host in ("127.0.0.1", "localhost", "::1")
+    if not loopback and not allow_public_bind:
+        typer.echo(
+            f"Refusing to bind {host}: this API is unauthenticated.\n"
+            f"Anyone who can reach that address could read your entire research\n"
+            f"database. Bind 127.0.0.1, or pass --allow-public-bind if you have\n"
+            f"put authentication in front of it yourself.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    if not loopback:
+        typer.echo(
+            f"WARNING: binding {host} with no authentication. Anyone who can reach\n"
+            f"this address can read everything in the database.",
+            err=True,
+        )
+
+    typer.echo(f"Read-only API on http://{host}:{port}   (docs at /docs)")
+    uvicorn.run("invest.api.app:app", host=host, port=port, reload=reload)
+
+
 @app.command("backtest")
 def backtest_cmd(
     ticker: str,

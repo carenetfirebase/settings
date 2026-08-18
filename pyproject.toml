@@ -38,3 +38,14 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+
+[tool.ruff.lint]
+ignore = [
+  # typer's documented idiom is a call in the argument default.
+  "B008",
+  # This system reasons in calendar dates (trading days, filing dates), not
+  # instants. Attaching a timezone to a settlement date would imply a precision
+  # the source data does not have.
+  "DTZ007",
+  "DTZ011",
+]

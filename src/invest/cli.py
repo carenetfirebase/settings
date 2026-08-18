@@ -14,8 +14,10 @@ from invest.security_master import resolve, seed_universe
 app = typer.Typer(help="Zero-cost, institutional-style investment research platform.")
 db_app = typer.Typer(help="Database utilities.")
 universe_app = typer.Typer(help="Security master / research universe.")
+ingest_app = typer.Typer(help="Data ingestion (provider -> validation gate -> database).")
 app.add_typer(db_app, name="db")
 app.add_typer(universe_app, name="universe")
+app.add_typer(ingest_app, name="ingest")
 
 
 @app.command()
@@ -85,6 +87,84 @@ def universe_resolve(ticker: str) -> None:
         typer.echo(f"name         {r.name}")
         typer.echo(f"stooq_symbol {r.stooq_symbol}")
         typer.echo(f"is_financial {r.is_financial}")
+
+
+@ingest_app.command("prices")
+def ingest_prices_cmd(
+    tickers: list[str] = typer.Argument(None, help="Tickers; omit for the whole universe."),
+    start: str | None = typer.Option(None, help="ISO start date, e.g. 2020-01-01."),
+    end: str | None = typer.Option(None, help="ISO end date."),
+) -> None:
+    """Fetch daily OHLCV from Stooq through the validation gate."""
+    from datetime import date as _date
+
+    from invest.ingest.prices import ingest_prices_for_security
+    from invest.providers.stooq import StooqProvider
+
+    start_date = _date.fromisoformat(start) if start else None
+    end_date = _date.fromisoformat(end) if end else None
+
+    provider = StooqProvider()
+    try:
+        with session_scope() as session:
+            if not tickers:
+                targets = list(session.scalars(select(Security.ticker).order_by(Security.ticker)))
+                if not targets:
+                    typer.echo("Universe is empty. Run `invest universe seed`.", err=True)
+                    raise typer.Exit(code=1)
+            else:
+                targets = tickers
+
+            failures = 0
+            for ticker in targets:
+                try:
+                    security = resolve(session, ticker)
+                except LookupError as exc:
+                    typer.echo(f"{ticker:<8} SKIPPED  {exc}", err=True)
+                    failures += 1
+                    continue
+
+                result = ingest_prices_for_security(
+                    session, provider, security, start=start_date, end=end_date
+                )
+                if not result.ok:
+                    typer.echo(f"{ticker:<8} FAILED   {result.error}", err=True)
+                    failures += 1
+                    continue
+
+                r = result.report
+                typer.echo(
+                    f"{ticker:<8} wrote {result.written:<6} "
+                    f"accepted={r.accepted} flagged={r.flagged} "
+                    f"quarantined={r.quarantined} skipped={r.skipped} "
+                    f"conflicts={r.conflict_count}"
+                )
+    finally:
+        provider.close()
+
+    if failures:
+        typer.echo(f"\n{failures} ticker(s) failed.", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command("conflicts")
+def show_conflicts(limit: int = typer.Option(20, help="Rows to show.")) -> None:
+    """Recent validation-gate findings — nothing is dropped silently."""
+    from invest.db.models import DataConflict
+
+    with session_scope() as session:
+        rows = session.scalars(
+            select(DataConflict).order_by(DataConflict.detected_at.desc()).limit(limit)
+        ).all()
+        if not rows:
+            typer.echo("No conflicts recorded.")
+            return
+        typer.echo(f"{'SEVERITY':<10} {'TYPE':<30} {'DATE':<12} DETAIL")
+        for c in rows:
+            typer.echo(
+                f"{c.severity:<10} {c.conflict_type:<30} "
+                f"{c.obs_date or '-'!s:<12} {(c.detail or '')[:80]}"
+            )
 
 
 @db_app.command("stats")

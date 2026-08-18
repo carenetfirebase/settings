@@ -235,6 +235,82 @@ def universe_verify() -> None:
     typer.echo("\n" + ", ".join(f"{k}={v}" for k, v in sorted(by_status.items())))
 
 
+@app.command("analyze")
+def analyze_cmd(
+    ticker: str,
+    as_of: str | None = typer.Option(None, help="Point-in-time cutoff (ISO date)."),
+    save: bool = typer.Option(True, help="Write an immutable research snapshot."),
+    output: str | None = typer.Option(None, help="Also write the report to this file."),
+) -> None:
+    """Score a security and render its research report."""
+    from datetime import date as _date
+
+    from invest.analysis import analyze, save_snapshot
+
+    cutoff = _date.fromisoformat(as_of) if as_of else None
+
+    with session_scope() as session:
+        try:
+            result = analyze(session, ticker, as_of=cutoff)
+        except LookupError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=1) from exc
+
+        typer.echo(result.report_text)
+
+        if save:
+            snapshot = save_snapshot(session, result)
+            session.flush()
+            typer.echo(f"Snapshot {snapshot.id} saved (immutable).")
+
+        if output:
+            from pathlib import Path
+
+            Path(output).write_text(result.report_text)
+            typer.echo(f"Report written to {output}")
+
+
+@app.command("snapshots")
+def snapshots_cmd(
+    ticker: str | None = typer.Argument(None, help="Filter to one ticker."),
+    limit: int = typer.Option(20, help="Rows to show."),
+) -> None:
+    """List stored research snapshots."""
+    from invest.db.models import ResearchSnapshot
+
+    with session_scope() as session:
+        stmt = (
+            select(ResearchSnapshot, Security.ticker)
+            .join(Security, ResearchSnapshot.security_id == Security.id)
+            .order_by(ResearchSnapshot.created_at.desc())
+            .limit(limit)
+        )
+        if ticker:
+            stmt = stmt.where(Security.ticker == ticker.upper())
+        rows = session.execute(stmt).all()
+
+        if not rows:
+            typer.echo("No snapshots stored.")
+            return
+
+        typer.echo(
+            f"{'ID':<6} {'TICKER':<8} {'AS OF':<12} {'MODEL':<14} "
+            f"{'QUALITY':>8} {'SETUP':>8} {'CONF':>8}"
+        )
+        for snapshot, snapshot_ticker in rows:
+
+            def fmt(value):
+                return "  n/a" if value is None else f"{float(value):.1f}"
+
+            typer.echo(
+                f"{snapshot.id:<6} {snapshot_ticker:<8} "
+                f"{snapshot.as_of_date.isoformat():<12} {snapshot.model_version:<14} "
+                f"{fmt(snapshot.investment_quality_score):>8} "
+                f"{fmt(snapshot.trade_setup_score):>8} "
+                f"{fmt(snapshot.confidence_score):>8}"
+            )
+
+
 @app.command("conflicts")
 def show_conflicts(limit: int = typer.Option(20, help="Rows to show.")) -> None:
     """Recent validation-gate findings — nothing is dropped silently."""

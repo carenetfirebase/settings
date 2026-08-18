@@ -15,7 +15,12 @@ if config.config_file_name is not None:
 # autogenerate can see them.
 target_metadata = Base.metadata
 
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+# A URL set programmatically (by the test harness, or by a caller driving
+# Alembic through its Python API) wins. Otherwise fall back to app config.
+# Without this precedence, `command.upgrade()` would silently migrate whatever
+# DATABASE_URL points at instead of the database the caller asked for.
+if not config.get_main_option("sqlalchemy.url", None):
+    config.set_main_option("sqlalchemy.url", get_settings().database_url)
 
 
 def run_migrations_offline() -> None:

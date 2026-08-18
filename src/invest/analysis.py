@@ -45,11 +45,13 @@ from invest.engines.valuation import (
     reverse_dcf,
     scenario_dcf,
 )
+from invest.providers.form4 import InsiderSummary
 from invest.reports.research_report import render_report
 from invest.repository import (
     FundamentalPoint,
     get_close_series,
     get_fundamental_series,
+    get_insider_transactions,
     get_price_frame,
     latest_price,
     shares_outstanding,
@@ -303,6 +305,14 @@ def analyze(
             benchmark = get_close_series(session, benchmark_security_id, as_of=as_of)
             setup_inputs.relative_strength = quant.relative_strength(prices, benchmark)
 
+    # ---- Insider conviction --------------------------------------------
+    # Filtered on filed_date, so a trade the market did not yet know about
+    # cannot influence a point-in-time score.
+    insider_records = get_insider_transactions(session, security.entity_id, as_of=as_of)
+    insider_summary = InsiderSummary(insider_records)
+    setup_inputs.insider_net_buy_ratio = insider_summary.net_buy_ratio
+    setup_inputs.insider_transaction_count = insider_summary.transaction_count
+
     # ---- Data quality --------------------------------------------------
     conflict_count = (
         session.scalar(
@@ -398,6 +408,7 @@ def analyze(
         scenarios=scenarios,
         reverse=reverse,
         historical_growth=fcf_cagr,
+        insider_summary=insider_summary.as_dict(),
     )
 
     # Exactly what fed the scores, for reproducibility.
@@ -421,6 +432,7 @@ def analyze(
         "beta": beta_estimate,
         "conflict_count": conflict_count,
         "critical_conflict_count": critical_conflicts,
+        "insider": insider_summary.as_dict(),
     }
 
     components_json = {

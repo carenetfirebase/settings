@@ -197,6 +197,142 @@ def ingest_fundamentals_cmd(
         raise typer.Exit(code=1)
 
 
+@ingest_app.command("filings")
+def ingest_filings_cmd(
+    tickers: list[str] = typer.Argument(None, help="Tickers; omit for the whole universe."),
+    insider: bool = typer.Option(True, help="Also fetch and parse Form 4 filings."),
+    limit: int = typer.Option(50, help="Max Form 4 documents per company."),
+) -> None:
+    """Index SEC filings and parse insider (Form 4) transactions."""
+    from invest.ingest.filings import ingest_filings_for_security, ingest_insider_for_security
+    from invest.providers.edgar import EdgarProvider
+
+    try:
+        provider = EdgarProvider()
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    failures = 0
+    try:
+        with session_scope() as session:
+            targets = tickers or list(
+                session.scalars(select(Security.ticker).order_by(Security.ticker))
+            )
+            if not targets:
+                typer.echo("Universe is empty. Run `invest universe seed`.", err=True)
+                raise typer.Exit(code=1)
+
+            for ticker in targets:
+                try:
+                    security = resolve(session, ticker)
+                except LookupError as exc:
+                    typer.echo(f"{ticker:<8} SKIPPED  {exc}", err=True)
+                    failures += 1
+                    continue
+
+                filings_result = ingest_filings_for_security(session, provider, security)
+                if not filings_result.ok:
+                    typer.echo(f"{ticker:<8} FAILED   {filings_result.error}", err=True)
+                    failures += 1
+                    continue
+
+                line = (
+                    f"{ticker:<8} filings +{filings_result.filings_written} "
+                    f"(skipped {filings_result.filings_skipped})"
+                )
+
+                if insider:
+                    insider_result = ingest_insider_for_security(
+                        session, provider, security, limit=limit
+                    )
+                    if not insider_result.ok:
+                        typer.echo(f"{line}  form4 FAILED {insider_result.error}", err=True)
+                        failures += 1
+                        continue
+                    line += (
+                        f"  form4 +{insider_result.insider_written} "
+                        f"(skipped {insider_result.insider_skipped})"
+                    )
+                typer.echo(line)
+    finally:
+        provider.close()
+
+    if failures:
+        typer.echo(f"\n{failures} ticker(s) failed.", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command("insider")
+def insider_cmd(
+    ticker: str,
+    as_of: str | None = typer.Option(None, help="Point-in-time cutoff (ISO date)."),
+    lookback: int = typer.Option(180, help="Days of history to summarise."),
+) -> None:
+    """Show insider activity, separating conviction trades from compensation."""
+    from datetime import date as _date
+
+    from invest.providers.form4 import InsiderSummary, describe_code, is_discretionary
+    from invest.repository import get_insider_transactions
+
+    cutoff = _date.fromisoformat(as_of) if as_of else _date.today()
+
+    with session_scope() as session:
+        try:
+            security = resolve(session, ticker)
+        except LookupError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=1) from exc
+
+        records = get_insider_transactions(
+            session, security.entity_id, as_of=cutoff, lookback_days=lookback
+        )
+
+    if not records:
+        typer.echo(
+            f"No insider transactions on file for {security.ticker} "
+            f"in the {lookback} days to {cutoff}."
+        )
+        typer.echo("INSUFFICIENT DATA — run `invest ingest filings` first.")
+        return
+
+    summary = InsiderSummary(records)
+    typer.echo(f"{security.ticker} insider activity through {cutoff} ({lookback}-day window)\n")
+    typer.echo(
+        f"{'FILED':<12} {'TRADED':<12} {'LAG':>4} {'CODE':<5} {'DIR':<4} "
+        f"{'SHARES':>12} {'PRICE':>10}  INSIDER / MEANING"
+    )
+    for r in sorted(records, key=lambda r: r.filed_date, reverse=True):
+        lag = (r.filed_date - r.transaction_date).days
+        marker = "*" if is_discretionary(r.transaction_code) else " "
+        shares = "-" if r.shares is None else f"{float(r.shares):,.0f}"
+        price = "-" if r.price_per_share is None else f"{float(r.price_per_share):,.2f}"
+        typer.echo(
+            f"{r.filed_date.isoformat():<12} {r.transaction_date.isoformat():<12} "
+            f"{lag:>4} {marker}{(r.transaction_code or '?'):<4} "
+            f"{(r.acquired_disposed or '-'):<4} {shares:>12} {price:>10}  "
+            f"{r.insider_name} — {describe_code(r.transaction_code)}"
+        )
+
+    typer.echo(
+        f"\n* = discretionary open-market trade. "
+        f"{summary.transaction_count} of {len(records)} filings qualify."
+    )
+    ratio = summary.net_buy_ratio
+    typer.echo(
+        "Net conviction: "
+        + ("INSUFFICIENT DATA (no discretionary trades)" if ratio is None else f"{ratio:+.2f}")
+    )
+    typer.echo(
+        f"Bought ${summary.buy_value:,.0f} / sold ${summary.sell_value:,.0f} "
+        f"(priced trades only)"
+    )
+    typer.echo(
+        "\nLAG is days between the trade and its disclosure. Only the filing "
+        "date is used for point-in-time scoring."
+    )
+
+
 @universe_app.command("verify")
 def universe_verify() -> None:
     """Reconcile seeded CIKs against SEC EDGAR's company_tickers.json.

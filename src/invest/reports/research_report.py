@@ -311,6 +311,44 @@ def render_comparables(result: ComparablesResult | None) -> str:
     return "\n".join(lines)
 
 
+def render_insider(summary: dict | None) -> str:
+    """Insider activity, with conviction trades separated from compensation.
+
+    The distinction is the whole point: a page of option exercises tells you
+    nothing about what insiders think of the price, and presenting it as
+    "insider buying" would be actively misleading.
+    """
+    lines = [_subheading("Insider activity (Form 4)")]
+    if not summary or not summary.get("total_filings"):
+        lines.append(f"  {INSUFFICIENT} — no Form 4 filings ingested")
+        return "\n".join(lines)
+
+    discretionary = summary.get("transaction_count", 0)
+    lines.append(f"  Filings in window          {summary['total_filings']}")
+    lines.append(f"  Discretionary trades       {discretionary}")
+    lines.append(
+        f"  Non-discretionary          {summary['total_filings'] - discretionary}"
+        "   (grants, exercises, tax withholding — not a view on price)"
+    )
+    lines.append("")
+    lines.append(f"  Open-market buys           {summary.get('buys', 0)}")
+    lines.append(f"  Open-market sells          {summary.get('sells', 0)}")
+    lines.append(f"  Value bought               {fmt_money(summary.get('buy_value'))}")
+    lines.append(f"  Value sold                 {fmt_money(summary.get('sell_value'))}")
+    lines.append("")
+
+    ratio = summary.get("net_buy_ratio")
+    if ratio is None:
+        lines.append(f"  Net conviction             {INSUFFICIENT} (no discretionary trades)")
+    else:
+        lines.append(f"  Net conviction             {ratio:+.2f}  (-1 = all selling, +1 = all buying)")
+        lines.append(
+            "  Sales are weighted at half a purchase: insiders sell for tax,\n"
+            "  diversification and liquidity, but buy for one reason."
+        )
+    return "\n".join(lines)
+
+
 def render_header(
     *,
     ticker: str,
@@ -379,6 +417,7 @@ def render_report(
     reverse: ReverseDcfResult | None = None,
     comparables_result: ComparablesResult | None = None,
     historical_growth: float | None = None,
+    insider_summary: dict | None = None,
 ) -> str:
     """Assemble the full report."""
     sections = [
@@ -403,6 +442,8 @@ def render_report(
         _heading("Valuation"),
         render_valuation(scenarios, reverse, historical_growth),
         render_comparables(comparables_result),
+        _heading("Insider activity"),
+        render_insider(insider_summary),
         render_footer(scores),
     ]
     return "\n".join(sections) + "\n"

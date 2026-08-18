@@ -37,7 +37,13 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from invest.providers.base import FilingRecord, FundamentalFact, ProviderError
+from invest.providers.base import (
+    FilingRecord,
+    FundamentalFact,
+    InsiderTransactionRecord,
+    ProviderError,
+)
+from invest.providers.form4 import parse_form4
 from invest.providers.http import HttpClient
 
 logger = logging.getLogger(__name__)
@@ -380,6 +386,56 @@ class EdgarProvider:
             wanted = {f.upper() for f in forms}
             records = [r for r in records if r.form_type.upper() in wanted]
         return records
+
+    def fetch_form4_documents(self, cik: str, *, limit: int = 50) -> list[InsiderTransactionRecord]:
+        """Fetch and parse recent Form 4 filings for an issuer.
+
+        One request per filing, so this is the most rate-limit-hungry call in
+        the system — hence `limit`, and hence the 8 rps token bucket. The
+        filing index gives us the accession number and the authoritative filed
+        date; the document itself gives us the transactions.
+        """
+        records: list[InsiderTransactionRecord] = []
+        for filing in self.fetch_filings(cik, forms=["4"])[:limit]:
+            try:
+                xml_text = self.fetch_filing_document(filing)
+            except ProviderError as exc:
+                # One unreadable filing must not abandon the rest of the batch.
+                logger.warning(
+                    "%s: could not fetch Form 4 %s: %s", SOURCE_NAME, filing.accession_number, exc
+                )
+                continue
+            try:
+                records.extend(
+                    parse_form4(
+                        xml_text,
+                        filed_date=filing.filed_date,
+                        accession_number=filing.accession_number,
+                    )
+                )
+            except ProviderError as exc:
+                logger.warning(
+                    "%s: could not parse Form 4 %s: %s", SOURCE_NAME, filing.accession_number, exc
+                )
+        return records
+
+    def fetch_filing_document(self, filing: FilingRecord) -> str:
+        """Fetch a filing's primary document as text.
+
+        Form 4 primary documents are XML. EDGAR sometimes lists the rendered
+        HTML wrapper as primary instead, so fall back to the canonical
+        `<accession>.txt` submission when the primary is not XML.
+        """
+        url = filing.primary_doc_url
+        if url and url.lower().endswith(".xml"):
+            return self.client.get(url).text
+
+        naked = filing.accession_number.replace("-", "")
+        fallback = (
+            f"https://www.sec.gov/Archives/edgar/data/{int(filing.cik)}/{naked}/"
+            f"{filing.accession_number}.txt"
+        )
+        return self.client.get(fallback).text
 
     def close(self) -> None:
         self.client.close()

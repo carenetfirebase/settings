@@ -397,3 +397,109 @@ def test_money_formatting_hand_checked() -> None:
     assert fmt_money(1_500_000_000) == "$1.50B"
     assert fmt_money(2_400_000) == "$2.40M"
     assert fmt_money(-3_000_000_000) == "$-3.00B"
+
+
+# --------------------------------------------------------------------------
+# Insider conviction reaching the Trade Setup score (step 9)
+# --------------------------------------------------------------------------
+
+
+def test_insider_buying_lifts_the_trade_setup_score(db_session, aapl) -> None:
+    """The insider_conviction component is 20% of Trade Setup, and reported
+    unavailable until Form 4 data exists.
+    """
+    from invest.db.models import InsiderTransaction
+
+    add_prices(db_session, aapl.security_id)
+    db_session.commit()
+
+    before = analyze(db_session, "AAPL", as_of=AS_OF)
+    component = next(
+        c for c in before.scores.setup.components if c.name == "insider_conviction"
+    )
+    assert component.value is None
+    assert "no Form 4 data" in component.unavailable_reason
+
+    for i in range(3):
+        db_session.add(
+            InsiderTransaction(
+                entity_id=aapl.entity_id,
+                security_id=aapl.security_id,
+                insider_name=f"Officer {i}",
+                insider_cik=f"000123456{i}",
+                is_officer=True,
+                transaction_date=AS_OF - timedelta(days=20),
+                filed_date=AS_OF - timedelta(days=18),
+                transaction_code="P",
+                acquired_disposed="A",
+                shares=1000,
+                price_per_share=120,
+                accession_number=f"acc-{i}",
+                source="sec_edgar",
+            )
+        )
+    db_session.commit()
+
+    after = analyze(db_session, "AAPL", as_of=AS_OF)
+    component = next(
+        c for c in after.scores.setup.components if c.name == "insider_conviction"
+    )
+    assert component.value == pytest.approx(100.0)
+    assert after.scores.setup.value > before.scores.setup.value
+    assert after.scores.setup.coverage > before.scores.setup.coverage
+
+
+def test_option_grants_do_not_register_as_conviction(db_session, aapl) -> None:
+    """A scheduled equity award is not a view on the price."""
+    from invest.db.models import InsiderTransaction
+
+    add_prices(db_session, aapl.security_id)
+    db_session.add(
+        InsiderTransaction(
+            entity_id=aapl.entity_id,
+            security_id=aapl.security_id,
+            insider_name="Officer A",
+            transaction_date=AS_OF - timedelta(days=20),
+            filed_date=AS_OF - timedelta(days=18),
+            transaction_code="A",  # grant/award
+            acquired_disposed="A",
+            shares=50000,
+            accession_number="grant-1",
+            source="sec_edgar",
+        )
+    )
+    db_session.commit()
+
+    result = analyze(db_session, "AAPL", as_of=AS_OF)
+    component = next(
+        c for c in result.scores.setup.components if c.name == "insider_conviction"
+    )
+    assert component.value is None
+    assert result.inputs_json["insider"]["total_filings"] == 1
+    assert result.inputs_json["insider"]["transaction_count"] == 0
+
+
+def test_insider_trade_not_yet_filed_is_invisible_to_the_score(db_session, aapl) -> None:
+    """Point-in-time: the two-business-day filing lag must be respected."""
+    from invest.db.models import InsiderTransaction
+
+    add_prices(db_session, aapl.security_id)
+    db_session.add(
+        InsiderTransaction(
+            entity_id=aapl.entity_id,
+            security_id=aapl.security_id,
+            insider_name="Officer A",
+            transaction_date=AS_OF - timedelta(days=2),
+            filed_date=AS_OF + timedelta(days=1),  # filed tomorrow
+            transaction_code="P",
+            acquired_disposed="A",
+            shares=1000,
+            price_per_share=120,
+            accession_number="pending-1",
+            source="sec_edgar",
+        )
+    )
+    db_session.commit()
+
+    result = analyze(db_session, "AAPL", as_of=AS_OF)
+    assert result.inputs_json["insider"]["total_filings"] == 0

@@ -322,6 +322,81 @@ def market_cap(
     return price[1] * shares
 
 
+def get_insider_transactions(
+    session: Session,
+    entity_id: int,
+    *,
+    as_of: date | None = None,
+    lookback_days: int = 180,
+) -> list:
+    """Insider transactions visible at `as_of`, as provider records.
+
+    Filtered on `filed_date`, never `transaction_date`: an insider has two
+    business days to file, so a trade dated the 1st may not have been public
+    until the 3rd. Filtering on the transaction date would let a backtest act
+    on information nobody had yet.
+
+    Returns provider-shaped records so `form4.InsiderSummary` can consume them
+    without the aggregation logic needing to know about the ORM.
+    """
+    from datetime import timedelta
+
+    from invest.db.models import InsiderTransaction
+    from invest.providers.base import InsiderTransactionRecord
+
+    stmt = select(InsiderTransaction).where(InsiderTransaction.entity_id == entity_id)
+    stmt = _usable(stmt, InsiderTransaction.data_quality_flag)
+    if as_of is not None:
+        stmt = stmt.where(InsiderTransaction.filed_date <= as_of)
+        stmt = stmt.where(InsiderTransaction.filed_date >= as_of - timedelta(days=lookback_days))
+    stmt = stmt.order_by(InsiderTransaction.filed_date)
+
+    records = []
+    for row in session.scalars(stmt).all():
+        records.append(
+            InsiderTransactionRecord(
+                cik=str(entity_id),
+                insider_name=row.insider_name,
+                insider_cik=row.insider_cik,
+                is_director=row.is_director,
+                is_officer=row.is_officer,
+                is_ten_pct_owner=row.is_ten_pct_owner,
+                officer_title=row.officer_title,
+                transaction_date=row.transaction_date,
+                filed_date=row.filed_date,
+                transaction_code=row.transaction_code,
+                acquired_disposed=row.acquired_disposed,
+                shares=row.shares,
+                price_per_share=row.price_per_share,
+                shares_owned_after=row.shares_owned_after,
+                is_derivative=row.is_derivative,
+                accession_number=row.accession_number,
+                source=row.source,
+            )
+        )
+    return records
+
+
+def get_recent_filings(
+    session: Session,
+    entity_id: int,
+    *,
+    as_of: date | None = None,
+    forms: list[str] | None = None,
+    limit: int = 20,
+) -> list:
+    """Filing index entries visible at `as_of`, newest first."""
+    from invest.db.models import Filing
+
+    stmt = select(Filing).where(Filing.entity_id == entity_id)
+    if as_of is not None:
+        stmt = stmt.where(Filing.filed_date <= as_of)
+    if forms:
+        stmt = stmt.where(Filing.form_type.in_(forms))
+    stmt = stmt.order_by(Filing.filed_date.desc()).limit(limit)
+    return list(session.scalars(stmt).all())
+
+
 def security_currency(session: Session, security_id: int) -> str:
     sec = session.get(Security, security_id)
     return sec.currency if sec else "USD"

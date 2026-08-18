@@ -515,3 +515,37 @@ def test_margin_requires_positive_revenue() -> None:
 def test_negative_margin_is_allowed() -> None:
     """Loss-making companies are real."""
     assert margin(-25, 100) == pytest.approx(-0.25)
+
+
+def test_near_zero_volatility_does_not_produce_an_absurd_sharpe() -> None:
+    """A perfectly smooth compounding series leaves float noise around 1e-16
+    in its returns. Dividing by that yields a Sharpe in the millions, which is
+    a degenerate input rather than a spectacular strategy — and reporting it
+    would be worse than reporting nothing.
+    """
+    smooth = series([100 * (1.0008**i) for i in range(400)])
+    returns = simple_returns(smooth)
+
+    # The noise is real but negligible — measured at ~5.7e-9 for this series.
+    assert 0 < float(returns.std(ddof=1)) < 1e-6
+
+    assert sharpe_ratio(returns) is None
+    assert sortino_ratio(returns) is None
+    assert volatility(returns) == pytest.approx(0.0)
+
+
+def test_exactly_constant_prices_also_give_no_ratio() -> None:
+    flat = series([100.0] * 400)
+    returns = simple_returns(flat)
+    assert volatility(returns) == pytest.approx(0.0)
+    assert sharpe_ratio(returns) is None
+
+
+def test_a_real_volatility_series_still_produces_a_ratio() -> None:
+    """The guard must not suppress genuine results."""
+    rng = np.random.default_rng(31)
+    prices = series(list(100 * np.cumprod(1 + rng.normal(0.0005, 0.01, 400))))
+    returns = simple_returns(prices)
+    assert volatility(returns) > 0.05
+    assert sharpe_ratio(returns) is not None
+    assert abs(sharpe_ratio(returns)) < 100

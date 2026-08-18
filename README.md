@@ -9,12 +9,14 @@ anywhere in the calculation path.
 
 ## Status
 
-Steps 1-8 of the build order are complete: schema, security master, price and
-fundamentals ingestion, validation gate, quant engine, fundamental models,
-valuation, scoring, and the rendered research report.
+**All 12 steps of the build order are complete.** Schema, security master,
+price and fundamentals ingestion, validation gate, quant engine, fundamental
+models, valuation, scoring and reporting, Form 4 insider parsing, firewalled
+political disclosures, FRED macro with a regime classifier, and a
+point-in-time backtesting engine.
 
-Not yet built (steps 9-12): filings watcher and Form 4 parsing, political trade
-ingestion, FRED macro and regime classification, and the backtesting engine.
+Not built: the read-only FastAPI local API, which the original spec listed
+under the tech stack but never assigned a step.
 
 ## Setup
 
@@ -40,10 +42,23 @@ invest conflicts            # what the validation gate flagged
 invest snapshots            # stored research runs
 ```
 
+More:
+
+```bash
+invest ingest filings       # SEC filing index + Form 4 insider transactions
+invest insider AAPL         # insider activity, conviction trades separated from grants
+invest ingest macro         # FRED series (needs FRED_API_KEY)
+invest regime               # market regime from macro data
+invest backtest AAPL --fast 50 --slow 200   # point-in-time backtest with costs
+
+invest ingest political --file disclosures.csv   # firewalled, never a score input
+invest disclosures AAPL     # congressional disclosures, research context only
+```
+
 ## Testing
 
 ```bash
-pytest                      # 337 tests
+pytest                      # 520 tests
 ```
 
 Tests that need a database use `TEST_DATABASE_URL` (default
@@ -103,6 +118,17 @@ These are enforced by code and tests, not by convention:
   for it.
 - WACC is modelled from CAPM assumptions and always labelled `estimated`.
 - Comparables need a peer group supplied; peer selection is not automated.
+- **Most signals cannot be honestly backtested here, and the engine refuses
+  rather than pretending.** There is no survivorship-bias-free universe
+  history on free sources, so any cross-sectional or multi-name backtest is
+  refused outright with `THIS SIGNAL CANNOT YET BE RELIABLY BACKTESTED WITH
+  THE AVAILABLE FREE DATA.` Single-name price and fundamental signals do run,
+  and still carry a survivorship caveat in every report.
+- Backtest spread and slippage are assumptions, not measurements. V1 has no
+  quote or fill data, so the defaults are deliberately pessimistic.
+- Political disclosures require a structured CSV export. The official sources
+  publish PDFs and a search UI, and parsing transaction tables out of
+  variable-layout PDFs would risk writing a plausible-looking wrong number.
 - Live ingestion has not been exercised against the real Stooq and SEC
   endpoints from the development sandbox, whose egress policy blocks them. The
   parsers are tested against fixtures; run `invest ingest prices AAPL` on your

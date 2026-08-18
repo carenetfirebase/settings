@@ -31,6 +31,22 @@ MIN_OBS_FOR_VOLATILITY = 20
 MIN_OBS_FOR_BETA = 60
 MIN_OBS_FOR_RATIO = 30
 
+#: Per-period return dispersion below this is treated as zero.
+#:
+#: Guarding only against sigma == 0.0 is not enough. A synthetic or stale
+#: series — a price repeated day after day, or a perfectly smooth compounding
+#: curve — produces float noise rather than an exact zero. A measured case:
+#: a smooth 0.08%/day series left a return standard deviation of 5.7e-9, which
+#: divided into a Sharpe ratio of 2.2 MILLION. That is not a spectacular
+#: strategy, it is a degenerate input, and printing it would be worse than
+#: printing nothing.
+#:
+#: Real daily equity returns have a standard deviation around 1e-2. Even the
+#: quietest tradable instrument is nowhere near 1e-6, so this threshold sits
+#: four orders of magnitude below anything a market produces while still
+#: catching float noise several orders of magnitude below itself.
+MIN_RETURN_DISPERSION = 1e-6
+
 
 def _clean(series: pd.Series) -> pd.Series:
     """Drop NaNs and sort by index. Never fills gaps — an interpolated price
@@ -122,6 +138,8 @@ def volatility(
     sigma = float(returns.std(ddof=1))
     if math.isnan(sigma):
         return None
+    if sigma < MIN_RETURN_DISPERSION:
+        sigma = 0.0
     return sigma * math.sqrt(TRADING_DAYS_PER_YEAR) if annualize else sigma
 
 
@@ -210,7 +228,8 @@ def sharpe_ratio(
     per_period_rf = risk_free_rate / TRADING_DAYS_PER_YEAR
     excess = returns - per_period_rf
     sigma = float(excess.std(ddof=1))
-    if sigma == 0 or math.isnan(sigma):
+    if sigma < MIN_RETURN_DISPERSION or math.isnan(sigma):
+        # Degenerate input, not an outstanding strategy.
         return None
     return float(excess.mean() / sigma * math.sqrt(TRADING_DAYS_PER_YEAR))
 
@@ -225,7 +244,7 @@ def sortino_ratio(
     per_period_rf = risk_free_rate / TRADING_DAYS_PER_YEAR
     excess = returns - per_period_rf
     dd = downside_deviation(excess, target=0.0, annualize=False, min_obs=min_obs)
-    if dd is None or dd == 0:
+    if dd is None or dd < MIN_RETURN_DISPERSION:
         return None
     return float(excess.mean() / dd * math.sqrt(TRADING_DAYS_PER_YEAR))
 

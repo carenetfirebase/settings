@@ -358,6 +358,80 @@ def ingest_macro_cmd(
         raise typer.Exit(code=1)
 
 
+@app.command("backtest")
+def backtest_cmd(
+    ticker: str,
+    strategy: str = typer.Option("sma_crossover", help="sma_crossover or buy_and_hold."),
+    fast: int = typer.Option(50, help="Fast SMA window."),
+    slow: int = typer.Option(200, help="Slow SMA window."),
+    capital: float = typer.Option(100_000.0, help="Initial capital."),
+    costs: str = typer.Option("default", help="default, liquid, or illiquid."),
+    as_of: str | None = typer.Option(None, help="Point-in-time cutoff (ISO date)."),
+) -> None:
+    """Backtest a price signal, point-in-time, with realistic costs.
+
+    Refuses outright for signals that cannot be honestly tested on free data.
+    """
+    from datetime import date as _date
+
+    from invest.engines.backtest import (
+        SignalKind,
+        buy_and_hold_signal,
+        render_backtest,
+        run_backtest,
+        sma_crossover_signal,
+    )
+    from invest.engines.costs import DEFAULT_COSTS, ILLIQUID, LIQUID_LARGE_CAP
+    from invest.repository import get_close_series
+
+    cutoff = _date.fromisoformat(as_of) if as_of else None
+    cost_model = {"default": DEFAULT_COSTS, "liquid": LIQUID_LARGE_CAP, "illiquid": ILLIQUID}.get(
+        costs
+    )
+    if cost_model is None:
+        typer.echo(f"Unknown cost model {costs!r}. Use default, liquid or illiquid.", err=True)
+        raise typer.Exit(code=1)
+
+    if strategy == "sma_crossover":
+        signal_fn = sma_crossover_signal(fast, slow)
+        warmup = slow
+        label = f"{ticker.upper()} SMA {fast}/{slow}"
+    elif strategy == "buy_and_hold":
+        signal_fn = buy_and_hold_signal()
+        warmup = 1
+        label = f"{ticker.upper()} buy and hold"
+    else:
+        typer.echo(f"Unknown strategy {strategy!r}.", err=True)
+        raise typer.Exit(code=1)
+
+    with session_scope() as session:
+        try:
+            security = resolve(session, ticker)
+        except LookupError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=1) from exc
+
+        prices = get_close_series(session, security.security_id, as_of=cutoff)
+
+    if prices.empty:
+        typer.echo(f"No price history for {ticker.upper()}. Run `invest ingest prices`.", err=True)
+        raise typer.Exit(code=1)
+
+    result = run_backtest(
+        prices,
+        signal_fn,
+        kind=SignalKind.PRICE_ONLY,
+        cost_model=cost_model,
+        initial_capital=capital,
+        warmup=warmup,
+        benchmark=prices,
+    )
+    typer.echo(render_backtest(result, name=label))
+
+    if not result.verdict.can_backtest:
+        raise typer.Exit(code=2)
+
+
 @app.command("regime")
 def regime_cmd(
     as_of: str | None = typer.Option(None, help="Point-in-time cutoff (ISO date)."),

@@ -1,10 +1,12 @@
 # SecondaryEOB — Architecture & Compliance Plan
 
-Produced per section 15 ("FIRST ACTION") of `00-master-prompt.md`. This is
-a planning document, not implementation. **No code has been written for
-SecondaryEOB.** Per the master prompt, this document ends with a STOP —
-implementation begins only after a human approves the MVP scope (§E) and
-has read the risk assessment (§F).
+Produced per section 15 ("FIRST ACTION") of `00-master-prompt.md`.
+
+> **Status: approved; MVP (§E) implemented.** This document is retained as
+> the design record and as the standing list of what is *not* built. The
+> deferred items in §E and the risks in §F remain open and are go-live
+> blockers — see the README's "Deferred" section for their current state.
+> The STOP at the end of this document has been satisfied.
 
 ---
 
@@ -433,3 +435,33 @@ correct first.
 This completes sections A–F. Per the master prompt (§15), implementation
 does not begin until this plan — specifically the MVP scope (§E) and the
 risk assessment (§F) — has been reviewed and approved.
+
+---
+
+## Post-approval addendum
+
+The plan was approved and the §E MVP was built. Two things worth recording
+because they changed the design rather than merely implementing it:
+
+1. **Incoming retention was missing from §5.1 as originally written.**
+   Processing does not consume the source document, so a bulk EOB remains
+   in `Incoming/` after its patients are exported. The plan specified
+   retention for working files and quarantine but not for raw intake,
+   which would have left the system's largest store of raw multi-patient
+   PHI growing without bound. A configurable `incoming_retention_hours`
+   (default 72) now covers it.
+
+2. **Redaction validation needs the retained identifiers, not only the
+   removed ones.** §10 describes validation as attempting to recover the
+   PHI that was removed. That is necessary but not sufficient: member IDs
+   issued by one payer differ from each other in very few characters, so
+   a similarity check strict enough to catch an OCR-garbled leak also
+   reports the target's *own* ID as a near-match for a neighbour's, and
+   blocks every legitimate export. The validator therefore also receives
+   the identifiers that legitimately remain, and treats a window better
+   explained by a retained identifier as not-a-recovery. Structured
+   identifiers additionally get no fuzzy budget at all — they are matched
+   exactly after canonicalizing OCR-confusable glyphs.
+
+Neither changes the compliance posture; both were gaps in the written
+design that only surfaced against a working implementation.

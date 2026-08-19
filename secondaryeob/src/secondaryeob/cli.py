@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import shutil
 import sys
@@ -270,6 +271,117 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_selftest(args: argparse.Namespace) -> int:
+    """Prove the whole pipeline works on this machine, using synthetic data.
+
+    Runs in a throwaway directory with invented patients — no real PHI is
+    involved and nothing touches the operator's working root. This is the
+    check worth running after installing: ``doctor`` confirms the parts are
+    present, ``selftest`` confirms they actually redact.
+    """
+    import tempfile
+
+    import pymupdf
+
+    from .audit import AuditLog
+    from .auth import Guard, Principal, Role
+    from .config import load_settings
+    from .crypto import Keyring, Vault
+    from .pipeline import process_document
+    from .zones import Zone
+
+    patients = [
+        ("Alder Quillfeather", "ZZQ-100001", "03/14/1982", "D2740"),
+        ("Bexley Thornwhistle", "ZZQ-200002", "11/02/1975", "D0120"),
+        ("Corvina Marchpane", "ZZQ-300003", "07/25/1990", "D1110"),
+    ]
+
+    document = pymupdf.open()
+    for name, member_id, dob, procedure in patients:
+        page = document.new_page()
+        page.insert_text((50, 50), "SAMPLE DENTAL PLAN - EOB", fontsize=12)
+        page.insert_text((50, 75), f"Patient Name: {name}", fontsize=10)
+        page.insert_text((50, 93), f"Member ID: {member_id}", fontsize=10)
+        page.insert_text((50, 111), f"Date of Birth: {dob}", fontsize=10)
+        page.insert_text(
+            (50, 129),
+            f"{procedure}  01/15/2026  Billed: $500.00  Allowed: $400.00  "
+            f"Paid: $320.00  Patient Resp: $80.00",
+            fontsize=9,
+        )
+    pdf_bytes = document.tobytes()
+    document.close()
+
+    with tempfile.TemporaryDirectory(prefix="secondaryeob-selftest-") as tmp:
+        root = Path(tmp)
+        os.environ["SECONDARYEOB_ROOT"] = str(root)
+        os.environ.setdefault("SECONDARYEOB_PASSPHRASE", "selftest-ephemeral-passphrase")
+
+        settings = load_settings(root)
+        settings.ensure_directories()
+
+        keyring = Keyring.for_platform(
+            root / "keys", passphrase_env_var=settings.passphrase_env_var
+        )
+        vault = Vault(keyring.load_or_create())
+        audit = AuditLog.open(settings.path_for("Logs") / "audit.jsonl")
+        principal = Principal(subject="selftest", username="selftest", role=Role.BILLER)
+        guard = Guard(principal, vault, audit, root)
+
+        source = settings.path_for("Incoming") / "selftest.pdf"
+        vault.write(source, pdf_bytes, zone=Zone.A_RAW_PHI)
+
+        print(f"Processing a synthetic {len(patients)}-patient EOB...")
+        try:
+            result = process_document(source, guard, settings)
+        except SecondaryEOBError as exc:
+            print(f"\nFAILED during processing: {type(exc).__name__}: {exc}")
+            return 1
+
+        if result.exported_count != len(patients):
+            print(f"\nFAILED: expected {len(patients)} exports, got {result.exported_count}")
+            for outcome in result.outcomes:
+                if outcome.blocked_reason:
+                    print(f"  blocked: {outcome.blocked_reason}")
+            return 1
+
+        # The check that matters: each output must contain its own patient
+        # and none of the others.
+        leaks = 0
+        for outcome in result.outcomes:
+            text_doc = pymupdf.open(stream=guard.read(outcome.exported_path), filetype="pdf")
+            try:
+                text = "\n".join(
+                    text_doc.load_page(i).get_text("text")
+                    for i in range(text_doc.page_count)
+                )
+            finally:
+                text_doc.close()
+
+            present = [p for p in patients if p[0] in text]
+            if len(present) != 1:
+                print(f"  LEAK: {outcome.pseudonym} contains {len(present)} patients")
+                leaks += 1
+                continue
+            for name, member_id, dob, _ in patients:
+                if name == present[0][0]:
+                    continue
+                if member_id in text or dob in text:
+                    print(f"  LEAK: {outcome.pseudonym} retains another patient's identifiers")
+                    leaks += 1
+            print(f"  ok: {outcome.pseudonym} contains exactly one patient")
+
+        audit.verify_chain()
+        print(f"  ok: audit chain verified ({audit.entry_count} entries)")
+
+        if leaks:
+            print(f"\nFAILED: {leaks} leak(s) detected. Do not process real PHI.")
+            return 1
+
+    print("\nSelf-test passed: redaction, validation, export and audit all work here.")
+    return 0
+
+
 def _cmd_escrow_init(args: argparse.Namespace) -> int:
     settings = load_settings(args.root)
     keyring = Keyring.for_platform(
@@ -379,6 +491,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser(
         "doctor", help="check this machine for anything that would block processing"
     )
+    sub.add_parser(
+        "selftest", help="run the full pipeline on synthetic data to prove it works"
+    )
 
     verify = sub.add_parser(
         "verify-audit", help="verify the audit hash chain and its anchors"
@@ -425,6 +540,7 @@ _COMMANDS = {
     "purge": _cmd_purge,
     "status": _cmd_status,
     "doctor": _cmd_doctor,
+    "selftest": _cmd_selftest,
 }
 
 

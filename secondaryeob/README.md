@@ -11,7 +11,16 @@ systems.
 are independent — nothing under the repo root's `src/`, `alembic/`, or
 `tests/` belongs to SecondaryEOB, and SecondaryEOB never imports from it.**
 
-## Status: MVP implemented
+## Status: MVP implemented — not yet deployable to a Windows workstation
+
+Working and tested on Linux; installs cleanly and processes documents end
+to end. **It has never been run on Windows, which is the target platform.**
+The DPAPI key wrapping and SID-based identity paths are written and
+reviewed but unexecuted, so treat first Windows startup as debugging, not
+deployment. See "Deferred" and "Known limitations" before trusting this
+with real PHI.
+
+
 
 The plan in `docs/01-architecture-and-compliance-plan.md` was approved and
 its MVP scope (§E) is built: the deterministic pipeline end to end, with
@@ -35,10 +44,24 @@ correct deployment — and on controls this code cannot provide, including a
 Business Associate Agreement, which is a legal instrument rather than a
 software feature. See the Compliance Gap Report in the plan document.
 
+## Requirements
+
+- **Python 3.11+**
+- **Tesseract-OCR** — a native binary, *not* installed by pip. Post-redaction
+  validation uses it to re-read each page, and a validation step that cannot
+  run blocks export by design. **Without Tesseract on PATH, every document is
+  refused.** Windows: install Tesseract-OCR and add it to PATH.
+  Debian/Ubuntu: `apt install tesseract-ocr`. macOS: `brew install tesseract`.
+- `pymupdf` and `cryptography` come in via pip.
+
+Run `secondaryeob doctor` first — it checks all of the above and tells you
+what would block processing before you feed it a document.
+
 ## Try it
 
 ```bash
 pip install -e ".[dev]"
+secondaryeob doctor        # check this machine before anything else
 
 export SECONDARYEOB_ROOT=~/seob-work
 export SECONDARYEOB_PASSPHRASE='...'      # dev only; Windows uses DPAPI

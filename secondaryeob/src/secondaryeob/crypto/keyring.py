@@ -82,6 +82,12 @@ class DPAPIKeyProvider:
 
     # DPAPI is reached through ctypes rather than a third-party package to
     # avoid taking a dependency for two calls.
+    #
+    # argtypes and restype are declared for every function below. Without
+    # them ctypes assumes a C ``int`` return, which truncates 64-bit
+    # handles and pointers on win64 — the resulting failures are
+    # intermittent and misleading, so the declarations are not optional
+    # tidiness.
     @staticmethod
     def _crypt(data: bytes, *, protect: bool) -> bytes:  # pragma: no cover - Windows only
         import ctypes
@@ -90,36 +96,54 @@ class DPAPIKeyProvider:
         class DATA_BLOB(ctypes.Structure):
             _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_char))]
 
-        def to_blob(payload: bytes) -> DATA_BLOB:
-            buffer = ctypes.create_string_buffer(payload, len(payload))
-            return DATA_BLOB(len(payload), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_char)))
+        # use_last_error routes the thread's last error into ctypes'
+        # own thread-local slot. Calling GetLastError() as a separate
+        # ctypes call instead can report a value clobbered by ctypes'
+        # intervening bookkeeping, i.e. the wrong reason for the failure.
+        crypt32 = ctypes.WinDLL("crypt32", use_last_error=True)
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
-        def from_blob(blob: DATA_BLOB) -> bytes:
-            return ctypes.string_at(blob.pbData, blob.cbData)
+        blob_p = ctypes.POINTER(DATA_BLOB)
+        for name in ("CryptProtectData", "CryptUnprotectData"):
+            func = getattr(crypt32, name)
+            func.restype = wintypes.BOOL
+            func.argtypes = [
+                blob_p,              # pDataIn
+                wintypes.LPCWSTR,    # szDataDescr
+                blob_p,              # pOptionalEntropy
+                ctypes.c_void_p,     # pvReserved
+                ctypes.c_void_p,     # pPromptStruct
+                wintypes.DWORD,      # dwFlags
+                blob_p,              # pDataOut
+            ]
 
-        crypt32 = ctypes.windll.crypt32
-        kernel32 = ctypes.windll.kernel32
+        kernel32.LocalFree.restype = ctypes.c_void_p
+        kernel32.LocalFree.argtypes = [ctypes.c_void_p]
 
-        blob_in = to_blob(data)
+        buffer = ctypes.create_string_buffer(data, len(data))
+        blob_in = DATA_BLOB(
+            len(data), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_char))
+        )
         blob_out = DATA_BLOB()
+
         # Flag 0 = user scope. CRYPTPROTECT_LOCAL_MACHINE (4) is
         # deliberately NOT used: machine scope would let any local account
         # unwrap the DEK, defeating the per-user binding.
         func = crypt32.CryptProtectData if protect else crypt32.CryptUnprotectData
-        args = (
-            (ctypes.byref(blob_in), None, None, None, None, 0, ctypes.byref(blob_out))
-            if protect
-            else (ctypes.byref(blob_in), None, None, None, None, 0, ctypes.byref(blob_out))
+        ok = func(
+            ctypes.byref(blob_in), None, None, None, None, 0, ctypes.byref(blob_out)
         )
-        if not func(*args):
+        if not ok:
+            error = ctypes.get_last_error()
             raise EncryptionError(
-                f"DPAPI {'protect' if protect else 'unprotect'} failed "
-                f"(win32 error {kernel32.GetLastError()})"
+                f"DPAPI {'protect' if protect else 'unprotect'} failed: "
+                f"{ctypes.FormatError(error)} (win32 error {error})"
             )
+
         try:
-            return from_blob(blob_out)
+            return ctypes.string_at(blob_out.pbData, blob_out.cbData)
         finally:
-            kernel32.LocalFree(blob_out.pbData)
+            kernel32.LocalFree(ctypes.cast(blob_out.pbData, ctypes.c_void_p))
 
     def wrap(self, dek: bytes) -> bytes:  # pragma: no cover - Windows only
         return self._crypt(dek, protect=True)

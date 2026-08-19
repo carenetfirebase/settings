@@ -280,7 +280,10 @@ def _technique_ocr(
         return TechniqueResult(
             name="ocr_rescan",
             ran=False,
-            unavailable_reason="tesseract is not installed",
+            unavailable_reason=(
+                "tesseract is not installed or not on PATH — install Tesseract-OCR "
+                "(see the README); every export stays blocked until it is available"
+            ),
         )
     try:
         chunks = []

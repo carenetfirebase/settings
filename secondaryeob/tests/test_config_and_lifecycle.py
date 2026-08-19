@@ -191,3 +191,34 @@ def test_ready_output_is_not_purged(settings, vault, admin_guard):
 
     purge_expired(admin_guard, settings)
     assert ready.exists()
+
+
+# --- preflight (doctor) ------------------------------------------------
+
+
+def test_doctor_blocks_when_tesseract_is_absent(working_root, role_config, monkeypatch, capsys):
+    """Without OCR every export is refused, so doctor must call it blocking."""
+    from secondaryeob.cli import main
+
+    monkeypatch.setattr("secondaryeob.cli.shutil.which", lambda _: None)
+    assert main(["--root", str(working_root), "doctor"]) == 1
+
+    out = capsys.readouterr().out
+    assert "[FAIL] tesseract" in out
+    assert "NOT READY" in out
+
+
+def test_doctor_passes_a_complete_environment(working_root, role_config, monkeypatch, capsys):
+    from secondaryeob.cli import main
+
+    monkeypatch.setattr("secondaryeob.cli.shutil.which", lambda _: "/usr/bin/tesseract")
+    assert main(["--root", str(working_root), "doctor"]) == 0
+    assert "[ok]   tesseract" in capsys.readouterr().out
+
+
+def test_doctor_flags_missing_role_assignments(working_root, monkeypatch, capsys):
+    from secondaryeob.cli import main
+
+    monkeypatch.setattr("secondaryeob.cli.shutil.which", lambda _: "/usr/bin/tesseract")
+    assert main(["--root", str(working_root), "doctor"]) == 1
+    assert "[FAIL] role assignments" in capsys.readouterr().out

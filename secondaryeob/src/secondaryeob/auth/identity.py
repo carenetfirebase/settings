@@ -51,37 +51,83 @@ def _windows_subject() -> str:  # pragma: no cover - Windows only
     import ctypes
     from ctypes import wintypes
 
-    advapi32 = ctypes.windll.advapi32
-    kernel32 = ctypes.windll.kernel32
+    # argtypes/restype are declared for every call: ctypes otherwise
+    # assumes a C ``int`` return, which truncates 64-bit handles and
+    # pointers on win64. use_last_error keeps the failure code accurate.
+    advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
     TOKEN_QUERY = 0x0008
     TokenUser = 1
+    ERROR_INSUFFICIENT_BUFFER = 122
+
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    kernel32.GetCurrentProcess.argtypes = []
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.LocalFree.restype = ctypes.c_void_p
+    kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+
+    advapi32.OpenProcessToken.restype = wintypes.BOOL
+    advapi32.OpenProcessToken.argtypes = [
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.HANDLE),
+    ]
+    advapi32.GetTokenInformation.restype = wintypes.BOOL
+    advapi32.GetTokenInformation.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    advapi32.ConvertSidToStringSidW.restype = wintypes.BOOL
+    advapi32.ConvertSidToStringSidW.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(wintypes.LPWSTR),
+    ]
+
+    def _fail(what: str) -> AuthenticationError:
+        error = ctypes.get_last_error()
+        return AuthenticationError(
+            f"{what}: {ctypes.FormatError(error)} (win32 error {error})"
+        )
 
     token = wintypes.HANDLE()
     if not advapi32.OpenProcessToken(
         kernel32.GetCurrentProcess(), TOKEN_QUERY, ctypes.byref(token)
     ):
-        raise AuthenticationError("could not open the current process token")
+        raise _fail("could not open the current process token")
 
     try:
+        # First call sizes the buffer and is expected to fail with
+        # ERROR_INSUFFICIENT_BUFFER; any other failure is real.
         size = wintypes.DWORD()
         advapi32.GetTokenInformation(token, TokenUser, None, 0, ctypes.byref(size))
+        error = ctypes.get_last_error()
+        if error != ERROR_INSUFFICIENT_BUFFER:
+            raise _fail("could not size the token information buffer")
+
         buffer = ctypes.create_string_buffer(size.value)
         if not advapi32.GetTokenInformation(
-            token, TokenUser, buffer, size, ctypes.byref(size)
+            token, TokenUser, buffer, size.value, ctypes.byref(size)
         ):
-            raise AuthenticationError("could not read the token user")
+            raise _fail("could not read the token user")
 
-        # TOKEN_USER starts with a SID_AND_ATTRIBUTES whose first member
-        # is a PSID.
+        # TOKEN_USER begins with a SID_AND_ATTRIBUTES whose first member
+        # is the PSID, so the first pointer-sized field is the SID.
         sid = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_void_p)).contents
-        sid_string = ctypes.c_wchar_p()
+        sid_string = wintypes.LPWSTR()
         if not advapi32.ConvertSidToStringSidW(sid, ctypes.byref(sid_string)):
-            raise AuthenticationError("could not convert the SID to a string")
+            raise _fail("could not convert the SID to a string")
         try:
-            return str(sid_string.value)
+            value = sid_string.value
+            if not value:
+                raise AuthenticationError("the SID converted to an empty string")
+            return str(value)
         finally:
-            kernel32.LocalFree(sid_string)
+            kernel32.LocalFree(ctypes.cast(sid_string, ctypes.c_void_p))
     finally:
         kernel32.CloseHandle(token)
 

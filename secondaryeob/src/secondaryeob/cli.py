@@ -12,9 +12,9 @@ which is what the operator sees on screen and in the output filenames.
 from __future__ import annotations
 
 import argparse
-import getpass
 import json
-import os
+import platform
+import shutil
 import sys
 from pathlib import Path
 
@@ -152,6 +152,124 @@ def _cmd_verify_audit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    """Preflight the environment and report what would block processing.
+
+    Exists because several requirements are native, not pip-installable —
+    most importantly Tesseract, without which post-redaction validation
+    cannot run and therefore every export is blocked by design. Finding
+    that out from a wall of BLOCKED lines is a bad first experience.
+    """
+    blocking: list[str] = []
+    warnings: list[str] = []
+
+    def ok(label: str, detail: str = "") -> None:
+        print(f"  [ok]   {label}{(': ' + detail) if detail else ''}")
+
+    def bad(label: str, detail: str) -> None:
+        print(f"  [FAIL] {label}: {detail}")
+        blocking.append(label)
+
+    def warn(label: str, detail: str) -> None:
+        print(f"  [warn] {label}: {detail}")
+        warnings.append(label)
+
+    print("Runtime")
+    if sys.version_info >= (3, 11):
+        ok("python", platform.python_version())
+    else:
+        bad("python", f"{platform.python_version()} — 3.11 or newer is required")
+
+    try:
+        import pymupdf
+
+        ok("pymupdf", pymupdf.__version__)
+    except Exception as exc:
+        bad("pymupdf", f"not importable ({type(exc).__name__})")
+
+    try:
+        import cryptography
+
+        ok("cryptography", cryptography.__version__)
+    except Exception as exc:
+        bad("cryptography", f"not importable ({type(exc).__name__})")
+
+    tesseract = shutil.which("tesseract")
+    if tesseract:
+        ok("tesseract", tesseract)
+    else:
+        bad(
+            "tesseract",
+            "not found on PATH. Post-redaction OCR validation cannot run, and a "
+            "validation step that cannot run blocks export by design — so every "
+            "document will be refused until this is installed. "
+            "Windows: install Tesseract-OCR and add it to PATH. "
+            "Debian/Ubuntu: apt install tesseract-ocr. macOS: brew install tesseract.",
+        )
+
+    print("\nPlatform")
+    if sys.platform == "win32":
+        ok("key binding", "Windows DPAPI (per-user)")
+        warn(
+            "windows paths",
+            "DPAPI and SID identity are implemented but have not been exercised on "
+            "real Windows. Verify escrow-init, escrow-verify and whoami before "
+            "trusting this with PHI.",
+        )
+    else:
+        warn(
+            "key binding",
+            f"{sys.platform}: falling back to the scrypt passphrase provider. This is "
+            "a development configuration — production is Windows with DPAPI.",
+        )
+
+    print("\nDeployment")
+    try:
+        settings = load_settings(args.root)
+        ok("working root", str(settings.working_root))
+        ok("encryption", "ON" if settings.encryption_enabled else "OFF (dev mode)")
+        if settings.development_mode:
+            warn("dev mode", "SECONDARYEOB_DEV_MODE is set — never use on an instance with real PHI")
+
+        config_path = settings.working_root / "config" / "role_assignments.json"
+        if config_path.exists():
+            ok("role assignments", str(config_path))
+        else:
+            bad("role assignments", f"missing at {config_path} — nothing can run without one")
+
+        keys_dir = settings.working_root / "keys"
+        if (keys_dir / "dek.escrow").exists():
+            ok("key escrow", "enrolled")
+        else:
+            warn(
+                "key escrow",
+                "not enrolled. If this key binding is lost, every encrypted record "
+                "becomes permanently unreadable. Run 'escrow-init'.",
+            )
+
+        anchors = AnchorStore(settings.path_for("Logs") / "anchors.jsonl").read_all()
+        if anchors:
+            ok("audit anchors", f"{len(anchors)} recorded")
+        else:
+            warn(
+                "audit anchors",
+                "none recorded yet — deleting entries from the end of the audit log "
+                "would be undetectable until the first anchor is written.",
+            )
+    except SecondaryEOBError as exc:
+        bad("settings", str(exc))
+
+    print()
+    if blocking:
+        print(f"NOT READY: {len(blocking)} blocking issue(s): {', '.join(blocking)}")
+        return 1
+    if warnings:
+        print(f"Ready to process, with {len(warnings)} warning(s): {', '.join(warnings)}")
+        return 0
+    print("Ready.")
+    return 0
+
+
 def _cmd_escrow_init(args: argparse.Namespace) -> int:
     settings = load_settings(args.root)
     keyring = Keyring.for_platform(
@@ -258,6 +376,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("process", help="process every document in Incoming/")
     sub.add_parser("purge", help="run retention deletion")
     sub.add_parser("status", help="show configuration and folder counts")
+    sub.add_parser(
+        "doctor", help="check this machine for anything that would block processing"
+    )
 
     verify = sub.add_parser(
         "verify-audit", help="verify the audit hash chain and its anchors"
@@ -303,6 +424,7 @@ _COMMANDS = {
     "recover": _cmd_recover,
     "purge": _cmd_purge,
     "status": _cmd_status,
+    "doctor": _cmd_doctor,
 }
 
 

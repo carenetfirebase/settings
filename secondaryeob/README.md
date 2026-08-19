@@ -45,15 +45,32 @@ export SECONDARYEOB_PASSPHRASE='...'      # dev only; Windows uses DPAPI
 
 secondaryeob init          # create zones, print your subject id
 # add {"<subject>": "BILLER"} to config/role_assignments.json
+secondaryeob escrow-init --out recovery.key   # then MOVE recovery.key offline
 secondaryeob whoami
 secondaryeob process       # Incoming/ -> Ready/
-secondaryeob verify-audit
 secondaryeob status
 secondaryeob purge         # retention deletion (ADMIN only)
 ```
 
 Nothing runs until an account is explicitly assigned a role — an
 unrecognised account gets no fallback role.
+
+Audit verification, and the disaster path:
+
+```bash
+secondaryeob verify-audit              # chain + anchors; prints the head hash
+secondaryeob verify-audit --expect-count N --expect-head <hash>   # vs. your
+                                       # externally filed record
+secondaryeob verify-audit --anchors E:/worm/anchors.jsonl         # WORM anchors
+
+secondaryeob escrow-verify --recovery-key recovery.key   # prove it still works
+secondaryeob recover --recovery-key recovery.key         # after a lost profile
+```
+
+Run `verify-audit` after every batch and file the count and head hash
+somewhere off the machine. Run `escrow-verify` periodically — an escrow
+nobody has ever opened is an assumption, and recovery time is the worst
+moment to discover it was written wrong.
 
 ## How it is put together
 
@@ -93,6 +110,17 @@ Enforced by code and tests, not by convention:
   or reordering an entry breaks the chain, and the chain is verified at
   every startup — not by a maintenance command nobody runs. Grants are
   logged as well as denials, so "who read this file" is answerable.
+- **Truncation is detected by anchors, not by the chain.** A hash chain
+  proves entry *N* follows *N-1*; it says nothing about how many entries
+  there should be, so deleting records off the *end* leaves a shorter
+  chain that verifies perfectly. Anchors record (entry count, head hash)
+  separately and are checked at every open. A test asserts the chain alone
+  does *not* catch truncation, so the reason anchors exist stays visible.
+- **The key is escrowed, so a lost profile is survivable.** DPAPI ties the
+  key to a Windows profile; without escrow, losing that profile makes
+  every encrypted record permanently unreadable. A recovery keypair
+  (X25519) seals a second copy of the key, and the private half lives
+  offline. Enrollment runs a real restore before reporting success.
 - **Audit logs are PHI-free by construction.** Entries carry job IDs,
   content hashes, and pseudonyms. A key/value screen rejects the obvious
   PHI carriers as a backstop.
@@ -118,15 +146,10 @@ These are deferred because they depend on the foundation above being
 correct first, **not** because they are low-risk. None of them should be
 skipped before real PHI is processed:
 
-- **Backup and disaster recovery**, including *key escrow*. DPAPI ties the
-  key to a Windows profile; lose the profile with no escrow and the PHI is
-  unrecoverable. That is an availability failure, not just a
-  confidentiality control.
-- **Audit chain anchoring.** The chain is tamper-*evident*, not
-  tamper-*proof*: an attacker with write access can rewrite the file and
-  recompute every hash. Real resistance needs the head hash anchored
-  somewhere they do not control (WORM storage, or periodic off-box
-  publication).
+- **Encrypted backups.** Key escrow and audit anchoring are now built (see
+  above), but scheduled encrypted *data* backup, with integrity hashing
+  and restore drills, is not. Escrow means a lost key is survivable; it
+  does nothing about a lost or corrupted disk.
 - **LM Studio / LLM fallback** for payer layouts the rules do not cover.
   Highest-risk component; the Zone B boundary and the strict-JSON contract
   are specified in the plan but nothing is wired.
@@ -161,6 +184,20 @@ skipped before real PHI is processed:
   Overwrite-before-unlink is deliberately not attempted — on SSDs and
   copy-on-write filesystems it would be false assurance. End-of-life media
   handling stays an operational control (NIST SP 800-88).
+- **Anchoring stored locally is defence in depth, not proof.** An attacker
+  who can write to *both* the audit log and the anchor file can rebuild
+  them consistently, and on-disk verification will pass — this is
+  demonstrated in the test suite rather than glossed over. Anchoring only
+  becomes conclusive when the anchor reaches storage the attacker cannot
+  write: point `--anchors` at a WORM or write-protected volume, and file
+  the head hash off the machine. `verify-audit` prints it for exactly that
+  purpose, and `--expect-head` checks against it — that is the one path
+  that survives a fully compromised machine.
+- **Escrow is only as good as where the private key ends up.** Left beside
+  the working root it is a second copy of the key on the same disk, which
+  weakens the encryption instead of protecting it. The CLI writes it once,
+  to a path you name, and tells you to move it offline; nothing in the
+  system can enforce that you did.
 - **Not exercised on Windows.** DPAPI key wrapping and SID-based identity
   are implemented but developed and tested on Linux against the scrypt
   passphrase provider. Both Windows paths need verification on a real

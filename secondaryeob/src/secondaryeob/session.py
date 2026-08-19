@@ -33,7 +33,13 @@ class Session:
     vault: Vault
 
     def close(self) -> None:
-        self.guard.record(Action.SYSTEM, outcome=Outcome.SUCCESS, detail={"event": "session_close"})
+        self.guard.record(
+            Action.SYSTEM, outcome=Outcome.SUCCESS, detail={"event": "session_close"}
+        )
+        # Anchor on close so this session's entries cannot later be
+        # truncated away unnoticed. Between anchors the log has only the
+        # chain protecting it, which does not detect truncation.
+        self.audit.anchor()
 
 
 def open_session(working_root: Path | str | None = None) -> Session:
@@ -71,8 +77,12 @@ def open_session(working_root: Path | str | None = None) -> Session:
             "key_provider": keyring.provider_name,
             "encryption": settings.encryption_enabled,
             "audit_entries_verified": audit.entry_count,
+            "escrow": keyring.has_escrow,
         },
     )
+    # Anchor at open as well as close: a session that crashes still leaves
+    # its start-of-session length recorded.
+    audit.anchor()
 
     return Session(
         settings=settings, principal=principal, guard=guard, audit=audit, vault=vault

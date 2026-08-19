@@ -7,6 +7,14 @@ authenticated data.
 
 from __future__ import annotations
 
+from .escrow import (
+    RecoveryKeypair,
+    generate_recovery_keypair,
+    read_key_file,
+    seal,
+    unseal,
+    verify_restore,
+)
 from .keyring import DPAPIKeyProvider, Keyring, KeyProvider, PassphraseKeyProvider
 from .vault import Vault
 
@@ -15,5 +23,11 @@ __all__ = [
     "KeyProvider",
     "Keyring",
     "PassphraseKeyProvider",
+    "RecoveryKeypair",
     "Vault",
+    "generate_recovery_keypair",
+    "read_key_file",
+    "seal",
+    "unseal",
+    "verify_restore",
 ]

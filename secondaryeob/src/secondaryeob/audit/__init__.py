@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .anchor import Anchor, AnchorStore
 from .log import Action, AuditEntry, AuditLog, Outcome
 
-__all__ = ["Action", "AuditEntry", "AuditLog", "Outcome"]
+__all__ = ["Action", "Anchor", "AnchorStore", "AuditEntry", "AuditLog", "Outcome"]

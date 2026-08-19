@@ -19,8 +19,10 @@ import sys
 from pathlib import Path
 
 from .audit import AuditLog
+from .audit.anchor import AnchorStore
 from .auth.identity import current_subject
 from .config import load_settings
+from .crypto import Keyring, read_key_file
 from .errors import SecondaryEOBError
 from .lifecycle import purge_expired
 from .pipeline import process_document
@@ -112,10 +114,91 @@ def _cmd_verify_audit(args: argparse.Namespace) -> int:
         return 2
 
     print(f"Audit chain OK: {len(entries)} entries verified")
+
+    # The chain alone cannot detect entries deleted from the end, so the
+    # anchors are the half of this check that matters most.
+    store = AnchorStore(Path(args.anchors) if args.anchors else path.with_name("anchors.jsonl"))
+    try:
+        store.verify(log)
+    except SecondaryEOBError as exc:
+        print(f"ANCHOR CHECK FAILED: {exc}")
+        return 2
+
+    anchors = store.read_all()
+    if anchors:
+        print(f"Anchors OK: {len(anchors)} anchor(s), latest at {anchors[-1].timestamp}")
+    else:
+        print("No anchors recorded yet — truncation of the log's end is NOT detectable.")
+
+    if args.expect_head:
+        try:
+            store.verify_head(log, args.expect_head, args.expect_count or len(entries))
+        except SecondaryEOBError as exc:
+            print(f"EXTERNAL RECORD MISMATCH: {exc}")
+            return 2
+        print("Externally recorded head hash matches.")
+
     if entries:
         print(f"  first : {entries[0].timestamp}")
         print(f"  last  : {entries[-1].timestamp}")
+        print(f"  count : {len(entries)}")
         print(f"  head  : {entries[-1].entry_hash}")
+        print()
+        print("Record the count and head hash somewhere off this machine.")
+        print("It is the only check that survives an attacker who can write to both")
+        print("the audit log and the anchor file:")
+        print(f"  secondaryeob verify-audit --expect-count {len(entries)} \\")
+        print(f"      --expect-head {entries[-1].entry_hash}")
+    return 0
+
+
+def _cmd_escrow_init(args: argparse.Namespace) -> int:
+    settings = load_settings(args.root)
+    keyring = Keyring.for_platform(
+        settings.working_root / "keys", passphrase_env_var=settings.passphrase_env_var
+    )
+    private_key = keyring.enroll_escrow()
+
+    out = Path(args.out)
+    out.write_text(private_key.hex() + "\n", encoding="utf-8")
+    try:
+        out.chmod(0o600)
+    except OSError:  # pragma: no cover - platform dependent
+        pass
+
+    print(f"Escrow created and restore-verified: {keyring.escrow_path}")
+    print(f"Recovery key written to: {out}")
+    print()
+    print("!! MOVE THIS FILE OFF THIS MACHINE NOW. !!")
+    print()
+    print("Left beside the working root it is not escrow — it is a second copy of")
+    print("the key on the same disk, which weakens the encryption rather than")
+    print("protecting it. Put it in a safe, a sealed envelope, or an offline")
+    print("password manager, then delete the local copy.")
+    print()
+    print("Without it, a lost Windows profile means every encrypted record is")
+    print("permanently unreadable.")
+    return 0
+
+
+def _cmd_escrow_verify(args: argparse.Namespace) -> int:
+    settings = load_settings(args.root)
+    keyring = Keyring.for_platform(
+        settings.working_root / "keys", passphrase_env_var=settings.passphrase_env_var
+    )
+    keyring.verify_escrow(read_key_file(Path(args.recovery_key)))
+    print("Escrow verified: the recovery key restores the data encryption key in use.")
+    return 0
+
+
+def _cmd_recover(args: argparse.Namespace) -> int:
+    settings = load_settings(args.root)
+    keyring = Keyring.for_platform(
+        settings.working_root / "keys", passphrase_env_var=settings.passphrase_env_var
+    )
+    keyring.recover_from_escrow(read_key_file(Path(args.recovery_key)))
+    print("Recovered the data encryption key from escrow and re-wrapped it for")
+    print("this machine. Encrypted records are readable again.")
     return 0
 
 
@@ -141,6 +224,19 @@ def _cmd_status(args: argparse.Namespace) -> int:
     for name in ("Incoming", "Working", "Ready", "Quarantine"):
         count = sum(1 for p in settings.path_for(name).iterdir() if p.is_file())
         print(f"{name:<11}: {count} file(s)")
+
+    keys_dir = settings.working_root / "keys"
+    escrowed = (keys_dir / "dek.escrow").exists()
+    print(f"escrow     : {'enrolled' if escrowed else 'NOT ENROLLED'}")
+    if not escrowed:
+        print("             Losing the Windows profile would make every encrypted")
+        print("             record permanently unreadable. Run 'escrow-init'.")
+
+    anchors = AnchorStore(settings.path_for("Logs") / "anchors.jsonl").read_all()
+    print(f"anchors    : {len(anchors)}")
+    if not anchors:
+        print("             Without anchors, deleting entries from the end of the")
+        print("             audit log is undetectable.")
     return 0
 
 
@@ -160,9 +256,40 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("init", help="create the working root and show your subject id")
     sub.add_parser("whoami", help="show the resolved identity and role")
     sub.add_parser("process", help="process every document in Incoming/")
-    sub.add_parser("verify-audit", help="verify the audit hash chain")
     sub.add_parser("purge", help="run retention deletion")
     sub.add_parser("status", help="show configuration and folder counts")
+
+    verify = sub.add_parser(
+        "verify-audit", help="verify the audit hash chain and its anchors"
+    )
+    verify.add_argument(
+        "--anchors", help="anchor file path (default: anchors.jsonl beside the log)"
+    )
+    verify.add_argument(
+        "--expect-head",
+        help="head hash from an external record, to check the log against",
+    )
+    verify.add_argument(
+        "--expect-count", type=int, help="entry count matching --expect-head"
+    )
+
+    escrow_init = sub.add_parser(
+        "escrow-init", help="create a recovery key so a lost profile is survivable"
+    )
+    escrow_init.add_argument(
+        "--out", required=True, help="where to write the recovery key (then move it offline)"
+    )
+
+    escrow_verify = sub.add_parser(
+        "escrow-verify", help="prove the recovery key still restores the key in use"
+    )
+    escrow_verify.add_argument("--recovery-key", required=True, help="recovery key file")
+
+    recover = sub.add_parser(
+        "recover", help="restore the data encryption key from escrow onto this machine"
+    )
+    recover.add_argument("--recovery-key", required=True, help="recovery key file")
+
     return parser
 
 
@@ -171,6 +298,9 @@ _COMMANDS = {
     "whoami": _cmd_whoami,
     "process": _cmd_process,
     "verify-audit": _cmd_verify_audit,
+    "escrow-init": _cmd_escrow_init,
+    "escrow-verify": _cmd_escrow_verify,
+    "recover": _cmd_recover,
     "purge": _cmd_purge,
     "status": _cmd_status,
 }

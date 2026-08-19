@@ -465,3 +465,44 @@ because they changed the design rather than merely implementing it:
 
 Neither changes the compliance posture; both were gaps in the written
 design that only surfaced against a working implementation.
+
+### Second round: two §E deferred items delivered
+
+Key escrow and audit anchoring — both listed above as go-live blockers —
+are now built. One correction to the reasoning in §3.2 of the master
+prompt and §B of this plan:
+
+3. **§3.2 understated what a hash chain does not do.** Both documents
+   described the chain as tamper-evident and identified *wholesale
+   rewriting* as its limit. The cheaper and more likely attack was
+   missed entirely: **deleting entries from the end of the log**. A
+   truncated chain is still a valid chain — nothing in it commits to how
+   long it should be — so removing the last few records (an export, a
+   denial, a suspected breach) left verification reporting "OK". This was
+   confirmed against the running system before the fix, and the test
+   suite now asserts the chain alone does *not* detect truncation, so the
+   rationale for anchors cannot quietly rot.
+
+   Anchors record (entry count, head hash) in a separate chained store,
+   checked at every open. Layered honestly:
+
+   | Attack | Chain | + local anchors | + externally filed head hash |
+   |---|---|---|---|
+   | Edit an entry mid-log | caught | caught | caught |
+   | Delete from the end | **missed** | caught | caught |
+   | Rebuild log only | caught | caught | caught |
+   | Rebuild log *and* anchors | missed | **missed** | caught |
+
+   Local anchoring raises the cost; only an anchor the attacker cannot
+   write (WORM volume, or a head hash filed off the machine) is
+   conclusive. The CLI prints the head hash after every verification for
+   precisely that reason.
+
+4. **Escrow closes an availability gap that §4 named but did not size.**
+   DPAPI's per-profile binding is the right confidentiality control and a
+   single point of total data loss: lose the profile and every encrypted
+   record is unreadable forever. An X25519 recovery keypair now seals a
+   second copy of the DEK, with the private half held offline. Enrollment
+   performs a real restore before reporting success, which is what §4's
+   "restore verification tests" requires and what distinguishes a backup
+   from an assumption.

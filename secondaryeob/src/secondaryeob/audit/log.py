@@ -1,13 +1,23 @@
 """Append-only, tamper-evident audit log.
 
 Each entry commits to the hash of the entry before it, so altering or
-removing any historical entry breaks the chain from that point forward and
-:meth:`AuditLog.verify_chain` detects it. This is *tamper-evident*, not
-tamper-proof: an attacker with write access can rewrite the whole file and
-recompute every hash. Genuine tamper-resistance needs the chain anchored
-somewhere the attacker does not control — WORM storage, or periodically
-publishing the head hash off-box. That anchoring is deferred with the rest
-of the backup/DR work (plan §E) and is a go-live blocker.
+removing an entry from the *middle* of the log breaks the chain from that
+point forward and :meth:`AuditLog.verify_chain` detects it.
+
+Two attacks the chain cannot detect on its own, both handled by
+:mod:`secondaryeob.audit.anchor`:
+
+* **Truncation.** Deleting entries from the *end* leaves a shorter chain
+  that still verifies perfectly — a valid chain says nothing about how
+  long it should be. This is the cheap attack: drop the last few records
+  and an export, a denial, or a suspected breach never happened.
+* **Wholesale rewriting.** An attacker with write access can rebuild the
+  entire file and recompute every hash.
+
+Anchors close both by recording (entry count, head hash) somewhere
+separate, so verification has an independent expectation to check against.
+:meth:`AuditLog.open` refuses to hand back a writable log until both the
+chain and the anchors verify.
 
 Plan §F names the failure mode that makes a chain useless: nobody checks
 it. So verification is not a maintenance command — :meth:`AuditLog.open`
@@ -191,6 +201,7 @@ class AuditLog:
         self._head_hash = GENESIS_HASH
         self._next_seq = 0
         self._opened = False
+        self._anchor_store = None
 
     @property
     def path(self) -> Path:
@@ -205,11 +216,23 @@ class AuditLog:
         return self._next_seq
 
     @classmethod
-    def open(cls, path: Path) -> AuditLog:
-        """Open (creating if needed) and verify the chain before allowing writes.
+    def open(cls, path: Path, anchor_path: Path | None = None) -> AuditLog:
+        """Open (creating if needed) and verify before allowing writes.
+
+        Verifies the hash chain, then — if anchors exist — verifies the log
+        against them. Both must pass: the chain catches edits to the middle
+        of the log, the anchors catch truncation of its end.
+
+        Args:
+            anchor_path: Location of the anchor store. Defaults to
+                ``anchors.jsonl`` beside the log. Point this at WORM or
+                write-protected storage to make anchoring meaningful
+                against an attacker who can write to the log — see
+                :mod:`secondaryeob.audit.anchor`.
 
         Raises:
-            AuditIntegrityError: the existing chain does not verify.
+            AuditIntegrityError: the chain does not verify, or the log
+                disagrees with a recorded anchor.
         """
         log = cls(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -224,8 +247,27 @@ class AuditLog:
                 path.chmod(0o600)
             except OSError:  # pragma: no cover - platform dependent
                 pass
+
+        # Imported here rather than at module scope: anchor imports this
+        # module for AuditLog and GENESIS_HASH.
+        from .anchor import AnchorStore
+
+        store = AnchorStore(anchor_path or path.with_name("anchors.jsonl"))
+        store.verify(log)
+
         log._opened = True
+        log._anchor_store = store
         return log
+
+    def anchor(self) -> None:
+        """Record an anchor for the log's current state.
+
+        Called at session open and close. Between anchors the log is only
+        as protected as the chain, so anchoring on close matters: it is
+        what makes a later truncation of this session's entries visible.
+        """
+        if self._anchor_store is not None:
+            self._anchor_store.record(self)
 
     def read_entries(self) -> Iterator[AuditEntry]:
         """Yield every entry in file order."""
@@ -242,6 +284,15 @@ class AuditLog:
                     raise AuditIntegrityError(
                         f"audit log line {lineno} is malformed: {exc}"
                     ) from exc
+
+    def read_entries_list(self) -> list[AuditEntry]:
+        """Return every entry as a list, without verifying the chain.
+
+        Used by anchor verification, which needs to inspect entries at
+        recorded positions even when the chain itself is intact — the
+        chain and the anchors detect different attacks.
+        """
+        return list(self.read_entries())
 
     def verify_chain(self) -> list[AuditEntry]:
         """Recompute every hash and confirm the chain is intact.

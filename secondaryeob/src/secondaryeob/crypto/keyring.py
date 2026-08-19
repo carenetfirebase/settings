@@ -46,6 +46,8 @@ DEK_BYTES = 32
 
 _WRAPPED_DEK_FILENAME = "dek.wrapped"
 _SCRYPT_SALT_FILENAME = "dek.salt"
+_ESCROW_FILENAME = "dek.escrow"
+_RECOVERY_PUBLIC_FILENAME = "recovery.pub"
 
 # scrypt parameters. n=2**15 keeps interactive unwrap under ~100ms on a
 # typical workstation while staying expensive to brute-force offline.
@@ -177,6 +179,19 @@ class Keyring:
     def provider_name(self) -> str:
         return self._provider.name
 
+    @property
+    def escrow_path(self) -> Path:
+        return self._key_dir / _ESCROW_FILENAME
+
+    @property
+    def recovery_public_key_path(self) -> Path:
+        return self._key_dir / _RECOVERY_PUBLIC_FILENAME
+
+    @property
+    def has_escrow(self) -> bool:
+        """True when a recovery copy of the DEK exists."""
+        return self.escrow_path.exists()
+
     @classmethod
     def for_platform(cls, key_dir: Path, *, passphrase_env_var: str) -> Keyring:
         """Select the strongest provider available on this platform."""
@@ -221,4 +236,104 @@ class Keyring:
                 wrapped_path.chmod(0o600)
             except OSError:  # pragma: no cover - platform dependent
                 pass
+
+        # Keep the escrow copy current. A DEK created before escrow was
+        # enrolled would otherwise have no recovery path, and the gap
+        # would be invisible until recovery was actually needed.
+        if self.recovery_public_key_path.exists() and not self.escrow_path.exists():
+            self._write_escrow(self._dek)
+
         return self._dek
+
+    # --- escrow (see crypto.escrow) ------------------------------------
+
+    def _write_escrow(self, dek: bytes) -> None:
+        from .escrow import seal
+
+        public_key = self.recovery_public_key_path.read_bytes()
+        self.escrow_path.write_bytes(seal(public_key, dek))
+        try:
+            self.escrow_path.chmod(0o600)
+        except OSError:  # pragma: no cover - platform dependent
+            pass
+
+    def enroll_escrow(self) -> bytes:
+        """Generate a recovery keypair and seal the DEK under it.
+
+        Returns:
+            The recovery **private** key. The caller is responsible for
+            getting it off this machine; nothing here stores it. See
+            :mod:`secondaryeob.crypto.escrow`.
+
+        Raises:
+            EncryptionError: escrow already exists, or the freshly written
+                escrow does not restore the DEK it was made from.
+        """
+        from .escrow import generate_recovery_keypair, verify_restore
+
+        if self.escrow_path.exists():
+            raise EncryptionError(
+                f"escrow already exists at {self.escrow_path}. Delete it only if you "
+                "are certain the corresponding recovery key is gone; doing so leaves "
+                "the DEK recoverable by the platform provider alone."
+            )
+
+        dek = self.load_or_create()
+        keypair = generate_recovery_keypair()
+
+        self.recovery_public_key_path.write_bytes(keypair.public_key_bytes)
+        self._write_escrow(dek)
+
+        # Restore verification, immediately and while the private key is
+        # still in hand (plan §4). An escrow nobody has opened is an
+        # assumption, and recovery time is the worst moment to test it.
+        verify_restore(keypair.private_key_bytes, self.escrow_path.read_bytes(), dek)
+
+        return keypair.private_key_bytes
+
+    def verify_escrow(self, recovery_private_key: bytes) -> None:
+        """Prove the escrow blob still restores the DEK in use.
+
+        Raises:
+            EncryptionError: no escrow exists, or it does not restore the
+                current DEK.
+        """
+        from .escrow import verify_restore
+
+        if not self.escrow_path.exists():
+            raise EncryptionError(f"no escrow at {self.escrow_path}")
+        verify_restore(recovery_private_key, self.escrow_path.read_bytes(), self.load_or_create())
+
+    def recover_from_escrow(self, recovery_private_key: bytes) -> bytes:
+        """Recover the DEK from escrow and re-wrap it for this machine.
+
+        The disaster path: a new machine or a rebuilt Windows profile has
+        the encrypted data and the escrow blob but cannot unwrap the DEK,
+        because the DPAPI binding died with the old profile. This unseals
+        the DEK with the offline recovery key and re-wraps it under the
+        current platform provider, restoring normal operation.
+
+        Raises:
+            EncryptionError: no escrow, or the key does not open it.
+        """
+        from .escrow import unseal
+
+        if not self.escrow_path.exists():
+            raise EncryptionError(
+                f"no escrow at {self.escrow_path}; there is no recovery path for "
+                "this key. The encrypted data cannot be read."
+            )
+
+        dek = unseal(recovery_private_key, self.escrow_path.read_bytes())
+        if len(dek) != DEK_BYTES:
+            raise EncryptionError("recovered DEK has the wrong length")
+
+        wrapped_path = self._key_dir / _WRAPPED_DEK_FILENAME
+        wrapped_path.write_bytes(self._provider.wrap(dek))
+        try:
+            wrapped_path.chmod(0o600)
+        except OSError:  # pragma: no cover - platform dependent
+            pass
+
+        self._dek = dek
+        return dek

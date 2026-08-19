@@ -37,7 +37,7 @@ def test_end_to_end_exports_one_pdf_per_patient(eob_pdf, settings, vault, biller
     assert result.exported_count == len(SYNTHETIC_PATIENTS)
     assert result.blocked_count == 0
 
-    ready = sorted(settings.path_for("Ready").iterdir())
+    ready = sorted(settings.path_for("Ready").glob("*.pdf"))
     assert len(ready) == len(SYNTHETIC_PATIENTS)
 
 

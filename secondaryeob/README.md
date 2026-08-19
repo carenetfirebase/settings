@@ -71,9 +71,29 @@ secondaryeob init          # create zones, print your subject id
 secondaryeob escrow-init --out recovery.key   # then MOVE recovery.key offline
 secondaryeob whoami
 secondaryeob process       # Incoming/ -> Ready/
+secondaryeob worklist      # which sanitized file belongs to which patient
 secondaryeob status
 secondaryeob purge         # retention deletion (ADMIN only)
 ```
+
+The daily loop is `process` then `worklist`:
+
+```
+$ secondaryeob worklist
+FILE                              PATIENT              DOB          PT RESP  STATUS
+dbac541639ad-pt-ff12c1db7ed1.pdf  Alder Quillfeather   03/14/1982   $196.00  ready
+dbac541639ad-pt-8aa48ef804d7.pdf  Bexley Thornwhistle  11/02/1975    $14.40  ready
+
+$ secondaryeob mark-attached pt-8aa48ef804d7
+```
+
+Output filenames are PHI-free pseudonyms on purpose — filenames leak into
+backups, file dialogs, and search indexes. The manifest is what replaces
+them: encrypted at rest, readable only inside an authenticated session,
+and it carries enough claim detail to file a document without opening it.
+`worklist` is the one command that prints PHI, which is the point — it is
+the same PHI about to be typed into the PMS. `--json --allow-plaintext`
+emits the same data for automation to consume.
 
 Nothing runs until an account is explicitly assigned a role — an
 unrecognised account gets no fallback role.

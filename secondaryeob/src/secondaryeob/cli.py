@@ -5,8 +5,13 @@ enforces the startup controls (sync-folder check, audit chain
 verification, key unwrap, role resolution) — so there is no command that
 runs against an uncontrolled working root.
 
-Nothing here prints PHI. Patient records are referred to by pseudonym,
-which is what the operator sees on screen and in the output filenames.
+Patient records are referred to by pseudonym everywhere except
+``worklist``, which exists precisely to show the biller which patient a
+sanitized file belongs to. That command prints PHI to the terminal by
+design — it is the same PHI they are about to type into the PMS, and
+showing it there is what keeps names out of filenames, where they would
+leak into backups, file dialogs, and search indexes. Nothing PHI-bearing
+is written to the audit log from any command.
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from .audit import AuditLog
+from .audit import Action, AuditLog, Outcome
 from .audit.anchor import AnchorStore
 from .auth.identity import current_subject
 from .config import load_settings
@@ -98,6 +103,105 @@ def _cmd_process(args: argparse.Namespace) -> int:
 
     session.close()
     return exit_code
+
+
+def _cmd_worklist(args: argparse.Namespace) -> int:
+    """Show which sanitized document belongs to which patient.
+
+    Prints PHI to the terminal. That is the point: it is the same PHI the
+    biller is about to type into the PMS, and showing it here is what
+    keeps it out of filenames, where it would leak into backups, file
+    dialogs and search indexes. It is never written to the audit log.
+    """
+    from .manifest import MANIFEST_FILENAME, Manifest
+
+    session = open_session(args.root)
+    try:
+        manifest = Manifest(
+            session.settings.path_for("Ready") / MANIFEST_FILENAME, session.guard
+        )
+        entries = manifest.read() if args.all else manifest.pending()
+
+        if not entries:
+            where = "in the manifest" if args.all else "waiting to be attached"
+            print(f"Nothing {where}.")
+            return 0
+
+        session.guard.record(
+            Action.ACCESS_GRANTED,
+            outcome=Outcome.SUCCESS,
+            target_ref="worklist",
+            detail={"entries_shown": len(entries), "include_attached": bool(args.all)},
+        )
+
+        if args.json:
+            # Machine-readable, for a PAD flow or PMS connector. Guarded
+            # because redirecting this to a file writes plaintext PHI to
+            # disk, which every other path in this system refuses to do.
+            if not args.allow_plaintext:
+                print(
+                    "Refusing --json without --allow-plaintext: this writes patient "
+                    "names and DOBs as plaintext to stdout, and redirecting it to a "
+                    "file puts unencrypted PHI on disk.",
+                    file=sys.stderr,
+                )
+                return 2
+            print(
+                json.dumps(
+                    [
+                        {
+                            "pseudonym": e.pseudonym,
+                            "filename": e.filename,
+                            "patient_name": e.patient_name,
+                            "date_of_birth": e.date_of_birth,
+                            "member_id": e.member_id,
+                            "procedure_codes": list(e.procedure_codes),
+                            "patient_responsibility": e.patient_responsibility,
+                            "attached": e.attached,
+                        }
+                        for e in entries
+                    ],
+                    indent=2,
+                )
+            )
+            return 0
+
+        name_width = max(len(e.patient_name) for e in entries)
+        name_width = min(max(name_width, 7), 32)
+
+        print(f"{'FILE':<42}  {'PATIENT':<{name_width}}  {'DOB':<10}  {'PT RESP':>9}  STATUS")
+        for entry in entries:
+            resp = entry.patient_responsibility
+            resp_text = f"${resp}" if resp else "review"
+            status = "attached" if entry.attached else "ready"
+            print(
+                f"{entry.filename:<42}  {entry.patient_name[:name_width]:<{name_width}}  "
+                f"{(entry.date_of_birth or '-'):<10}  {resp_text:>9}  {status}"
+            )
+
+        pending = sum(1 for e in entries if not e.attached)
+        print(f"\n{len(entries)} document(s), {pending} still to attach.")
+        print("After filing one into the PMS:")
+        print("  secondaryeob mark-attached <pseudonym>")
+        return 0
+    finally:
+        session.close()
+
+
+def _cmd_mark_attached(args: argparse.Namespace) -> int:
+    from .manifest import MANIFEST_FILENAME, Manifest
+
+    session = open_session(args.root)
+    try:
+        manifest = Manifest(
+            session.settings.path_for("Ready") / MANIFEST_FILENAME, session.guard
+        )
+        entry = manifest.mark_attached(args.pseudonym, by=session.principal.username)
+        print(f"Marked {entry.pseudonym} attached ({entry.filename}).")
+        print(f"{len(manifest.pending())} still to attach.")
+        return 0
+    finally:
+        session.close()
 
 
 def _cmd_verify_audit(args: argparse.Namespace) -> int:
@@ -486,6 +590,26 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("init", help="create the working root and show your subject id")
     sub.add_parser("whoami", help="show the resolved identity and role")
     sub.add_parser("process", help="process every document in Incoming/")
+
+    worklist = sub.add_parser(
+        "worklist", help="show which sanitized file belongs to which patient"
+    )
+    worklist.add_argument(
+        "--all", action="store_true", help="include documents already attached"
+    )
+    worklist.add_argument(
+        "--json", action="store_true", help="machine-readable output for automation"
+    )
+    worklist.add_argument(
+        "--allow-plaintext",
+        action="store_true",
+        help="required with --json: acknowledges emitting plaintext PHI to stdout",
+    )
+
+    attached = sub.add_parser(
+        "mark-attached", help="record that a document has been filed into the PMS"
+    )
+    attached.add_argument("pseudonym", help="the pt-... handle from the worklist")
     sub.add_parser("purge", help="run retention deletion")
     sub.add_parser("status", help="show configuration and folder counts")
     sub.add_parser(
@@ -533,6 +657,8 @@ _COMMANDS = {
     "init": _cmd_init,
     "whoami": _cmd_whoami,
     "process": _cmd_process,
+    "worklist": _cmd_worklist,
+    "mark-attached": _cmd_mark_attached,
     "verify-audit": _cmd_verify_audit,
     "escrow-init": _cmd_escrow_init,
     "escrow-verify": _cmd_escrow_verify,

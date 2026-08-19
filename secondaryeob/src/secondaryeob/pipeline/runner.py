@@ -13,8 +13,10 @@ something a human has to look at.
 
 from __future__ import annotations
 
+import re
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 from ..audit import Action, Outcome
@@ -282,7 +284,85 @@ def _process_patient(
         target_ref=record.pseudonym,
         detail={"bytes": len(redacted)},
     )
+
+    # Record which patient this file belongs to. Without this the output is
+    # unusable: the filename is a pseudonym by design, so nothing — human
+    # or automation — can tell which chart it goes in.
+    _record_in_manifest(
+        record=record,
+        destination=destination,
+        source_ref=source_ref,
+        job_guard=job_guard,
+        settings=settings,
+    )
     return outcome
+
+
+def _record_in_manifest(
+    *,
+    record: PatientRecord,
+    destination: Path,
+    source_ref: str,
+    job_guard: Guard,
+    settings: Settings,
+) -> None:
+    from ..manifest import MANIFEST_FILENAME, Manifest, ManifestEntry, summarize_claims
+
+    codes, patient_responsibility = summarize_claims(record.claims)
+
+    # The classifier records a patient's identifiers as an unordered set,
+    # so the name is recovered as the entry that is not an ID or a date —
+    # IDs and dates are matched by shape, names are what remain.
+    name = _identify_name(record.identifiers)
+    member_id = next(
+        (value for value in sorted(record.identifiers) if _looks_like_member_id(value)),
+        None,
+    )
+    dob = next(
+        (value for value in sorted(record.identifiers) if _looks_like_date(value)), None
+    )
+
+    manifest = Manifest(settings.path_for("Ready") / MANIFEST_FILENAME, job_guard)
+    manifest.append(
+        ManifestEntry(
+            pseudonym=record.pseudonym,
+            filename=destination.name,
+            source_ref=source_ref,
+            exported_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            patient_name=name,
+            date_of_birth=dob,
+            member_id=member_id,
+            procedure_codes=codes,
+            patient_responsibility=patient_responsibility,
+        )
+    )
+
+
+_DATE_RE = re.compile(r"^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$")
+
+
+def _looks_like_date(value: str) -> bool:
+    return bool(_DATE_RE.match(value.strip()))
+
+
+def _looks_like_member_id(value: str) -> bool:
+    """True for identifier-shaped strings: mostly digits, or digits with a prefix."""
+    stripped = value.strip()
+    if _looks_like_date(stripped):
+        return False
+    digits = sum(1 for ch in stripped if ch.isdigit())
+    return digits >= 3 and digits / max(len(stripped), 1) >= 0.4
+
+
+def _identify_name(identifiers: frozenset[str]) -> str:
+    """Pick the patient's name out of the identifier set."""
+    candidates = [
+        value
+        for value in sorted(identifiers)
+        if not _looks_like_date(value) and not _looks_like_member_id(value)
+    ]
+    # Prefer the longest: a full name beats a fragment if several survive.
+    return max(candidates, key=len) if candidates else ""
 
 
 def _quarantine(

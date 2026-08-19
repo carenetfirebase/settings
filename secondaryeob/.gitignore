@@ -1,0 +1,11 @@
+dist/
+dist-exe/
+build/
+packaging/dist/
+packaging/build/
+*.egg-info/
+__pycache__/
+*.py[cod]
+*.key
+*.whl
+*.tar.gz

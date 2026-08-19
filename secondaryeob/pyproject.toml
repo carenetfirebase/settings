@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "secondaryeob"
+version = "0.1.0"
+description = "Local dental EOB document-processing engine (HIPAA-capable architecture)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+keywords = ["dental", "eob", "phi", "redaction", "hipaa"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Healthcare Industry",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+    "Private :: Do Not Upload",
+]
+dependencies = [
+    "cryptography>=41",
+    "pymupdf>=1.24",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+build = [
+    "build>=1.0",
+    "pyinstaller>=6.3",
+]
+
+[project.scripts]
+secondaryeob = "secondaryeob.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+secondaryeob = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

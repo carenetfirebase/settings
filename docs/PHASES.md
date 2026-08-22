@@ -224,6 +224,14 @@ Map · KPI card 5.
 
 Reads: SPEC §6.8, §7. **This is the phase that determines whether any of the above is real.**
 
+> **Status: engine built; baseline report not produced.**
+> The entry clock, forward returns, universe reconstruction, terminal outcome
+> handling, the look-ahead assertion, confidence intervals, and walk-forward
+> chronology are built and tested (criteria 1, 2, 3, 4, 6). **Criterion 5 — the
+> baseline report on real insider clusters — is not met**: it needs live price
+> history, which the development environment cannot reach. Run it on the target
+> machine once Stooq ingest has populated `prices_daily`.
+
 Point-in-time event study engine · universe reconstruction from snapshots · forward
 returns at 1/5/20/60/120/250 days · absolute, benchmark-adjusted, sector-adjusted · hit
 rate, median, mean, MAE, MFE, drawdown, volatility · delisting outcome handling · walk-

@@ -65,7 +65,7 @@ DISCRETIONARY_CODES = frozenset({"P", "S"})
 # Filers write this with a hyphen, an en dash or an em dash; all three appear
 # in real footnote prose, which is why the character class is not "just a
 # hyphen". noqa: the ambiguous characters are the point.
-_RULE_10B5_1 = re.compile(r"10b5[\s\-–—]?1", re.IGNORECASE)  # noqa: RUF001
+_RULE_10B5_1 = re.compile(r"10b5[\s\-–—]?1", re.IGNORECASE)
 
 
 class Form4ParseError(ValueError):

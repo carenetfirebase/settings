@@ -1,0 +1,119 @@
+/* Design tokens — docs/UI_SPEC.md §1.
+ *
+ * THIS IS THE ONLY FILE IN frontend/src THAT MAY CONTAIN A RAW HEX VALUE.
+ * tests/tokens.test.ts fails the build on a hex literal or a bare pixel size
+ * anywhere else. That rule exists because a one-off colour is how a palette
+ * stops being a system.
+ *
+ * Semantic discipline (UI_SPEC §1): green means confirming evidence or a
+ * positive change, never "buy". Red means contradiction or a negative change,
+ * never "sell". Amber means the data is stale or degraded, never "caution,
+ * consider trading".
+ */
+
+:root {
+  /* surfaces */
+  --bg-app: #010c15;
+  --bg-panel: #09141c;
+  --bg-raised: #111923;
+  --bg-inset: #060f17;
+
+  /* lines */
+  --border: #16232e;
+  --border-strong: #1f303d;
+
+  /* text */
+  --text-primary: #e8eef2;
+  --text-secondary: #8a9ba8;
+  --text-muted: #5a6b78;
+
+  /* semantic — meaning is fixed, never decorative */
+  --positive: #2dd4a7;
+  --positive-deep: #0f5d41;
+  --warning: #f0b429;
+  --negative: #e5484d;
+  --info: #4a9fd8;
+  --political: #8b7bd8;
+
+  /* heat map ramp */
+  --heat-pos-max: #144831;
+  --heat-neg-max: #4a1f21;
+
+  /* type */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-label: 10px;
+  --text-caption: 11px;
+  --text-body: 13px;
+  --text-heading: 15px;
+  --text-value: 20px;
+  --text-kpi: 32px;
+
+  /* space — 4px base unit */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --panel-padding: 16px;
+  --panel-gap: 12px;
+  --sidebar-width: 208px;
+  --topbar-height: 56px;
+  --content-max: 1920px;
+
+  /* shape — no shadows anywhere. Depth comes from surface value, not blur. */
+  --radius-panel: 6px;
+  --radius-control: 4px;
+  --radius-full: 9999px;
+  --border-width: 1px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every number, ticker, and date is monospaced and tabular. Columns of figures
+ * must align on the decimal — a proportional-figure table reads as amateur,
+ * and this is the single most important typographic rule in a terminal. */
+.mono,
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.panel-label {
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* UI_SPEC §6: visible focus ring throughout, never removed. */
+:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -44,6 +44,10 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    # Also under /api so the Next.js proxy reaches it: the dev server
+    # rewrites /api/* to this origin, and Phase 1 criterion 3 curls
+    # /api/health through that proxy.
+    app.include_router(health.router, prefix="/api")
     app.include_router(system.router, prefix=API_PREFIX)
     return app
 

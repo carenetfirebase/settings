@@ -378,3 +378,44 @@ def _price_already_ran(
     if value <= 50.0:
         return False, f"90-day move {value:+.1f}%", None
     return True, f"Already up {value:.1f}% over 90 days", None
+
+
+# ────────────── the Phase 6 and Phase 7 checks (last two) ─────────────────
+
+
+@register("declining_government_awards")
+def _declining_government_awards(
+    facts: Mapping[str, Any], as_of: date
+) -> tuple[bool, str, str | None] | None:
+    """Contract momentum turning down.
+
+    Reads the same gated momentum the government category scores from, so a
+    company whose awards were never resolved reports None here rather than
+    firing on an absence it mistook for a decline.
+    """
+    value = facts.get("contract_yoy_pct")
+    if value is None:
+        return None
+    if value >= -20.0:
+        return False, f"Awards {value:+.0f}% year over year", None
+    return True, f"Federal awards down {abs(value):.0f}% year over year", None
+
+
+@register("rising_short_interest")
+def _rising_short_interest(
+    facts: Mapping[str, Any], as_of: date
+) -> tuple[bool, str, str | None] | None:
+    """Short interest building against the thesis.
+
+    Measured in percentage points of shares outstanding, never of float
+    (SPEC §4). Fires above +2pp, which is a real change rather than the noise
+    of a bi-monthly snapshot.
+    """
+    change = facts.get("short_interest_change_pp")
+    if change is None:
+        return None
+    if change <= 2.0:
+        return False, f"Short interest {change:+.1f}pp", None
+    level = facts.get("short_interest_pct_shares_outstanding")
+    suffix = f", now {level:.1f}% of shares outstanding" if level is not None else ""
+    return True, f"Short interest up {change:.1f}pp{suffix}", None

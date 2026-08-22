@@ -1,0 +1,9 @@
+# Manual entity overrides. ALWAYS wins over any automated match (SPEC §5.3).
+# Committed to git so every override is attributable and reviewable.
+#
+# source      : the source_id from config/sources.yaml
+# source_key  : the raw key as it appears in that source
+# cik         : 10-digit zero-padded SEC CIK
+# note        : why this override exists — required, so future readers know
+source,source_key,cik,note
+usaspending,LOCKHEED MARTIN CORPORATION,0000936468,UEI-to-name match is ambiguous across subsidiaries

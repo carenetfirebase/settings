@@ -1,0 +1,58 @@
+# SPEC §2. The universe is append-only; a delisted name is marked, never deleted.
+# CIK is identity. Ticker is an attribute with a validity range.
+
+backfill_months: 24
+
+exchanges:
+  - NYSE
+  - Nasdaq
+  - NYSE American
+
+# No free SEC field identifies "common equity" (docs/ARCHITECTURE.md §C.2).
+# The proxy rule: a company qualifies if it filed a 10-K or 10-Q in the
+# trailing window. Foreign private issuers file 20-F and drop out; funds file
+# N-CSR/N-PORT and drop out; most trust and unit structures never file a 10-Q.
+#
+# This is a proxy and it is wrong at the margins in both directions, so every
+# company row records `inclusion_reason` and the errors stay auditable.
+inclusion:
+  require_form_in_window: [10-K, 10-Q]
+  window_months: 24
+
+exclusions:
+  # Forms whose presence disqualifies regardless of the above.
+  disqualifying_forms: [20-F, 40-F, N-CSR, N-PORT, N-1A]
+  # Ticker suffix patterns for units, warrants, rights, preferreds.
+  ticker_suffix_patterns:
+    - "-WT$"
+    - "-U$"
+    - "-R$"
+    - "\\.PR"
+    - "-P$"
+  # SIC ranges that are funds/trusts rather than operating companies.
+  sic_ranges:
+    - [6722, 6726] # investment offices, unit trusts, closed-end funds
+    - [6798, 6798] # REITs are NOT excluded — this is deliberate, see note
+  sic_range_notes: >
+    6798 (REITs) appears here as documentation that it was considered and
+    deliberately NOT excluded — REITs are common equity and file 10-Ks. The
+    loader ignores any range whose start equals its end and is listed as a
+    note. Kept so nobody re-adds it.
+
+expected_size_min: 3500
+expected_size_max: 5000
+
+benchmarks:
+  market: "^SPX"
+  sectors:
+    energy: XLE
+    financials: XLF
+    technology: XLK
+    healthcare: XLV
+    industrials: XLI
+    consumer_discretionary: XLY
+    consumer_staples: XLP
+    utilities: XLU
+    materials: XLB
+    real_estate: XLRE
+    communication: XLC

@@ -1,0 +1,227 @@
+# Authoritative machine-readable source registry. The human-readable version is
+# docs/DATA_SOURCES.md — keep them in sync in the same commit.
+#
+# `imt.core.http` refuses to make a request to a host that is not declared here.
+# That is what keeps a scraper for a banned site from being added quietly.
+
+user_agent_template: "Informed Money Terminal {contact}"
+
+# Hosts that must never appear in code or config (docs/DATA_SOURCES.md
+# "Explicitly not automated"). A test asserts none of these is reachable from
+# any adapter.
+forbidden_hosts:
+  - openinsider.com
+  - capitoltrades.com
+  - tradingview.com
+  - finviz.com
+  - tikr.com
+  - koyfin.com
+  - stockanalysis.com
+  - forexfactory.com
+  - roic.ai
+  - fiscal.ai
+
+sources:
+  sec_edgar:
+    name: SEC EDGAR
+    tier: 1
+    hosts: [www.sec.gov, data.sec.gov]
+    auth: none
+    requires_user_agent: true
+    rate_limit_per_second: 8.0 # hard ceiling is 10; 8 leaves headroom
+    staleness_threshold_hours: 30
+    cadence: intraday
+    terms_url: https://www.sec.gov/os/webmaster-faq#developers
+    automation: full
+    enabled: true
+
+  stooq:
+    name: Stooq EOD prices
+    tier: 1
+    hosts: [stooq.com]
+    auth: none
+    rate_limit_per_second: 0.5 # undocumented limits; this site bans aggressively
+    staleness_threshold_hours: 30
+    cadence: daily
+    terms_url: https://stooq.com/
+    automation: full
+    enabled: true
+    notes: >
+      Prefer the bulk daily archive. Per-symbol fetching across a 4,000-name
+      universe is the fastest way to lose this source. Adjusted series only —
+      a split restates history, so this is unusable for raw historical levels.
+
+  fred:
+    name: FRED
+    tier: 1
+    hosts: [api.stlouisfed.org]
+    auth: free-key
+    env_key: FRED_API_KEY
+    rate_limit_per_second: 2.0
+    staleness_threshold_hours: 48
+    cadence: daily
+    terms_url: https://fred.stlouisfed.org/docs/api/terms_of_use.html
+    automation: full
+    enabled: true
+
+  cftc:
+    name: CFTC Commitments of Traders
+    tier: 1
+    hosts: [publicreporting.cftc.gov]
+    auth: none
+    rate_limit_per_second: 1.0
+    staleness_threshold_hours: 192 # weekly, released Friday
+    cadence: weekly
+    terms_url: https://publicreporting.cftc.gov/
+    automation: full
+    enabled: true
+    notes: Socrata dataset IDs change on republication. Pin and fail loudly on schema drift.
+
+  usaspending:
+    name: USAspending
+    tier: 1
+    hosts: [api.usaspending.gov]
+    auth: none
+    rate_limit_per_second: 2.0
+    staleness_threshold_hours: 48
+    cadence: daily
+    terms_url: https://api.usaspending.gov/
+    automation: full
+    enabled: true
+
+  eia:
+    name: EIA
+    tier: 1
+    hosts: [api.eia.gov]
+    auth: free-key
+    env_key: EIA_API_KEY
+    rate_limit_per_second: 2.0
+    staleness_threshold_hours: 192
+    cadence: weekly
+    terms_url: https://www.eia.gov/opendata/
+    automation: full
+    enabled: true
+
+  openfda:
+    name: openFDA
+    tier: 1
+    hosts: [api.fda.gov]
+    auth: free-key
+    env_key: OPENFDA_API_KEY
+    rate_limit_per_second: 2.0
+    staleness_threshold_hours: 48
+    cadence: daily
+    terms_url: https://open.fda.gov/terms/
+    automation: full
+    enabled: true
+    notes: >
+      Anonymous cap is 1,000/day, which a universe-wide sweep exceeds. Scope to
+      the biotech sector module's candidate list only.
+
+  sam_gov:
+    name: SAM.gov Opportunities
+    tier: 2
+    hosts: [api.sam.gov]
+    auth: free-key
+    env_key: SAM_API_KEY
+    rate_limit_per_second: 1.0
+    staleness_threshold_hours: 48
+    cadence: daily
+    terms_url: https://sam.gov/
+    automation: full
+    enabled: false # blocked until the key is issued; can take days
+    blocked_reason: awaiting_api_key
+
+  finra_short_interest:
+    name: FINRA short interest (bi-monthly)
+    tier: 2
+    hosts: [api.finra.org]
+    auth: free-key
+    env_key: FINRA_API_KEY
+    rate_limit_per_second: 1.0
+    staleness_threshold_hours: 456 # bi-monthly + ~8 day publication lag
+    cadence: bimonthly
+    terms_url: https://developer.finra.org/
+    automation: full
+    enabled: false
+    blocked_reason: awaiting_credentials
+
+  finra_short_volume:
+    name: FINRA daily short-sale volume
+    tier: 2
+    hosts: [cdn.finra.org]
+    auth: none
+    rate_limit_per_second: 1.0
+    staleness_threshold_hours: 30
+    cadence: daily
+    terms_url: https://developer.finra.org/
+    automation: full
+    enabled: false
+    blocked_reason: awaiting_credentials
+    notes: >
+      NOT short interest. Different quantity, different table, never joined.
+      SPEC §8 and Phase 7 criterion 3.
+
+  occ:
+    name: OCC options volume
+    tier: 2
+    hosts: [www.theocc.com]
+    auth: none
+    rate_limit_per_second: 0.5
+    staleness_threshold_hours: 30
+    cadence: daily
+    terms_url: https://www.theocc.com/
+    automation: full
+    enabled: false
+    notes: Aggregate/product-level only. Per-symbol open interest is Premium-Dependent.
+
+  house_ptr:
+    name: House Clerk Periodic Transaction Reports
+    tier: 3
+    hosts: [disclosures-clerk.house.gov]
+    auth: none
+    rate_limit_per_second: 0.5
+    staleness_threshold_hours: 168
+    cadence: irregular
+    terms_url: https://disclosures-clerk.house.gov/
+    automation: semi
+    enabled: true
+    notes: >
+      Annual ZIP of an index plus per-filing PDFs. A substantial share are
+      scanned images and some are handwritten. Pipeline is text-extract -> OCR
+      -> review queue. Never guess a number off a low-confidence OCR.
+
+  senate_efd:
+    name: Senate Electronic Financial Disclosure
+    tier: 3
+    hosts: [efdsearch.senate.gov]
+    auth: session
+    rate_limit_per_second: 0.2
+    staleness_threshold_hours: 720
+    cadence: irregular
+    terms_url: https://efdsearch.senate.gov/search/home/
+    automation: manual # V1 DECISION — see docs/DATA_SOURCES.md Tier 3
+    enabled: false
+    blocked_reason: manual_import_only
+    notes: >
+      Requires accepting an agreement for a session cookie and has bot
+      protection. V1 imports Senate filings through
+      `imt ingest congress --from-csv`. The UI states coverage is manual and
+      shows the date of the last import.
+
+  trace:
+    name: FINRA TRACE corporate bonds
+    tier: 4
+    hosts: []
+    auth: none
+    rate_limit_per_second: 0.5
+    staleness_threshold_hours: 48
+    cadence: daily
+    terms_url: https://www.finra.org/finra-data/fixed-income
+    automation: full
+    enabled: false
+    blocked_reason: v2_cusip_licensing
+    notes: >
+      Bond -> issuer mapping requires CUSIP, licensed by CGS. Real licensing
+      exposure for no proportionate V1 benefit. Schema and the Equity/Credit
+      Divergence interface are built; the feed stays disabled.

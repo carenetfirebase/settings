@@ -1,0 +1,164 @@
+# Scoring constants. Every number here is a HYPOTHESIS, not a proven parameter.
+# Changing this file is a commit. Every row in `scores` records weights_version.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# READ THIS BEFORE EDITING category_weights
+# ─────────────────────────────────────────────────────────────────────────────
+# The category weights below are DELIBERATELY NOT NORMALIZED to sum to 1.
+#
+# Convergence = 100 * (1 - exp(-lambda * sum_i(w_i * C_i/100 * [C_i >= tau])))
+#
+# With lambda = 0.55, SPEC §6.4's calibration (three strong independent
+# categories ~= 75, five ~= 92) requires w_i ~= 0.88 each, summing to ~8.8.
+#
+#   If you "tidy" these to sum to 1.0 (w = 0.1 each):
+#     three strong categories -> Convergence 15   (target 75)
+#     five  strong categories -> Convergence 24   (target 92)
+#   ...and the scoring system silently stops working. It does not error.
+#
+# UPPER BOUND: no single category weight may exceed 1.05. Phase 3's core
+# correctness test requires that five signals from ONE category score
+# Convergence < 45. That bound breaks at w_i >= 1.087.
+#
+# imt.scoring.weights validates both rules at load and refuses to start.
+# ─────────────────────────────────────────────────────────────────────────────
+
+weights_version: "0.1.0"
+
+convergence:
+  tau: 60.0 # a category must reach this to count toward convergence at all
+  lambda_: 0.55 # saturation rate; see calibration note above
+
+category_weights:
+  corporate_insider: 0.95
+  political: 0.85
+  institutional: 0.88
+  government: 0.88
+  corporate_event: 0.88
+  fundamental: 0.88
+  valuation: 0.85
+  positioning: 0.85
+  macro_sector: 0.85
+  credit: 0.88 # V2 — feed disabled, weight retained so the shape is stable
+
+# Composite grouping (SPEC §6.7). These ARE normalized — they are a weighted
+# mean, not a saturating sum, so summing to 1.0 is correct here.
+composites:
+  informed_money:
+    corporate_insider: 0.45
+    political: 0.25
+    institutional: 0.30
+  catalyst:
+    government: 0.40
+    corporate_event: 0.60
+  fundamental:
+    fundamental: 0.60
+    valuation: 0.40
+  context:
+    positioning: 0.45
+    macro_sector: 0.55
+
+base_weights:
+  informed_money: 0.40
+  catalyst: 0.25
+  fundamental: 0.20
+  context: 0.15
+
+research_priority:
+  convergence_floor: 0.5 # RP *= (floor + (1-floor) * Convergence/100)
+  contradiction_penalty: 0.6 # RP *= (1 - penalty * Contradiction/100)
+
+confidence:
+  contradiction_penalty: 0.5
+  threshold_normalization_penalty: 0.7 # applies to ALL of V1 -> confidence caps at 70
+
+# SPEC §6.5. Half-life in days. Congressional decay is measured from the
+# TRANSACTION date, not the disclosure date — disclosure lag is a penalty,
+# not a reset.
+freshness_half_life_days:
+  form4_purchase: 21
+  form4_sale: 21
+  form144: 14
+  eightk: 10
+  thirteen_d: 30
+  thirteen_g: 90
+  congressional_ptr: 10 # aggressive by design
+  thirteen_f: 120 # up to 45d stale on arrival; never a fresh signal
+  short_interest: 21
+  government_contract: 60
+  macro: 30
+
+# Percentile normalization needs this many observations of a feature before it
+# is trusted; below it, fall back to the thresholds below and stamp the row
+# 'fallback_threshold'.
+normalization:
+  min_observations: 500
+  trailing_months: 36
+
+# Piecewise-linear thresholds for fallback normalization: [raw_value, score].
+# Interpolated linearly between points, clamped at the ends.
+thresholds:
+  insider_purchase_value_usd:
+    - [0, 0]
+    - [50_000, 25]
+    - [250_000, 55]
+    - [1_000_000, 80]
+    - [10_000_000, 100]
+  insider_cluster_size:
+    - [0, 0]
+    - [1, 20]
+    - [3, 65]
+    - [5, 85]
+    - [8, 100]
+  insider_role_weight:
+    - [0, 0]
+    - [1, 40] # director / 10% holder
+    - [2, 70] # officer
+    - [3, 100] # CEO / CFO
+  political_value_midpoint_usd:
+    - [0, 0]
+    - [15_000, 20]
+    - [100_000, 50]
+    - [500_000, 75]
+    - [5_000_000, 100]
+  political_disclosure_lag_days: # inverted: more lag is worse
+    - [0, 100]
+    - [15, 80]
+    - [30, 50]
+    - [45, 25]
+    - [90, 0]
+  activist_pct_of_class:
+    - [0, 0]
+    - [5, 40]
+    - [10, 70]
+    - [20, 100]
+  contract_momentum_yoy_pct:
+    - [-50, 0]
+    - [0, 30]
+    - [25, 60]
+    - [100, 90]
+    - [300, 100]
+  price_run_90d_pct: # used by the contradiction check, not as evidence
+    - [0, 0]
+    - [25, 20]
+    - [50, 60]
+    - [100, 90]
+    - [200, 100]
+
+# SPEC §6.6. Each check declares the data it needs. A check whose data is
+# absent is persisted as 'unavailable' — NEVER as 'clear' — and reduces
+# DataQuality. See docs/ARCHITECTURE.md §E.
+contradiction_checks:
+  ceo_cfo_selling: { severity: 40, requires: [insider_transactions] }
+  executive_departure: { severity: 35, requires: [filings_8k] }
+  immaterial_insider_purchase: { severity: 25, requires: [insider_transactions] }
+  price_already_ran: { severity: 30, requires: [prices_daily] }
+  stale_congressional_disclosure: { severity: 20, requires: [congressional_transactions] }
+  share_dilution: { severity: 35, requires: [xbrl_facts] }
+  rising_debt: { severity: 30, requires: [xbrl_facts] }
+  falling_interest_coverage: { severity: 35, requires: [xbrl_facts] }
+  deteriorating_gross_margin: { severity: 30, requires: [xbrl_facts] }
+  inventory_outpacing_revenue: { severity: 25, requires: [xbrl_facts] }
+  negative_fcf_trend: { severity: 35, requires: [xbrl_facts] }
+  rising_short_interest: { severity: 30, requires: [short_interest] }
+  declining_government_awards: { severity: 25, requires: [government_contracts] }

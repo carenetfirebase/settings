@@ -1,18 +1,20 @@
+# Postgres 16 for Windows/Docker Desktop. The Linux dev container runs a native
+# cluster instead -- see scripts/dev.sh.
 services:
-  postgres:
+  db:
     image: postgres:16
-    container_name: invest-postgres
+    container_name: imt-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-invest}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-invest}
-      POSTGRES_DB: ${POSTGRES_DB:-invest}
+      POSTGRES_USER: imt
+      POSTGRES_PASSWORD: imt
+      POSTGRES_DB: imt
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-invest} -d ${POSTGRES_DB:-invest}"]
+      test: ["CMD-SHELL", "pg_isready -U imt -d imt"]
       interval: 5s
       timeout: 5s
       retries: 10

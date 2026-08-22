@@ -1,0 +1,56 @@
+# SIC -> internal 11-bucket taxonomy. GICS is licensed and out of scope
+# (SPEC §4), so this is coarse by necessity and the UI says so on screen.
+#
+# Ranges are inclusive and evaluated in order; the first match wins.
+# Anything unmatched becomes `unknown`, which is a real value and is displayed
+# as such — never silently bucketed into the largest sector.
+
+sectors:
+  energy:
+    label: Energy
+    benchmark: XLE
+    sic_ranges: [[1200, 1399], [2900, 2999], [4600, 4699], [5170, 5172]]
+  materials:
+    label: Materials
+    benchmark: XLB
+    sic_ranges: [[1000, 1099], [1400, 1499], [2600, 2699], [2800, 2824], [2840, 2899], [3300, 3399]]
+  industrials:
+    label: Industrials
+    benchmark: XLI
+    sic_ranges: [[1500, 1799], [3400, 3599], [3700, 3799], [4000, 4599], [4700, 4799], [8700, 8748]]
+  consumer_discretionary:
+    label: Consumer Discretionary
+    benchmark: XLY
+    sic_ranges: [[2300, 2399], [2500, 2599], [3000, 3199], [3630, 3639], [3710, 3716], [5200, 5999], [7000, 7299], [7800, 7999]]
+  consumer_staples:
+    label: Consumer Staples
+    benchmark: XLP
+    sic_ranges: [[100, 999], [2000, 2199], [2200, 2299], [5140, 5149], [5400, 5499], [5912, 5912]]
+  healthcare:
+    label: Health Care
+    benchmark: XLV
+    sic_ranges: [[2830, 2836], [3826, 3826], [3840, 3851], [8000, 8099]]
+  financials:
+    label: Financials
+    benchmark: XLF
+    sic_ranges: [[6000, 6199], [6300, 6411], [6500, 6553]]
+  technology:
+    label: Information Technology
+    benchmark: XLK
+    sic_ranges: [[3570, 3579], [3600, 3629], [3660, 3699], [3820, 3825], [3827, 3829], [7370, 7379]]
+  communication:
+    label: Communication Services
+    benchmark: XLC
+    sic_ranges: [[2700, 2799], [4800, 4899], [7310, 7319], [7810, 7841]]
+  utilities:
+    label: Utilities
+    benchmark: XLU
+    sic_ranges: [[4900, 4999]]
+  real_estate:
+    label: Real Estate
+    benchmark: XLRE
+    sic_ranges: [[6798, 6798], [6552, 6552]]
+  unknown:
+    label: Unclassified
+    benchmark: null
+    sic_ranges: []

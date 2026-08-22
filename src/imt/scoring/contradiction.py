@@ -247,3 +247,134 @@ def _immaterial_insider_purchase(
         f"Largest purchase ${amount:,.0f} is immaterial against existing holdings",
         largest.get("source_url"),
     )
+
+
+# ───────────────────── the Phase 4 check (congressional) ──────────────────
+
+
+@register("stale_congressional_disclosure")
+def _stale_congressional_disclosure(
+    facts: Mapping[str, Any], as_of: date
+) -> tuple[bool, str, str | None] | None:
+    """A PTR whose transaction is old enough that the edge is likely gone.
+
+    This is the check that argues against the political category from inside
+    the political category. The STOCK Act allows 30-45 days and late filings
+    are routine, so a disclosure covering a trade from two months ago is
+    weaker evidence than its freshness score alone suggests -- and the
+    contradiction column is where that gets said out loud.
+    """
+    lags = facts.get("congressional_lag_days") or []
+    if not lags:
+        return None
+    worst = max(lags)
+    if worst <= 45:
+        return False, f"Longest disclosure lag {worst}d", None
+    return (
+        True,
+        f"Disclosure lagged the transaction by {worst}d; the edge is likely priced in",
+        facts.get("ptr_url"),
+    )
+
+
+# ─────────────────────── the Phase 5 checks (XBRL) ────────────────────────
+#
+# These become available once `xbrl_facts` is ingested. Until then they report
+# UNAVAILABLE, which is why contradiction coverage rises phase by phase and
+# DataQuality rises with it.
+
+
+@register("share_dilution")
+def _share_dilution(facts: Mapping[str, Any], as_of: date) -> tuple[bool, str, str | None] | None:
+    """Issuing shares while insiders buy is a real tension.
+
+    Fires above 5% over the trailing window: below that is ordinary
+    compensation-plan issuance, and firing on it would flag nearly every
+    company that grants equity.
+    """
+    value = facts.get("share_dilution_pct")
+    if value is None:
+        return None
+    if value <= 5.0:
+        return False, f"Share count changed {value:+.1f}%", None
+    return True, f"Share count up {value:.1f}% over the trailing window", facts.get("filing_url")
+
+
+@register("rising_debt")
+def _rising_debt(facts: Mapping[str, Any], as_of: date) -> tuple[bool, str, str | None] | None:
+    value = facts.get("debt_to_equity")
+    if value is None:
+        return None
+    if value <= 2.0:
+        return False, f"Debt/equity {value:.2f}", None
+    return True, f"Debt/equity at {value:.2f}", facts.get("filing_url")
+
+
+@register("falling_interest_coverage")
+def _falling_interest_coverage(
+    facts: Mapping[str, Any], as_of: date
+) -> tuple[bool, str, str | None] | None:
+    """Below 3x, debt service starts constraining the business."""
+    value = facts.get("interest_coverage")
+    if value is None:
+        return None
+    if value >= 3.0:
+        return False, f"Interest coverage {value:.1f}x", None
+    return True, f"Interest coverage only {value:.1f}x", facts.get("filing_url")
+
+
+@register("deteriorating_gross_margin")
+def _deteriorating_gross_margin(
+    facts: Mapping[str, Any], as_of: date
+) -> tuple[bool, str, str | None] | None:
+    value = facts.get("gross_margin_change_pp")
+    if value is None:
+        return None
+    if value >= -2.0:
+        return False, f"Gross margin {value:+.1f}pp", None
+    return True, f"Gross margin down {abs(value):.1f}pp", facts.get("filing_url")
+
+
+@register("inventory_outpacing_revenue")
+def _inventory_outpacing_revenue(
+    facts: Mapping[str, Any], as_of: date
+) -> tuple[bool, str, str | None] | None:
+    """Goods accumulating faster than they sell."""
+    value = facts.get("inventory_vs_revenue_pp")
+    if value is None:
+        return None
+    if value <= 10.0:
+        return False, f"Inventory vs revenue {value:+.1f}pp", None
+    return True, f"Inventory growing {value:.1f}pp faster than revenue", facts.get("filing_url")
+
+
+@register("negative_fcf_trend")
+def _negative_fcf_trend(
+    facts: Mapping[str, Any], as_of: date
+) -> tuple[bool, str, str | None] | None:
+    value = facts.get("fcf_margin")
+    if value is None:
+        return None
+    if value >= 0:
+        return False, f"FCF margin {value:+.1f}%", None
+    return True, f"Free cash flow negative at {value:.1f}% of revenue", facts.get("filing_url")
+
+
+# ────────────────────── the Phase 7 check (prices) ────────────────────────
+
+
+@register("price_already_ran")
+def _price_already_ran(
+    facts: Mapping[str, Any], as_of: date
+) -> tuple[bool, str, str | None] | None:
+    """SPEC §6.6: stock already up >50% in 90 days.
+
+    Not a claim the move is unjustified -- only that the evidence arrived after
+    the price did, which is worth seeing next to a high score.
+    """
+    value = facts.get("price_run_90d_pct")
+    if value is None:
+        return None
+    if value <= 50.0:
+        return False, f"90-day move {value:+.1f}%", None
+    return True, f"Already up {value:.1f}% over 90 days", None

@@ -23,7 +23,7 @@ from datetime import date
 from decimal import Decimal, DivisionByZero, InvalidOperation
 
 from imt.adapters.records import FundamentalFact
-from imt.adapters.sec_xbrl import resolve_concept
+from imt.adapters.sec_xbrl import ResolvedFact, resolve_concept
 
 ZERO = Decimal(0)
 
@@ -61,7 +61,7 @@ class FactWindow:
     def __init__(self, facts: list[FundamentalFact], *, as_of: date) -> None:
         self._facts = facts
         self.as_of = as_of
-        self._cache: dict[tuple[str, date | None], object] = {}
+        self._cache: dict[tuple[str, date | None], ResolvedFact | None] = {}
 
     def value(
         self, concept: str, *, period_end: date | None = None
@@ -74,7 +74,7 @@ class FactWindow:
         resolved = self._cache[key]
         if resolved is None:
             return None, None
-        return resolved.value, resolved.tag  # type: ignore[union-attr]
+        return resolved.value, resolved.tag
 
     def periods(self, concept: str, *, limit: int = 8) -> list[tuple[date, Decimal]]:
         """Distinct period-ends for a concept, newest first, as-filed.
@@ -403,25 +403,25 @@ def piotroski_f_score(window: FactWindow) -> CompositeScore:
         None if (ocf is None or net_income is None) else ocf > net_income
     )
 
-    roa_now = return_on_assets(window)
-    signals["positive_roa"] = None if not roa_now.available else roa_now.value > ZERO
+    roa_value = return_on_assets(window).value
+    signals["positive_roa"] = None if roa_value is None else roa_value > ZERO
 
     leverage = debt_to_equity(window)
     signals["leverage_available"] = leverage.available or None
 
-    liquidity = current_ratio(window)
+    liquidity_value = current_ratio(window).value
     signals["current_ratio_above_one"] = (
-        None if not liquidity.available else liquidity.value > Decimal(1)
+        None if liquidity_value is None else liquidity_value > Decimal(1)
     )
 
-    dilution = share_dilution(window)
-    signals["no_dilution"] = None if not dilution.available else dilution.value <= ZERO
+    dilution_value = share_dilution(window).value
+    signals["no_dilution"] = None if dilution_value is None else dilution_value <= ZERO
 
     margin = gross_margin(window)
     signals["gross_margin_available"] = margin.available or None
 
-    growth = revenue_growth(window)
-    signals["revenue_growing"] = None if not growth.available else growth.value > ZERO
+    growth_value = revenue_growth(window).value
+    signals["revenue_growing"] = None if growth_value is None else growth_value > ZERO
 
     resolved = {k: v for k, v in signals.items() if v is not None}
     if len(resolved) < len(signals):

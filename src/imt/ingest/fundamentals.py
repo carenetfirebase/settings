@@ -11,6 +11,7 @@ reconstruct history.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from decimal import Decimal
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
@@ -103,7 +104,7 @@ def load_facts(session: Session, cik: str) -> list[FundamentalFact]:
             period_start=row.period_start,
             period_end=row.period_end,
             filed_date=row.filed_date,
-            value=row.value,
+            value=Decimal(str(row.value)),
             fiscal_period=row.fiscal_period,
             accession=row.accession,
         )

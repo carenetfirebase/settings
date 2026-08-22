@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import Any, ClassVar
 
 import pytest
 
@@ -76,7 +77,7 @@ BASE_FACTS = [
 
 
 class TestParsing:
-    PAYLOAD = {
+    PAYLOAD: ClassVar[dict[str, Any]] = {
         "cik": 320193,
         "entityName": "DEMO",
         "facts": {
@@ -176,7 +177,7 @@ class TestAsFiledPointInTime:
     filed is look-ahead, and it is invisible unless tested.
     """
 
-    RESTATED = [
+    RESTATED: ClassVar[list[FundamentalFact]] = [
         # Original figure, filed February.
         fact("Revenues", "1000000", period_end=date(2025, 12, 31), filed=date(2026, 2, 15)),
         # Restatement of the SAME period, filed August.

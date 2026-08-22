@@ -57,6 +57,22 @@ function isError(body: unknown): body is ErrorEnvelope {
   return typeof body === "object" && body !== null && "error" in body;
 }
 
+/* An envelope is only an envelope if it actually has the shape. A 404, a
+ * FastAPI validation error, or a proxy error page is none of the above, and
+ * reading `.meta.sources` off one crashes the panel with a TypeError instead
+ * of rendering its failed state -- which is precisely the state that exists
+ * for this. */
+function isEnvelope<T>(body: unknown): body is Envelope<T> {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "data" in body &&
+    "meta" in body &&
+    typeof (body as Envelope<T>).meta === "object" &&
+    Array.isArray((body as Envelope<T>).meta?.sources)
+  );
+}
+
 /* Maps an envelope onto the panel state union. Panels never construct the
  * union themselves -- that is what makes the four states impossible to skip
  * (UI_SPEC §4.10). */
@@ -70,6 +86,17 @@ export function toPanelState<T>(
       message: body.error.message,
       retryAt: body.error.retry_at ?? undefined,
       affected: body.error.affected_panels,
+    };
+  }
+
+  if (!isEnvelope<T>(body)) {
+    const detail =
+      typeof body === "object" && body !== null && "detail" in body
+        ? String((body as { detail: unknown }).detail)
+        : "unrecognised response";
+    return {
+      kind: "failed",
+      message: `The API returned something this panel cannot read: ${detail}. The endpoint may not be running the current build.`,
     };
   }
 

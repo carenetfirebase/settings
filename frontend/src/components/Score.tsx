@@ -40,7 +40,11 @@ const SIZES = { sm: 28, md: 36, lg: 44 } as const;
 export function Score({ value, provenance, size = "md", label }: ScoreProps) {
   const px = SIZES[size];
   const validated = provenance.normalization === "percentile";
-  const rounded = Math.round(value);
+  // Integer for a normal 0-100 score, but one decimal below 10. V1 Research
+  // Priority sits in the low single digits because DataQuality multiplies it
+  // (SPEC §6.7), and rounding 0.14 to "0" next to rank #1 reads as a bug
+  // rather than as the small number it honestly is.
+  const rounded = value < 10 ? value.toFixed(1) : String(Math.round(value));
 
   const tooltip = [
     `${rounded} / 100`,

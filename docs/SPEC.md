@@ -258,6 +258,23 @@ Confidence = 100 * (DataQuality/100)
 > threshold-normalized until Phase 8 supplies 500+ observations per feature and the
 > ×0.7 penalty applies universally. Any mockup, example payload, or fixture showing a V1
 > confidence above 70 is wrong. A test asserts the cap.
+>
+> **`CategoryCoverage` is applied once, not twice.** As written above, Confidence
+> multiplies by `CategoryCoverage` *and* by `DataQuality`, which per §10 already
+> contains it. The term is therefore squared: at one category of ten that is 0.01
+> rather than 0.10, and Confidence collapses to a rounding error regardless of the
+> evidence. `imt.scoring.composite` drops the duplicate; coverage reaches Confidence
+> through `DataQuality` only.
+>
+> **Absolute Research Priority is not comparable across build phases.** `DataQuality`
+> multiplies `ResearchPriority` and is itself the product of feed health, contradiction
+> coverage, and category coverage. In V1 only 3 of 13 contradiction checks can run
+> (ARCHITECTURE §E), so a company with a perfect base of 100 scores about 2.3. That is
+> the mechanism working as designed — a company examined three ways should not outrank
+> one examined thirteen ways — but it means **the number is a ranking key, not a
+> percentage**. The UI leads with the rank and labels the score
+> "unvalidated · N of 13 checks available"; it must never present V1 Research Priority
+> as though 0-100 were a meaningful scale.
 
 Risk is reported separately (volatility, drawdown, leverage, contradiction), never folded
 into priority.

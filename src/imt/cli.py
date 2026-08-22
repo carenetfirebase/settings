@@ -100,10 +100,32 @@ def entities_normalize(name: str) -> None:
 @score_app.command("run")
 def score_run(
     date_: str = typer.Option(..., "--date", help="As-of date (YYYY-MM-DD) or 'today'"),
+    export: str = typer.Option("", "--export", help="Write a deterministic CSV here"),
 ) -> None:
     """Score the universe as of a date. Reruns produce byte-identical output."""
-    typer.echo(f"score run --date {date_}: not implemented until Phase 3")
-    raise typer.Exit(code=1)
+    from datetime import date as date_cls
+    from pathlib import Path
+
+    from imt.core.clock import market_now
+    from imt.db.session import session_scope
+    from imt.scoring import load_weights
+    from imt.scoring.job import run as run_scoring
+
+    # The clock is read HERE, at the boundary, and never inside scoring --
+    # `--date today` resolves to a concrete date that is then passed down.
+    as_of = market_now().date() if date_ == "today" else date_cls.fromisoformat(date_)
+    weights = load_weights()
+
+    with session_scope() as session:
+        result = run_scoring(
+            session,
+            as_of=as_of,
+            weights=weights,
+            export_to=Path(export) if export else None,
+        )
+    typer.echo(result.summary())
+    if export:
+        typer.echo(f"exported to {export}")
 
 
 @ingest_app.command("form4")

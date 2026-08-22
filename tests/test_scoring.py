@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 from datetime import date
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -199,7 +200,7 @@ class TestReproducibility:
 class TestNoClockInScoring:
     """Phase 3 criterion 3, at the AST level."""
 
-    FORBIDDEN = {"now", "today", "time", "utcnow"}
+    FORBIDDEN: ClassVar[set[str]] = {"now", "today", "time", "utcnow"}
 
     def test_no_scoring_module_reads_the_clock(self) -> None:
         offenders: list[str] = []

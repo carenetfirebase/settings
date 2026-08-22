@@ -135,6 +135,14 @@ Recent Events Timeline · KPI card 1 · `<Score>` wired to real provenance.
 
 Reads: SPEC §5, §6.5, §8; DATA_SOURCES Tier 3. **Budget generously.**
 
+> **Status: manual-CSV path built; PDF/OCR pipeline not built.**
+> The CSV import, bracket parsing, disclosure-lag computation, entity
+> resolution with the 0.85 gate and review queue, the summary endpoint with a
+> computed average lag, and the donut panel are all done and tested
+> (criteria 3, 4, 5, 6, 7, 8). The House ZIP → PDF → OCR pipeline needs
+> Tesseract and network access and remains outstanding, so **criteria 1 and 2
+> are not met**.
+
 House index + PDF ingest · text extraction with OCR fallback · low-confidence review queue
 · Senate manual-CSV import · PTR normalization · disclosure-lag computation · entity
 resolution to CIK · politician profiles.

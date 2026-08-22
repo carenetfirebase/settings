@@ -196,7 +196,13 @@ class TestSignalEvents:
     def test_both_dates_are_populated_and_distinct(self, session: Session) -> None:
         """CLAUDE.md non-negotiable #5, at the database level."""
         ingest(session)
-        events = session.execute(select(SignalEvent)).scalars().all()
+        events = (
+            session.execute(
+                select(SignalEvent).where(SignalEvent.source_record_id == TEST_ACCESSION)
+            )
+            .scalars()
+            .all()
+        )
         assert events
         for event in events:
             assert event.transaction_date is not None
@@ -209,7 +215,10 @@ class TestSignalEvents:
         ingest(session)
         event = (
             session.execute(
-                select(SignalEvent).where(SignalEvent.transaction_date == date(2026, 8, 14))
+                select(SignalEvent).where(
+                    SignalEvent.transaction_date == date(2026, 8, 14),
+                    SignalEvent.source_record_id == TEST_ACCESSION,
+                )
             )
             .scalars()
             .first()
@@ -226,7 +235,13 @@ class TestSignalEvents:
         every filing available four hours early.
         """
         ingest(session)
-        event = session.execute(select(SignalEvent)).scalars().first()
+        event = (
+            session.execute(
+                select(SignalEvent).where(SignalEvent.source_record_id == TEST_ACCESSION)
+            )
+            .scalars()
+            .first()
+        )
         assert event is not None
         assert event.public_available_at.date() == date(2026, 8, 16)
 
@@ -247,7 +262,14 @@ class TestSignalEvents:
 
     def test_headline_carries_no_trading_language(self, session: Session) -> None:
         ingest(session)
-        for event in session.execute(select(SignalEvent)).scalars().all():
+        rows = (
+            session.execute(
+                select(SignalEvent).where(SignalEvent.source_record_id == TEST_ACCESSION)
+            )
+            .scalars()
+            .all()
+        )
+        for event in rows:
             lowered = event.headline.lower()
             assert "buy" not in lowered
             assert "sell" not in lowered

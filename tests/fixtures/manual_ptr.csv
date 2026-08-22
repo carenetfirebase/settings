@@ -1,0 +1,8 @@
+filer,chamber,owner,asset,type,transaction_date,disclosure_date,amount,doc_id,url
+Rep. Jane Doe,house,self,DEMO ALPHA BUILDERS INC (DEMO) Common Stock,purchase,2026-07-09,2026-08-22,"$1,001 - $15,000",20260822-0031,https://disclosures-clerk.house.gov/x/20260822-0031.pdf
+Rep. Jane Doe,house,SP,DEMO ALPHA BUILDERS INC (DEMO) Common Stock,sale,2026-07-14,2026-08-22,"$15,001 - $50,000",20260822-0032,https://disclosures-clerk.house.gov/x/20260822-0032.pdf
+Sen. John Roe,senate,self,DEMO ALPHA BUILDERS INC (DEMO),purchase,2026-06-30,2026-08-18,"$100,001 - $250,000",senate-9910,
+Rep. Sam Green,house,DC,Some Private Partnership LLC,purchase,2026-07-01,2026-08-10,"$1,001 - $15,000",20260810-0004,
+Rep. Ann Blue,house,self,DEMO ALPHA BUILDERS INC (DEMO) Common Stock,purchase,2026-07-20,2026-08-20,"Over $50,000,000",20260820-0077,
+Rep. Bad Row,house,self,Nothing Ltd,purchase,not-a-date,2026-08-01,"$1,001 - $15,000",bad-1,
+Rep. Backwards,house,self,DEMO ALPHA BUILDERS INC (DEMO),sale,2026-08-20,2026-07-01,"$1,001 - $15,000",bad-2,

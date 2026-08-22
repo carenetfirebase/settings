@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from imt.api.routers import feed, health, signals, system
+from imt.api.routers import congress, feed, health, signals, system
 from imt.core.config import get_settings
 from imt.core.logging import configure_logging
 
@@ -51,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(system.router, prefix=API_PREFIX)
     app.include_router(feed.router, prefix=API_PREFIX)
     app.include_router(signals.router, prefix=API_PREFIX)
+    app.include_router(congress.router, prefix=API_PREFIX)
     return app
 
 

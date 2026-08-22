@@ -22,6 +22,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from imt.adapters.house_ptr import bracket_midpoint_minor
 from imt.core.clock import MARKET_TZ
 from imt.db.enums import ContradictionStatus, NormalizationMethod, SignalCategory
 from imt.db.models import Company, ContradictionItem, Score, SignalEvent
@@ -36,7 +37,12 @@ from imt.scoring.weights import Weights
 #: phase adds to it as its ingest lands (docs/ARCHITECTURE.md §E).
 AVAILABLE_DATA_BY_PHASE: dict[str, frozenset[str]] = {
     "phase2": frozenset({"insider_transactions", "filings_8k"}),
+    "phase4": frozenset({"insider_transactions", "filings_8k", "congressional_transactions"}),
 }
+
+#: The datasets ingested so far. Bumped as each phase lands, which is what
+#: lets contradiction coverage -- and therefore DataQuality -- rise over time.
+CURRENT_PHASE = "phase4"
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +94,7 @@ def build_fact_set(
     underlying: dict[SignalCategory, set[str]] = {}
     purchases: list[InsiderPurchase] = []
     sales: list[dict[str, object]] = []
+    political: list[SubSignal] = []
 
     for event in events:
         category = event.category
@@ -96,6 +103,8 @@ def build_fact_set(
 
         if category is SignalCategory.CORPORATE_INSIDER:
             _collect_insider(event, purchases, sales)
+        elif category is SignalCategory.POLITICAL:
+            _collect_political(event, political, weights)
 
     cluster = detect_cluster(purchases, as_of=as_of)
     if purchases:
@@ -109,6 +118,9 @@ def build_fact_set(
                 )
                 for actor in (cluster.actors or ("none",))
             ]
+
+    if political:
+        signals[SignalCategory.POLITICAL] = political
 
     # Categories with no events at all are unavailable, which is different
     # from a category that was examined and scored zero.
@@ -125,6 +137,31 @@ def build_fact_set(
         available_data=available_data,
         feed_health=100.0,
         normalization=NormalizationMethod.FALLBACK_THRESHOLD,
+    )
+
+
+def _collect_political(event: SignalEvent, out: list[SubSignal], weights: Weights) -> None:
+    """Turn a PTR event into a sub-signal.
+
+    The bracket midpoint is computed HERE, at feature time, and never read
+    from a stored column -- there is no stored column. It carries the reason
+    code `derived_bracket_midpoint` so the estimate stays traceable
+    (SPEC §8).
+    """
+    if event.value_low_minor is None or event.value_high_minor is None:
+        return
+    midpoint_dollars = bracket_midpoint_minor(event.value_low_minor, event.value_high_minor) / 100
+    scored = normalize("political_value_midpoint_usd", midpoint_dollars, weights)
+    if scored is None:
+        return
+    out.append(
+        SubSignal(
+            # One lawmaker is one actor, however many lines they filed.
+            actor_key=event.actor_key or event.event_id,
+            score=scored.score,
+            feature_key="political_value_midpoint_usd",
+            detail="derived_bracket_midpoint",
+        )
     )
 
 
@@ -241,7 +278,7 @@ def run(
     export_to: Path | None = None,
 ) -> ScoreJobResult:
     """Score every company with at least one event available by ``as_of``."""
-    data = available_data or AVAILABLE_DATA_BY_PHASE["phase2"]
+    data = available_data or AVAILABLE_DATA_BY_PHASE[CURRENT_PHASE]
 
     ciks = (
         session.execute(

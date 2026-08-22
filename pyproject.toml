@@ -53,6 +53,16 @@ extend-exclude = ["legacy", "alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "DTZ", "PTH", "RUF"]
+ignore = [
+  # Ambiguous-unicode rules. This codebase quotes filing text and spec
+  # notation verbatim: filings write amount ranges with an EN DASH, and the
+  # docstrings reproduce SPEC's formulae with x and MINUS SIGN. Rewriting them
+  # to ASCII would make the regex stop matching real documents and make the
+  # formulae differ from the spec they cite.
+  "RUF001",
+  "RUF002",
+  "RUF003",
+]
 
 [tool.ruff.lint.per-file-ignores]
 # The EDGAR .idx fixture is fixed-width by definition; wrapping its lines

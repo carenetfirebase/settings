@@ -211,3 +211,26 @@ def load_fixtures(
 
     typer.echo(result.summary())
     typer.echo("Loaded fixture data. Companies are DEMO-prefixed; not real filings.")
+
+
+@ingest_app.command("congress")
+def ingest_congress(
+    from_csv: str = typer.Option(..., "--from-csv", help="Path to a manual PTR export (CSV)"),
+    chamber: str = typer.Option("house", "--chamber", help="house or senate"),
+) -> None:
+    """Import congressional trades from a CSV.
+
+    The manual path exists so a stalled PDF parser never blocks the rest of the
+    system (DATA_SOURCES Tier 3), and it is the only path for the Senate in V1.
+    """
+    from pathlib import Path
+
+    from imt.db.session import session_scope
+    from imt.ingest.congress import run_from_csv
+
+    text = Path(from_csv).read_text(encoding="utf-8")
+    with session_scope() as session:
+        result = run_from_csv(session, csv_text=text, chamber=chamber)
+    typer.echo(result.summary())
+    for line in result.errors:
+        typer.echo(f"  {line}")

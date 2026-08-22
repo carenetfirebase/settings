@@ -55,6 +55,9 @@ extend-exclude = ["legacy", "alembic/versions"]
 select = ["E", "F", "I", "B", "UP", "DTZ", "PTH", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
+# The EDGAR .idx fixture is fixed-width by definition; wrapping its lines
+# would stop it being a valid sample of the format.
+"tests/test_adapters.py" = ["B011", "E501"]
 "tests/*" = ["B011"]
 
 [tool.mypy]

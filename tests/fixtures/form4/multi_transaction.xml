@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<ownershipDocument>
+  <schemaVersion>X0508</schemaVersion>
+  <documentType>4</documentType>
+  <periodOfReport>2026-08-14</periodOfReport>
+  <issuer>
+    <issuerCik>0000320193</issuerCik>
+    <issuerName>ALPHA BUILDERS INC</issuerName>
+    <issuerTradingSymbol>ABC</issuerTradingSymbol>
+  </issuer>
+  <reportingOwner>
+    <reportingOwnerId>
+      <rptOwnerCik>0001111111</rptOwnerCik>
+      <rptOwnerName>DOE JANE</rptOwnerName>
+    </reportingOwnerId>
+    <reportingOwnerRelationship>
+      <isDirector>0</isDirector>
+      <isOfficer>1</isOfficer>
+      <isTenPercentOwner>0</isTenPercentOwner>
+      <officerTitle>Chief Executive Officer</officerTitle>
+    </reportingOwnerRelationship>
+  </reportingOwner>
+  <nonDerivativeTable>
+    <nonDerivativeTransaction>
+      <securityTitle><value>Common Stock</value></securityTitle>
+      <transactionDate><value>2026-08-14</value></transactionDate>
+      <transactionCoding>
+        <transactionFormType>4</transactionFormType>
+        <transactionCode>P</transactionCode>
+        <equitySwapInvolved>0</equitySwapInvolved>
+      </transactionCoding>
+      <transactionAmounts>
+        <transactionShares><value>40000</value></transactionShares>
+        <transactionPricePerShare><value>60.00</value></transactionPricePerShare>
+        <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+      </transactionAmounts>
+      <postTransactionAmounts>
+        <sharesOwnedFollowingTransaction><value>140000</value></sharesOwnedFollowingTransaction>
+      </postTransactionAmounts>
+    </nonDerivativeTransaction>
+    <nonDerivativeTransaction>
+      <securityTitle><value>Common Stock</value></securityTitle>
+      <transactionDate><value>2026-08-15</value></transactionDate>
+      <transactionCoding>
+        <transactionFormType>4</transactionFormType>
+        <transactionCode>S</transactionCode>
+      </transactionCoding>
+      <transactionAmounts>
+        <transactionShares><value>5000</value></transactionShares>
+        <transactionPricePerShare><value>61.50</value></transactionPricePerShare>
+        <transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode>
+      </transactionAmounts>
+      <postTransactionAmounts>
+        <sharesOwnedFollowingTransaction><value>135000</value></sharesOwnedFollowingTransaction>
+      </postTransactionAmounts>
+    </nonDerivativeTransaction>
+    <nonDerivativeHolding>
+      <securityTitle><value>Restricted Stock Units</value></securityTitle>
+      <postTransactionAmounts>
+        <sharesOwnedFollowingTransaction><value>22000</value></sharesOwnedFollowingTransaction>
+      </postTransactionAmounts>
+    </nonDerivativeHolding>
+  </nonDerivativeTable>
+  <derivativeTable>
+    <derivativeTransaction>
+      <securityTitle><value>Employee Stock Option</value></securityTitle>
+      <transactionDate><value>2026-08-14</value></transactionDate>
+      <transactionCoding>
+        <transactionFormType>4</transactionFormType>
+        <transactionCode>M</transactionCode>
+      </transactionCoding>
+      <transactionAmounts>
+        <transactionShares><value>10000</value></transactionShares>
+        <transactionPricePerShare><value>12.00</value></transactionPricePerShare>
+        <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+      </transactionAmounts>
+    </derivativeTransaction>
+  </derivativeTable>
+</ownershipDocument>

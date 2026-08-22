@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<ownershipDocument>
+  <documentType>4</documentType>
+  <periodOfReport>2026-08-01</periodOfReport>
+  <issuer><issuerCik>0000320193</issuerCik></issuer>
+  <reportingOwner>
+    <reportingOwnerId>
+      <rptOwnerCik>0005555555</rptOwnerCik>
+      <rptOwnerName>BROWN ALICE</rptOwnerName>
+    </reportingOwnerId>
+    <reportingOwnerRelationship><isDirector>1</isDirector></reportingOwnerRelationship>
+  </reportingOwner>
+  <nonDerivativeTable>
+    <nonDerivativeHolding>
+      <securityTitle><value>Common Stock</value></securityTitle>
+      <postTransactionAmounts>
+        <sharesOwnedFollowingTransaction><value>9000</value></sharesOwnedFollowingTransaction>
+      </postTransactionAmounts>
+    </nonDerivativeHolding>
+  </nonDerivativeTable>
+</ownershipDocument>

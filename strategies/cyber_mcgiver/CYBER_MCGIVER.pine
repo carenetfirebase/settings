@@ -1090,6 +1090,18 @@ if barstate.islast and i_tblSess
         table.cell(tSess, 5, r + 1, f_fmt(f_avg(f_get(mSumMFE, b), n), 2), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
         table.cell(tSess, 6, r + 1, f_fmt(f_get(mDDR, b), 2), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
 
+// One copy-pasteable line carrying the whole funnel, so a zero-trade result can
+// be diagnosed from the counts instead of from a screenshot of a panel.
+if barstate.islast and i_logTrade
+    string dump = "CM-FUNNEL," + tfName + "," + i_dirMode
+    dump += " | bars=" + f_fmt(fBars, 0) + " long=" + f_fmt(fLongB, 0) + " short=" + f_fmt(fShortB, 0)
+    dump += " | bosL=" + f_fmt(fBosL, 0) + " bosS=" + f_fmt(fBosS, 0) + " p1=" + f_fmt(fP1, 0) + " p2=" + f_fmt(fP2, 0) + " cand=" + f_fmt(fCand, 0)
+    dump += " | p3try=" + f_fmt(fP3Try, 0) + " p3missTol=" + f_fmt(fP3MissTol, 0) + " p3best=" + f_fmt(fP3Best > 900.0 ? 0.0 : fP3Best, 3) + " p3=" + f_fmt(fP3, 0)
+    dump += " | t4near=" + f_fmt(fT4Near, 0) + " t4=" + f_fmt(fT4, 0) + " rej=" + f_fmt(fRej, 0) + " arm=" + f_fmt(fArm, 0) + " fill=" + f_fmt(fFill, 0) + " trades=" + f_fmt(fTrade, 0)
+    dump += " | killBuild=" + f_fmt(fKillBuild, 0) + " killExp=" + f_fmt(fKillExpiry, 0) + " killRegime=" + f_fmt(fKillRegime, 0) + " reanchor=" + f_fmt(fReanchor, 0)
+    dump += " | regimeBlock=" + f_fmt(fRegimeBlock, 0) + " skipStop=" + f_fmt(fSkipStop, 0) + " skipSize=" + f_fmt(fSkipSize, 0) + " skipMargin=" + f_fmt(fSkipMargin, 0)
+    log.info(dump)
+
 if barstate.islast and i_tblLoss
     var table tLoss = table.new(position.middle_left, 4, 9, border_width = 1)
     array<string> lRow = array.from("losing trades", "avg MFE before loss (R)", "avg MAE (R)", "stopped within " + str.tostring(i_immBars) + " bars", "avg slope / ATR", "avg stop distance (ATR)", "avg Touch #4 body ratio", "avg Touch #4 close location")

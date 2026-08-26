@@ -116,6 +116,10 @@ class Funnel:
     reanchor: int = 0
     kill_build: int = 0
     kill_expiry: int = 0
+    expired_below: int = 0
+    expired_above: int = 0
+    p3_gap_total: int = 0
+    slope_total: float = 0.0
     notes: list[str] = field(default_factory=list)
 
     def report(self) -> str:
@@ -139,6 +143,10 @@ class Funnel:
             ("ARMED", self.armed), ("FILLED", self.filled),
             ("re-anchored", self.reanchor), ("killed · build timeout", self.kill_build),
             ("killed · line expired", self.kill_expiry),
+            ("  price BELOW line at expiry", self.expired_below),
+            ("  price above line at expiry", self.expired_above),
+            ("avg P2→P3 gap (bars)", round(self.p3_gap_total / max(self.p3, 1), 1)),
+            ("avg confirmed slope (ATR/bar)", round(self.slope_total / max(self.p3, 1), 4)),
         ]
         width = max(len(r[0]) for r in rows)
         return "\n".join(f"  {name:<{width}}  {value}" for name, value in rows)
@@ -173,6 +181,7 @@ def run(
     min_lot: float = 0.01,
     lot_step: float = 0.01,
     p3_pivot_only: bool = False,   # matches the Pine default
+    p3_min_gap: int = 0,
 ) -> Funnel:
     """One pass over the series, mirroring the Pine bar loop."""
     f = Funnel()
@@ -220,6 +229,11 @@ def run(
             continue
         if state == CONFIRMED and (i - confirm_bar) > tl_expiry:
             f.kill_expiry += 1
+            line_now = tl_at(i)
+            if (c < line_now) if direction == 1 else (c > line_now):
+                f.expired_below += 1
+            else:
+                f.expired_above += 1
             state, direction = WAIT_BOS, 0
             continue
 
@@ -286,9 +300,11 @@ def run(
                     f.p3_miss_tol += 1
                 elif not holds:
                     f.p3_miss_close += 1
-                if contact and holds:
+                if contact and holds and (pb - p2[0]) >= p3_min_gap:
                     p3, confirm_bar, state = (pb, wick), i, CONFIRMED
                     f.p3 += 1
+                    f.p3_gap_total += pb - p2[0]
+                    f.slope_total += abs(slope / a)
                 elif through:
                     p1, state = (pb, wick), WAIT_P2
                     f.reanchor += 1

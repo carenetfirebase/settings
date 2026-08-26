@@ -238,6 +238,13 @@ float impliedTicks  = f_div(i_spread / 2.0 + (i_slipIn + i_slipOut) / 2.0, tick)
 float impliedCommOz = f_div(i_commLot, i_contract * 2.0)
 bool  costMismatch  = math.abs(impliedTicks - TESTER_SLIP_TICKS) > 0.5 or math.abs(impliedCommOz - TESTER_COMM_PER_OZ) > 0.0005
 
+// Sizing passes quantity in OUNCES and assumes one unit of quantity earns one
+// dollar per one-dollar move — true for a spot XAUUSD CFD symbol, false for
+// some index and futures tickers. If this is wrong every dollar figure below
+// is scaled wrong, the 1% claim included, so it is checked rather than assumed.
+float dollarsPerLotPerDollar = i_contract * syminfo.pointvalue
+bool  pointValueSuspect = math.abs(syminfo.pointvalue - 1.0) > 0.0001
+
 // =============================================================================
 // 6. HIGHER-TIMEFRAME MARKET MODE (S15-S24)
 // =============================================================================
@@ -920,7 +927,7 @@ color C_BODY = color.new(color.black, 55)
 color C_TEXT = color.white
 
 if barstate.islast and i_tblState
-    var table tState = table.new(position.top_right, 2, 12, border_width = 1)
+    var table tState = table.new(position.top_right, 2, 13, border_width = 1)
     table.cell(tState, 0, 0, "CYBER MCGIVER v1.0", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.small)
     table.cell(tState, 1, 0, tfName + " · " + i_dirMode, bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.small)
     table.cell(tState, 0, 1, "Timeframe", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
@@ -945,6 +952,8 @@ if barstate.islast and i_tblState
     table.cell(tState, 1, 10, "$" + f_fmt(costPerLotRT, 2), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
     table.cell(tState, 0, 11, "Tester costs", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
     table.cell(tState, 1, 11, costMismatch ? "MISMATCH: set slippage " + f_fmt(impliedTicks, 0) + " ticks, commission " + f_fmt(impliedCommOz, 3) + "/contract" : "match (" + f_fmt(TESTER_SLIP_TICKS, 0) + " ticks · " + f_fmt(TESTER_COMM_PER_OZ, 3) + ")", bgcolor = costMismatch ? color.new(color.red, 10) : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 12, "P/L per lot per $1", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 12, "$" + f_fmt(dollarsPerLotPerDollar, 2) + (pointValueSuspect ? " · CHECK SYMBOL: point value " + f_fmt(syminfo.pointvalue, 4) + ", sizing assumes 1.0" : " · as specified"), bgcolor = pointValueSuspect ? color.new(color.red, 10) : C_BODY, text_color = C_TEXT, text_size = size.tiny)
 
 if barstate.islast and i_tblFun
     var table tFun = table.new(position.bottom_right, 3, 25, border_width = 1)

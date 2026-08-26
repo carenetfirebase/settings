@@ -124,6 +124,11 @@ repository should be read as a claim about how the strategy performs.
 * **One position at a time.** Structure search is suspended while a trade is
   open, so setups that form during a trade are never counted. The funnel counts
   what the engine could act on, not what a chart contains.
+* **Quantity is passed in ounces.** Sizing assumes the symbol earns $1 per
+  ounce per $1 move, which is true of spot XAUUSD CFD tickers and false of some
+  index and futures tickers. The panel prints the resulting P/L per lot per $1
+  move and turns red if the symbol's point value is not 1.0. If it is red, every
+  dollar figure — including the 1% risk — is scaled wrong; change the symbol.
 * **`request.security` history.** The 1D EMA200 needs 200 daily closes before
   any regime is emitted, so the first months of any backtest are inert by
   construction.

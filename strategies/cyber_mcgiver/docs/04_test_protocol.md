@@ -13,9 +13,12 @@
      round turn at 100 oz).
    * Initial capital: **100,000**; Order size: leave as the script sets it —
      quantity is passed per order and Properties must not override it.
-4. Recalculate: leave *After order is filled* and *On every tick* **off**. Both
+4. Check the panel's *P/L per lot per $1* row reads **$100.00 · as specified**.
+   Red means the symbol's point value is not 1.0 and the sizing maths does not
+   apply to it — change the feed rather than the inputs.
+5. Recalculate: leave *After order is filled* and *On every tick* **off**. Both
    change the code path and neither is part of the hypothesis.
-5. History: use as much as the plan and feed provide, at least three years
+6. History: use as much as the plan and feed provide, at least three years
    (S71). Note the actual first and last dates in the report — a 15m XAUUSD
    chart on a lower plan may reach back only a fraction of that, and the sample
    size claim depends on it.

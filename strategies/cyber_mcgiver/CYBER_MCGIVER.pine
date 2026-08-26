@@ -121,13 +121,18 @@ float  i_slopeMax = input.float(0.25, "Maximum normalised slope |m| / ATR", minv
 bool   i_p3Beyond = input.bool(false, "Require P3 beyond P2 (preferred, not mandatory)", group = G_STR, tooltip = "S31/S39 call P1<P2<P3 preferred, not required. Off = baseline.")
 int    i_expiry15 = input.int(20, "15m trendline expiry after P3 (bars)", minval = 1, group = G_STR, tooltip = "S3. 20 × 15m ≈ 5 hours.")
 int    i_expiry5  = input.int(48, "5m trendline expiry after P3 (bars)",  minval = 1, group = G_STR, tooltip = "S3. 48 × 5m ≈ 4 hours.")
-bool   i_killBrk  = input.bool(true, "Kill structure when price closes through the line", group = G_STR, tooltip = "Implementation decision, not in the spec text: a support line closed through by more than the contact tolerance is no longer support.")
+bool   i_killBrk  = input.bool(false, "Kill structure when price closes through the line", group = G_STR, tooltip = "Not in the spec text. A rising line extended right climbs at up to i_slopeMax ATR per bar; price rarely climbs with it, so this killed almost every candidate before P3 could form. Off by default.")
+string i_regimeMode = input.string("Gate at BOS and entry", "Higher-timeframe regime is applied", options = ["Gate at BOS and entry", "Continuous (kill on loss)"], group = G_HTF, tooltip = "S1 says the higher timeframes decide WHICH DIRECTION MAY BE TRADED. Continuous mode also requires unanimity on every bar of the build — but the pullback that forms P3 and Touch #4 is exactly what breaks 1H close > EMA20, so it killed structures at the moment they were about to become setups.")
+int    i_buildExpiry = input.int(60, "Structure build expiry after BOS (bars)", minval = 5, group = G_STR, tooltip = "WAIT_P1, WAIT_P2 and CANDIDATE had no timeout at all. A structure could sit unresolved for thousands of bars, blocking every new BOS and eventually pushing drawing offsets past Pine's limit.")
+bool   i_slopeKills = input.bool(false, "A failed slope filter kills the structure", group = G_STR, tooltip = "Off: the offending pivot re-anchors P1 and the search continues, which is what a chartist does.")
+bool   i_throughKills = input.bool(false, "A pivot through the line kills the structure", group = G_STR, tooltip = "Off: re-anchor P1 on that pivot and rebuild.")
+bool   i_onePerLine = input.bool(false, "One trade per trendline (S44)", group = G_ENT, tooltip = "S44 says a confirmed line gets exactly one opportunity. Off by default at the operator's direction: the line keeps trading every qualifying touch until it expires or breaks.")
 
 // ---- 1.4 touch #4 and entry (S32-S34, S40-S42) ------------------------------
 float  i_bodyMin  = input.float(0.35, "Rejection minimum body ratio",    minval = 0.0, maxval = 1.0, step = 0.01, group = G_ENT)
 float  i_clvMin   = input.float(0.65, "Rejection minimum close location", minval = 0.0, maxval = 1.0, step = 0.01, group = G_ENT)
 int    i_armBars  = input.int(3, "Armed order expiry (bars)", minval = 1, group = G_ENT, tooltip = "S44: an unfilled setup expires and the trendline dies. Not given a number by the spec; 3 bars is the baseline choice.")
-bool   i_killRej  = input.bool(true, "Failed rejection at Touch #4 kills the trendline", group = G_ENT, tooltip = "S32/S44 strict reading: Touch #4 is THE opportunity. A weak Touch #4 does not roll over into Touch #5.")
+bool   i_killRej  = input.bool(false, "Failed rejection at Touch #4 kills the trendline", group = G_ENT, tooltip = "S32/S44 strict reading: Touch #4 is THE opportunity. A weak Touch #4 does not roll over into Touch #5.")
 
 // ---- 1.5 risk (S4-S7, S10, S47, S49) ----------------------------------------
 float  i_riskPct  = input.float(1.00, "Risk % of current equity", minval = 0.01, maxval = 10.0, step = 0.01, group = G_RISK)
@@ -369,6 +374,21 @@ var float fSkipSize   = 0.0
 var float fSkipMargin = 0.0
 var float fExpireArm  = 0.0
 var float fInvalidArm = 0.0
+var float fKillBuild  = 0.0
+var float fReanchor   = 0.0
+var float fRegimeBlock = 0.0
+// Near-miss instrumentation. A stage that reports zero attempts is a bug; a
+// stage that reports many attempts and no passes is a genuinely rare event.
+var float fP3Try      = 0.0
+var float fP3MissTol  = 0.0
+var float fP3MissClose = 0.0
+var float fP3Best     = 999.0
+var float fT4Near     = 0.0
+var float fT4Try      = 0.0
+var float fT4MissClose = 0.0
+var float fT4RejDir   = 0.0
+var float fT4RejBody  = 0.0
+var float fT4RejClv   = 0.0
 
 if tfOK
     fBars += 1.0
@@ -380,6 +400,12 @@ if tfOK
 // The projected line, anchored on P2 exactly as S30 / S38 define it.
 f_tl(int barIdx) =>
     p2Price + tlSlope * (barIdx - p2Bar)
+
+// Pine refuses to draw more than ~10,000 bars from the current bar. With the
+// build timeout in place a structure can no longer get old enough for that to
+// happen, but the guard is cheap and the failure mode is a runtime abort.
+f_near(int barIdx) =>
+    barIdx >= 0 and (bar_index - barIdx) < 5000
 
 // Exact 1% sizing (S47). Pure function: no state, no global writes.
 f_lots(float riskBudget, float riskDist, float perLotCost, float contract, float step, float floorLot) =>
@@ -403,7 +429,8 @@ float tlNow = state >= STATE_CANDIDATE ? f_tl(bar_index) : na
 // this bar is not detected until §12, so without it a regime flip on the fill
 // bar would cancel the protective orders of a position that is already open.
 bool structPhase = flat and state != STATE_WAIT_BOS and state != STATE_OPEN
-bool regimeLost = structPhase and dirState != 0 and marketMode != dirState
+bool regimeLost = structPhase and i_regimeMode == "Continuous (kill on loss)" and dirState != 0 and marketMode != dirState
+bool buildStale = structPhase and state < STATE_CONFIRMED and (bar_index - bosBar) > i_buildExpiry
 bool tlExpired  = structPhase and state == STATE_CONFIRMED and (bar_index - confirmBar) > tlExpiry
 bool tlBroken   = structPhase and i_killBrk and (state == STATE_CANDIDATE or state == STATE_CONFIRMED) and not na(tlNow) and (dirState == 1 ? close < tlNow - i_tol * atr : close > tlNow + i_tol * atr)
 
@@ -413,6 +440,10 @@ if regimeLost
     killNow := true
     killWhy := "REGIME"
     fKillRegime += 1.0
+else if buildStale
+    killNow := true
+    killWhy := "BUILD TIMEOUT"
+    fKillBuild += 1.0
 else if tlExpired
     killNow := true
     killWhy := "EXPIRED"
@@ -509,12 +540,19 @@ if tfOK and not killNow
                     tlSlopeN := mn
                     state    := STATE_CANDIDATE
                     fCand    += 1.0
-                    if i_drawTL
+                    if i_drawTL and f_near(p1Bar)
                         tlLine := line.new(p1Bar, p1Price, p2Bar, p2Price, xloc = xloc.bar_index, extend = extend.right, color = color.new(color.gray, 30), style = line.style_dashed, width = 1)
                 else
                     fKillSlope += 1.0
-                    state := STATE_WAIT_BOS
-                    dirState := 0
+                    if i_slopeKills
+                        state := STATE_WAIT_BOS
+                        dirState := 0
+                    else
+                        // The line through P1 and this pivot is unusable, but
+                        // the pivot itself is a perfectly good new base.
+                        p1Bar   := pivBar
+                        p1Price := pv
+                        fReanchor += 1.0
 
     // ---- S31 / S39 · touch #3 confirms the line ------------------------------
     else if state == STATE_CANDIDATE
@@ -526,6 +564,12 @@ if tfOK and not killNow
             bool holds   = dirState == 1 ? pivBarClose > tlAt : pivBarClose < tlAt
             bool beyond  = not i_p3Beyond or (dirState == 1 ? wick > p2Price : wick < p2Price)
             bool through = dirState == 1 ? wick < tlAt - i_tol * atr : wick > tlAt + i_tol * atr
+            fP3Try += 1.0
+            fP3Best := math.min(fP3Best, f_div(math.abs(wick - tlAt), atr))
+            if not contact
+                fP3MissTol += 1.0
+            else if not holds
+                fP3MissClose += 1.0
             if contact and holds and beyond
                 p3Bar   := pivBar
                 p3Price := wick
@@ -547,15 +591,29 @@ if tfOK and not killNow
                     else
                         line.delete(tlLine)
                     tlLine := na
-                state := STATE_WAIT_BOS
-                dirState := 0
+                if i_throughKills
+                    state := STATE_WAIT_BOS
+                    dirState := 0
+                else
+                    // The candidate is dead, the pivot is not. Rebuild from it.
+                    p1Bar   := pivBar
+                    p1Price := wick
+                    state   := STATE_WAIT_P2
+                    fReanchor += 1.0
 
     // ---- S32-S34 / S40-S43 · touch #4, rejection, arming ---------------------
     else if state == STATE_CONFIRMED and bar_index > confirmBar and flat
         float tlHere = f_tl(bar_index)
         float wick4  = dirState == 1 ? low : high
+        float miss4  = f_div(math.abs(wick4 - tlHere), atr)
         bool contact4 = math.abs(wick4 - tlHere) <= i_tol * atr
         bool holds4   = dirState == 1 ? close > tlHere : close < tlHere
+        if miss4 <= i_tol * 3.0
+            fT4Near += 1.0
+        if contact4
+            fT4Try += 1.0
+            if not holds4
+                fT4MissClose += 1.0
         if contact4 and holds4
             didTouch4 := true
             fT4 += 1.0
@@ -564,7 +622,17 @@ if tfOK and not killNow
             t4Clv  := dirState == 1 ? (close - low) / rng : (high - close) / rng
             bool dirCandle = dirState == 1 ? close > open : close < open
             bool rejOK = dirCandle and t4Body >= i_bodyMin and t4Clv >= i_clvMin
-            if rejOK
+            if not dirCandle
+                fT4RejDir += 1.0
+            else if t4Body < i_bodyMin
+                fT4RejBody += 1.0
+            else if t4Clv < i_clvMin
+                fT4RejClv += 1.0
+            if rejOK and marketMode != dirState
+                // S1: the higher timeframes decide which direction may be
+                // traded, and this is the moment the decision is made.
+                fRegimeBlock += 1.0
+            if rejOK and marketMode == dirState
                 didReject := true
                 fRej += 1.0
                 float entryPx = dirState == 1 ? high + tick : low - tick
@@ -622,7 +690,7 @@ if tfOK and not killNow
             // S44: touch #4 IS the opportunity. A touch that does not arm —
             // weak rejection, impossible stop, unfundable size — consumes the
             // line. There is no touch #5 on the same trendline.
-            if not didArm and (didReject or i_killRej)
+            if not didArm and i_onePerLine and (didReject or i_killRej)
                 if not didReject
                     fKillRej += 1.0
                 if not na(tlLine)
@@ -864,14 +932,21 @@ if state == STATE_OPEN and flat
                 f_bump(lQuick, b, 1.0)
     if i_logTrade
         log.info("CM,{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13}", str.format_time(time, "yyyy-MM-dd HH:mm", i_tz), tfName, posDir == 1 ? "LONG" : "SHORT", f_sessName(posSess), f_fmt(posEntry, 2), f_fmt(posStop, 2), f_fmt(posRisk, 2), f_fmt(posLots, 2), f_fmt(rMult, 3), f_fmt(mfeR, 3), f_fmt(maeR, 3), f_fmt(nz(posStopAtr), 2), f_fmt(nz(posSlopeN), 3), f_fmt(hold, 0))
-    // S45: the failed line is dead. A new trade needs a completely new BOS.
-    if not na(tlLine)
-        line.set_x2(tlLine, bar_index)
-        line.set_extend(tlLine, extend.none)
-        tlLine := na
-    state := STATE_WAIT_BOS
-    dirState := 0
-    tlConfirmed := false
+    // S44/S45 as an option rather than a law. With one-trade-per-line on, the
+    // line is dead and the next trade needs a completely new BOS. With it off,
+    // the confirmed line keeps working every qualifying touch until it expires
+    // or price breaks it.
+    bool lineStillLive = not i_onePerLine and tlConfirmed and not na(tlLine) and (bar_index - confirmBar) <= tlExpiry
+    if lineStillLive
+        state := STATE_CONFIRMED
+    else
+        if not na(tlLine)
+            line.set_x2(tlLine, bar_index)
+            line.set_extend(tlLine, extend.none)
+            tlLine := na
+        state := STATE_WAIT_BOS
+        dirState := 0
+        tlConfirmed := false
 
 // =============================================================================
 // 15. VISUALISATION (S63)
@@ -883,11 +958,11 @@ f_stateName(int s) =>
 if i_drawTL
     if didBos
         label.new(bar_index, dirState == 1 ? low : high, "BOS " + f_fmt(bosLevel, 2), xloc = xloc.bar_index, yloc = dirState == 1 ? yloc.belowbar : yloc.abovebar, style = dirState == 1 ? label.style_label_up : label.style_label_down, color = color.new(color.blue, 20), textcolor = color.white, size = size.tiny)
-    if didP1
+    if didP1 and f_near(p1Bar)
         label.new(p1Bar, p1Price, "P1", xloc = xloc.bar_index, style = dirState == 1 ? label.style_label_up : label.style_label_down, color = color.new(color.gray, 30), textcolor = color.white, size = size.tiny)
-    if didP2
+    if didP2 and f_near(p2Bar)
         label.new(p2Bar, p2Price, "P2", xloc = xloc.bar_index, style = dirState == 1 ? label.style_label_up : label.style_label_down, color = color.new(color.gray, 30), textcolor = color.white, size = size.tiny)
-    if didP3
+    if didP3 and f_near(p3Bar)
         label.new(p3Bar, p3Price, "P3", xloc = xloc.bar_index, style = dirState == 1 ? label.style_label_up : label.style_label_down, color = dirState == 1 ? color.new(color.teal, 0) : color.new(color.maroon, 0), textcolor = color.white, size = size.tiny)
     if didTouch4
         label.new(bar_index, dirState == 1 ? low : high, didReject ? "T4 ✓" : "T4 ✗", xloc = xloc.bar_index, yloc = dirState == 1 ? yloc.belowbar : yloc.abovebar, style = dirState == 1 ? label.style_label_up : label.style_label_down, color = didReject ? color.new(color.orange, 0) : color.new(color.gray, 50), textcolor = color.white, size = size.tiny)
@@ -956,18 +1031,20 @@ if barstate.islast and i_tblState
     table.cell(tState, 1, 12, "$" + f_fmt(dollarsPerLotPerDollar, 2) + (pointValueSuspect ? " · CHECK SYMBOL: point value " + f_fmt(syminfo.pointvalue, 4) + ", sizing assumes 1.0" : " · as specified"), bgcolor = pointValueSuspect ? color.new(color.red, 10) : C_BODY, text_color = C_TEXT, text_size = size.tiny)
 
 if barstate.islast and i_tblFun
-    var table tFun = table.new(position.bottom_right, 3, 25, border_width = 1)
+    var table tFun = table.new(position.bottom_right, 3, 39, border_width = 1)
     table.cell(tFun, 0, 0, "FUNNEL", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
     table.cell(tFun, 1, 0, "count", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
     table.cell(tFun, 2, 0, "pass %", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
-    array<string> funName = array.from("bars eligible", "HTF LONG bars", "HTF SHORT bars", "BOS long", "BOS short", "P1 anchored", "P2 qualified", "candidate trendlines", "P3 confirmations", "Touch #4 events", "valid rejections", "orders armed", "orders filled", "trades completed", "killed · regime lost", "killed · line expired", "killed · line broken", "killed · weak Touch #4", "killed · slope filter", "skipped · stop > max ATR", "skipped · size < min lot", "skipped · margin", "armed · expired", "armed · invalidated")
-    array<float> funVal = array.from(fBars, fLongB, fShortB, fBosL, fBosS, fP1, fP2, fCand, fP3, fT4, fRej, fArm, fFill, fTrade, fKillRegime, fKillExpiry, fKillBreak, fKillRej, fKillSlope, fSkipStop, fSkipSize, fSkipMargin, fExpireArm, fInvalidArm)
-    array<float> funBase = array.from(0.0, 0.0, 0.0, 0.0, 0.0, fBosL + fBosS, fP1, fP2, fCand, fP3, fT4, fRej, fArm, fFill, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-    for k = 0 to 23
+    array<string> funName = array.from("bars eligible", "HTF LONG bars", "HTF SHORT bars", "BOS long", "BOS short", "P1 anchored", "P2 qualified", "candidate trendlines", "P3 confirmations", "Touch #4 events", "valid rejections", "orders armed", "orders filled", "trades completed", "— why P3 fails —", "P3 candidates tested", "· missed the tolerance", "· contact, wrong close", "· closest miss (ATR)", "— why Touch #4 fails —", "T4 within 3× tolerance", "T4 contact", "· contact, wrong close", "· rejection: direction", "· rejection: body ratio", "· rejection: close location", "— structure attrition —", "re-anchored P1", "killed · build timeout", "killed · regime lost", "killed · line expired", "killed · line broken", "killed · weak Touch #4", "killed · slope filter", "blocked at entry · regime", "skipped · stop > max ATR", "skipped · size < min lot", "skipped · margin")
+    array<float> funVal = array.from(fBars, fLongB, fShortB, fBosL, fBosS, fP1, fP2, fCand, fP3, fT4, fRej, fArm, fFill, fTrade, 0.0, fP3Try, fP3MissTol, fP3MissClose, fP3Best > 900.0 ? 0.0 : fP3Best, 0.0, fT4Near, fT4Try, fT4MissClose, fT4RejDir, fT4RejBody, fT4RejClv, 0.0, fReanchor, fKillBuild, fKillRegime, fKillExpiry, fKillBreak, fKillRej, fKillSlope, fRegimeBlock, fSkipStop, fSkipSize, fSkipMargin)
+    array<float> funBase = array.from(0.0, 0.0, 0.0, 0.0, 0.0, fBosL + fBosS, fP1, fP2, fCand, fP3, fT4, fRej, fArm, fFill, 0.0, fCand, fP3Try, fP3Try, 0.0, 0.0, 0.0, fT4Near, fT4Try, fT4, fT4, fT4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    array<int> funDig = array.from(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    for k = 0 to 37
         float base = array.get(funBase, k)
-        table.cell(tFun, 0, k + 1, array.get(funName, k), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
-        table.cell(tFun, 1, k + 1, f_fmt(array.get(funVal, k), 0), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
-        table.cell(tFun, 2, k + 1, base > 0.0 ? f_fmt(f_pct(array.get(funVal, k), base), 1) + "%" : "—", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        bool header = str.startswith(array.get(funName, k), "—")
+        table.cell(tFun, 0, k + 1, array.get(funName, k), bgcolor = header ? C_HEAD : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tFun, 1, k + 1, header ? "" : f_fmt(array.get(funVal, k), array.get(funDig, k)), bgcolor = header ? C_HEAD : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tFun, 2, k + 1, header or base <= 0.0 ? "" : f_fmt(f_pct(array.get(funVal, k), base), 1) + "%", bgcolor = header ? C_HEAD : C_BODY, text_color = C_TEXT, text_size = size.tiny)
 
 if barstate.islast and i_tblPerf
     var table tPerf = table.new(position.bottom_left, 4, 22, border_width = 1)

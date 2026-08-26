@@ -49,8 +49,11 @@ strategies/cyber_mcgiver/
 9. **Exit model B only.** 50% at +1.2R, cost-adjusted breakeven on a *confirmed
    close* beyond 1.2R, then a structural + ATR trail to a 10R ceiling
    (S51–S57).
-10. **One trade per trendline.** Fill, stop-out, expiry or invalidation kills the
-    line. The next trade needs a completely new BOS (S44, S45).
+10. **One trade per trendline** — available, but **off by default**. See
+    `docs/05_first_run_findings.md`: the first run produced zero trades in
+    twenty years, and four of the engine's own bookkeeping rules were the
+    cause. The confirmed line now trades every qualifying touch until it
+    expires or breaks (a deliberate departure from S44, S45).
 
 ## Running the four tests
 
@@ -135,4 +138,5 @@ repository should be read as a claim about how the strategy performs.
 
 Every place the specification was silent and a choice had to be made is listed
 in `docs/01_specification_map.md` under *Deviations and judgement calls*. None
-of them are hidden in the code.
+of them are hidden in the code — and `docs/05_first_run_findings.md` records
+which of them turned out to be wrong, and why.

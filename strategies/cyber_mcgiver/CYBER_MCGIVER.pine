@@ -1,0 +1,1012 @@
+//@version=6
+// =============================================================================
+// CYBER MCGIVER v1.0
+// XAUUSD multi-timeframe trend + confirmed-trendline retest RESEARCH ENGINE
+// -----------------------------------------------------------------------------
+// Hypothesis (spec S1, S74): trade only when 1D, 4H and 1H agree; wait for an
+// execution-timeframe break of structure; build a mathematical trendline from
+// P1 and P2; require P3 to CONFIRM it; take the setup on Touch #4 only after a
+// rejection candle and a break of that candle's extreme; place the stop beyond
+// P3; size so the planned loss is <= 1% of CURRENT equity; take 50% at +1.2R;
+// protect the runner at cost-adjusted breakeven; trail to a 10R ceiling.
+//
+// This is a MEASUREMENT instrument, not a promise. It is deliberately NOT
+// optimised. Section markers (S1..S75) map to docs/01_specification_map.md.
+//
+// What this script deliberately does NOT do:
+//   * It does not model a real bid/ask spread. Pine has no spread. Spread,
+//     slippage and commission are MODELLED costs (S11, S12) that feed position
+//     sizing and cost-adjusted breakeven. The backtester's own cost settings
+//     are declaration-time CONSTANTS in Pine and cannot be wired to inputs;
+//     the dashboard flags any mismatch between the two (see COSTS panel).
+//   * It does not compute significance. Counts and per-bucket statistics are
+//     computed here; anything requiring resampling belongs outside Pine.
+//   * It does not filter by session (S2). Session is an analytical LABEL only.
+// =============================================================================
+
+strategy(
+     title                   = "CYBER MCGIVER v1.0",
+     shorttitle              = "CYBER-MCG",
+     overlay                 = true,
+     initial_capital         = 100000,
+     currency                = currency.USD,
+     default_qty_type        = strategy.fixed,
+     default_qty_value       = 1,
+     pyramiding              = 0,
+     calc_on_every_tick      = false,
+     calc_on_order_fills     = false,
+     process_orders_on_close = false,
+     use_bar_magnifier       = true,
+     close_entries_rule      = "ANY",
+     commission_type         = strategy.commission.cash_per_contract,
+     commission_value        = 0.035,
+     slippage                = 25,
+     max_labels_count        = 500,
+     max_lines_count         = 500,
+     max_boxes_count         = 100,
+     max_bars_back           = 2000)
+
+// Tester cost constants above, restated so the dashboard can verify them.
+// slippage is in TICKS per side and models (spread / 2 + slippage per side).
+// commission_value is CASH PER CONTRACT per side; one contract = one ounce, so
+// 0.035 * 100 oz * 2 sides = $7.00 per lot round turn.
+float TESTER_SLIP_TICKS  = 25.0
+float TESTER_COMM_PER_OZ = 0.035
+
+// =============================================================================
+// 0. CONSTANTS
+// =============================================================================
+
+// --- state machine (S61, S62) ------------------------------------------------
+int STATE_WAIT_BOS   = 0
+int STATE_WAIT_P1    = 1
+int STATE_WAIT_P2    = 2
+int STATE_CANDIDATE  = 3
+int STATE_CONFIRMED  = 4
+int STATE_ARMED      = 5
+int STATE_OPEN       = 6
+
+// --- statistics buckets ------------------------------------------------------
+int BK_LONG   = 0
+int BK_SHORT  = 1
+int BK_ALL    = 2
+int BK_ASIA   = 3
+int BK_LDN    = 4
+int BK_LDNNY  = 5
+int BK_NY     = 6
+int BK_LATE   = 7
+int N_BUCKET  = 8
+
+string G_MODE = "1 · Mode"
+string G_HTF  = "2 · Higher-timeframe regime (1D / 4H / 1H)"
+string G_STR  = "3 · Structure · pivots · trendline"
+string G_ENT  = "4 · Touch #4 · rejection · entry"
+string G_RISK = "5 · Risk · sizing · margin"
+string G_COST = "6 · Modelled costs"
+string G_EXIT = "7 · Exit model B"
+string G_SESS = "8 · Sessions (label only)"
+string G_UI   = "9 · Visuals · dashboards · logging"
+
+// =============================================================================
+// 1. INPUTS
+// =============================================================================
+
+// ---- 1.1 mode (S66) ---------------------------------------------------------
+string i_dirMode  = input.string("Both", "Direction under test", options = ["Both", "Long only", "Short only"], group = G_MODE, tooltip = "Tests A/C = Long only. Tests B/D = Short only. Run them separately; do not read the combined row as if it were one system.")
+
+// ---- 1.2 higher-timeframe regime (S15-S24) ----------------------------------
+string i_tfD      = input.timeframe("D",   "Trend timeframe 1", group = G_HTF)
+string i_tf4      = input.timeframe("240", "Trend timeframe 2", group = G_HTF)
+string i_tf1      = input.timeframe("60",  "Trend timeframe 3", group = G_HTF)
+int    i_dFast    = input.int(50,  "1D fast EMA",  minval = 2, group = G_HTF)
+int    i_dSlow    = input.int(200, "1D slow EMA",  minval = 3, group = G_HTF)
+int    i_dSlope   = input.int(5,   "1D slope lookback (bars)", minval = 1, group = G_HTF)
+int    i_h4Fast   = input.int(20,  "4H fast EMA",  minval = 2, group = G_HTF)
+int    i_h4Slow   = input.int(50,  "4H slow EMA",  minval = 3, group = G_HTF)
+int    i_h4Slope  = input.int(3,   "4H slope lookback (bars)", minval = 1, group = G_HTF)
+int    i_h1Fast   = input.int(20,  "1H fast EMA",  minval = 2, group = G_HTF)
+int    i_h1Slow   = input.int(50,  "1H slow EMA",  minval = 3, group = G_HTF)
+int    i_h1Slope  = input.int(3,   "1H slope lookback (bars)", minval = 1, group = G_HTF)
+
+// ---- 1.3 structure (S25-S31, S36-S39) ---------------------------------------
+int    i_atrLen   = input.int(14, "ATR length (execution timeframe)", minval = 2, group = G_STR, tooltip = "S13. Wilder/RMA ATR on the chart timeframe. Never borrowed from another timeframe.")
+int    i_pivL15   = input.int(2,  "15m pivot left",  minval = 1, group = G_STR)
+int    i_pivR15   = input.int(2,  "15m pivot right", minval = 1, group = G_STR)
+int    i_pivL5    = input.int(3,  "5m pivot left",   minval = 1, group = G_STR)
+int    i_pivR5    = input.int(3,  "5m pivot right",  minval = 1, group = G_STR)
+float  i_bosBuf   = input.float(0.05, "BOS buffer (× ATR)",        minval = 0.0, step = 0.01, group = G_STR)
+float  i_minSep   = input.float(0.10, "P1→P2 minimum separation (× ATR)", minval = 0.0, step = 0.01, group = G_STR)
+float  i_tol      = input.float(0.12, "Trendline contact tolerance (× ATR)", minval = 0.01, step = 0.01, group = G_STR)
+float  i_slopeMax = input.float(0.25, "Maximum normalised slope |m| / ATR", minval = 0.01, step = 0.01, group = G_STR)
+bool   i_p3Beyond = input.bool(false, "Require P3 beyond P2 (preferred, not mandatory)", group = G_STR, tooltip = "S31/S39 call P1<P2<P3 preferred, not required. Off = baseline.")
+int    i_expiry15 = input.int(20, "15m trendline expiry after P3 (bars)", minval = 1, group = G_STR, tooltip = "S3. 20 × 15m ≈ 5 hours.")
+int    i_expiry5  = input.int(48, "5m trendline expiry after P3 (bars)",  minval = 1, group = G_STR, tooltip = "S3. 48 × 5m ≈ 4 hours.")
+bool   i_killBrk  = input.bool(true, "Kill structure when price closes through the line", group = G_STR, tooltip = "Implementation decision, not in the spec text: a support line closed through by more than the contact tolerance is no longer support.")
+
+// ---- 1.4 touch #4 and entry (S32-S34, S40-S42) ------------------------------
+float  i_bodyMin  = input.float(0.35, "Rejection minimum body ratio",    minval = 0.0, maxval = 1.0, step = 0.01, group = G_ENT)
+float  i_clvMin   = input.float(0.65, "Rejection minimum close location", minval = 0.0, maxval = 1.0, step = 0.01, group = G_ENT)
+int    i_armBars  = input.int(3, "Armed order expiry (bars)", minval = 1, group = G_ENT, tooltip = "S44: an unfilled setup expires and the trendline dies. Not given a number by the spec; 3 bars is the baseline choice.")
+bool   i_killRej  = input.bool(true, "Failed rejection at Touch #4 kills the trendline", group = G_ENT, tooltip = "S32/S44 strict reading: Touch #4 is THE opportunity. A weak Touch #4 does not roll over into Touch #5.")
+
+// ---- 1.5 risk (S4-S7, S10, S47, S49) ----------------------------------------
+float  i_riskPct  = input.float(1.00, "Risk % of current equity", minval = 0.01, maxval = 10.0, step = 0.01, group = G_RISK)
+bool   i_useCap   = input.bool(false, "Also apply an absolute risk cap", group = G_RISK, tooltip = "FTMO research switch (S5). Off in the Cyber Mcgiver baseline.")
+float  i_riskCap  = input.float(1000.0, "Absolute risk cap ($)", minval = 1.0, group = G_RISK)
+float  i_contract = input.float(100.0,  "Contract size (oz per 1.00 lot)", minval = 1.0, group = G_RISK)
+float  i_minLot   = input.float(0.01,   "Minimum lot", minval = 0.001, step = 0.001, group = G_RISK)
+float  i_lotStep  = input.float(0.01,   "Lot step",    minval = 0.001, step = 0.001, group = G_RISK)
+float  i_leverage = input.float(50.0,   "Leverage (1:N)", minval = 1.0, group = G_RISK)
+float  i_marginUse = input.float(100.0, "Maximum % of equity usable as margin", minval = 1.0, maxval = 100.0, group = G_RISK)
+float  i_stopAtrMax = input.float(3.0,  "Maximum stop distance (× ATR)", minval = 0.1, step = 0.1, group = G_RISK)
+float  i_stopBuf  = input.float(0.10,   "Structural stop buffer beyond P3 (× ATR)", minval = 0.0, step = 0.01, group = G_RISK)
+
+// ---- 1.6 modelled costs (S11, S12) ------------------------------------------
+float  i_spread   = input.float(0.30, "Modelled spread ($/oz)",            minval = 0.0, step = 0.05, group = G_COST)
+float  i_slipIn   = input.float(0.10, "Modelled entry slippage ($/oz)",    minval = 0.0, step = 0.05, group = G_COST)
+float  i_slipOut  = input.float(0.10, "Modelled exit slippage ($/oz)",     minval = 0.0, step = 0.05, group = G_COST)
+float  i_commLot  = input.float(7.00, "Commission ($ per lot, round turn)", minval = 0.0, step = 0.5, group = G_COST)
+float  i_commPct  = input.float(0.00, "Commission (% of notional, per side)", minval = 0.0, step = 0.001, group = G_COST)
+
+// ---- 1.7 exit model B (S51-S57) ---------------------------------------------
+float  i_partialR = input.float(1.2,  "Partial target (R)", minval = 0.1, step = 0.1, group = G_EXIT)
+float  i_partialP = input.float(50.0, "Partial size (% of position)", minval = 1.0, maxval = 99.0, step = 1.0, group = G_EXIT)
+float  i_trailAtr = input.float(2.0,  "Runner ATR trail (× ATR)", minval = 0.1, step = 0.1, group = G_EXIT)
+float  i_trailBuf = input.float(0.10, "Runner structural trail buffer (× ATR)", minval = 0.0, step = 0.01, group = G_EXIT)
+float  i_maxR     = input.float(10.0, "Runner hard ceiling (R)", minval = 1.0, step = 0.5, group = G_EXIT)
+
+// ---- 1.8 sessions (S2, S67) -------------------------------------------------
+string i_tz       = input.string("America/New_York", "Session timezone", group = G_SESS)
+string i_asiaBeg  = input.string("20:00", "Asia start",              group = G_SESS)
+string i_asiaEnd  = input.string("02:00", "Asia end / London start", group = G_SESS)
+string i_ldnEnd   = input.string("08:00", "London end / transition start", group = G_SESS)
+string i_nyBeg    = input.string("09:30", "Transition end / NY start",     group = G_SESS)
+string i_nyEnd    = input.string("16:00", "NY end",                        group = G_SESS)
+
+// ---- 1.9 UI (S63, S64, S65) -------------------------------------------------
+bool   i_drawTL   = input.bool(true,  "Draw trendlines and structure points", group = G_UI)
+bool   i_keepDead = input.bool(false, "Keep structures that died before P3",  group = G_UI)
+bool   i_drawLvl  = input.bool(true,  "Plot entry / stop / 1.2R / 10R while in a position", group = G_UI)
+bool   i_tblState = input.bool(true,  "Panel: state and diagnostics", group = G_UI)
+bool   i_tblFun   = input.bool(true,  "Panel: historical funnel",     group = G_UI)
+bool   i_tblPerf  = input.bool(true,  "Panel: performance",           group = G_UI)
+bool   i_tblSess  = input.bool(true,  "Panel: session breakdown",     group = G_UI)
+bool   i_tblLoss  = input.bool(true,  "Panel: loss analysis",         group = G_UI)
+bool   i_logTrade = input.bool(true,  "Write one CSV log line per closed trade", group = G_UI, tooltip = "Pine Logs pane. Columns match docs/03_trade_log_format.md.")
+
+// =============================================================================
+// 2. HELPERS
+// =============================================================================
+
+f_pct(float num, float den) =>
+    den <= 0.0 ? 0.0 : num * 100.0 / den
+
+f_div(float num, float den) =>
+    den == 0.0 ? 0.0 : num / den
+
+f_floorStep(float value, float step) =>
+    step <= 0.0 ? value : math.floor(value / step + 0.00000001) * step
+
+f_hm(string hhmm) =>
+    float hh = str.tonumber(str.substring(hhmm, 0, 2))
+    float mm = str.tonumber(str.substring(hhmm, 3, 5))
+    int out = int(nz(hh) * 60.0 + nz(mm))
+    out
+
+f_inWindow(int minuteOfDay, int beg, int end) =>
+    beg <= end ? (minuteOfDay >= beg and minuteOfDay < end) : (minuteOfDay >= beg or minuteOfDay < end)
+
+f_bump(arr, idx, value) =>
+    array.set(arr, idx, array.get(arr, idx) + value)
+
+f_fmt(float value, int digits) =>
+    string mask = digits == 0 ? "#" : digits == 1 ? "#.0" : digits == 3 ? "#.000" : "#.00"
+    str.tostring(value, mask)
+
+// =============================================================================
+// 3. EXECUTION TIMEFRAME GUARD (S14)
+// =============================================================================
+
+bool   isTf15   = timeframe.isminutes and timeframe.multiplier == 15
+bool   isTf5    = timeframe.isminutes and timeframe.multiplier == 5
+bool   tfOK     = isTf15 or isTf5
+string tfName   = isTf15 ? "15m" : isTf5 ? "5m" : timeframe.period
+string TF_ERROR = "CYBER MCGIVER REQUIRES 5m OR 15m"
+
+int pivLeft   = isTf5 ? i_pivL5 : i_pivL15
+int pivRight  = isTf5 ? i_pivR5 : i_pivR15
+int tlExpiry  = isTf5 ? i_expiry5 : i_expiry15
+
+// =============================================================================
+// 4. ATR (S13) — execution timeframe only, Wilder/RMA
+// =============================================================================
+
+float atr  = ta.atr(i_atrLen)
+float tick = syminfo.mintick
+
+// =============================================================================
+// 5. COST MODEL (S11, S12)
+// =============================================================================
+
+// Round-trip cost of one lot, in dollars, at the current price.
+float costNotional  = close * i_contract * (i_commPct / 100.0) * 2.0
+float costPerLotRT  = (i_spread + i_slipIn + i_slipOut) * i_contract + i_commLot + costNotional
+// Same cost expressed per ounce, which is what the breakeven stop needs.
+float costPerOz     = f_div(costPerLotRT, i_contract)
+// What the tester constants imply, so a mismatch can be shown rather than hidden.
+float impliedTicks  = f_div(i_spread / 2.0 + (i_slipIn + i_slipOut) / 2.0, tick)
+float impliedCommOz = f_div(i_commLot, i_contract * 2.0)
+bool  costMismatch  = math.abs(impliedTicks - TESTER_SLIP_TICKS) > 0.5 or math.abs(impliedCommOz - TESTER_COMM_PER_OZ) > 0.0005
+
+// =============================================================================
+// 6. HIGHER-TIMEFRAME MARKET MODE (S15-S24)
+// =============================================================================
+// Every higher-timeframe series is read with lookahead_off AND an explicit [1],
+// so only CLOSED higher-timeframe candles are ever visible. S60.
+
+[dClose, dFast, dSlow, dFastPrev] = request.security(syminfo.tickerid, i_tfD, [close[1], ta.ema(close, i_dFast)[1], ta.ema(close, i_dSlow)[1], ta.ema(close, i_dFast)[1 + i_dSlope]], lookahead = barmerge.lookahead_off)
+[h4Close, h4Fast, h4Slow, h4FastPrev] = request.security(syminfo.tickerid, i_tf4, [close[1], ta.ema(close, i_h4Fast)[1], ta.ema(close, i_h4Slow)[1], ta.ema(close, i_h4Fast)[1 + i_h4Slope]], lookahead = barmerge.lookahead_off)
+[h1Close, h1Fast, h1Slow, h1FastPrev] = request.security(syminfo.tickerid, i_tf1, [close[1], ta.ema(close, i_h1Fast)[1], ta.ema(close, i_h1Slow)[1], ta.ema(close, i_h1Fast)[1 + i_h1Slope]], lookahead = barmerge.lookahead_off)
+
+bool htfReady = not na(dClose) and not na(dSlow) and not na(dFastPrev) and not na(h4Close) and not na(h4Slow) and not na(h4FastPrev) and not na(h1Close) and not na(h1Slow) and not na(h1FastPrev)
+
+// S16 / S20
+bool dailyBull = htfReady and dClose > dSlow and dFast > dSlow and dFast > dFastPrev
+bool dailyBear = htfReady and dClose < dSlow and dFast < dSlow and dFast < dFastPrev
+// S17 / S21
+bool h4Bull = htfReady and h4Close > h4Slow and h4Fast > h4Slow and h4Fast > h4FastPrev
+bool h4Bear = htfReady and h4Close < h4Slow and h4Fast < h4Slow and h4Fast < h4FastPrev
+// S18 / S22
+bool h1Bull = htfReady and h1Close > h1Fast and h1Fast > h1Slow and h1Fast > h1FastPrev
+bool h1Bear = htfReady and h1Close < h1Fast and h1Fast < h1Slow and h1Fast < h1FastPrev
+
+// S19 / S23 / S24
+bool bullRegime = dailyBull and h4Bull and h1Bull
+bool bearRegime = dailyBear and h4Bear and h1Bear
+int  marketMode = bullRegime ? 1 : bearRegime ? -1 : 0
+string modeName = marketMode == 1 ? "LONG" : marketMode == -1 ? "SHORT" : "NEUTRAL"
+
+bool longAllowed  = i_dirMode != "Short only"
+bool shortAllowed = i_dirMode != "Long only"
+
+// =============================================================================
+// 7. SESSION LABEL (S2, S67) — classification only, never a veto
+// =============================================================================
+
+int mAsiaBeg = f_hm(i_asiaBeg)
+int mAsiaEnd = f_hm(i_asiaEnd)
+int mLdnEnd  = f_hm(i_ldnEnd)
+int mNyBeg   = f_hm(i_nyBeg)
+int mNyEnd   = f_hm(i_nyEnd)
+int minuteNY = hour(time, i_tz) * 60 + minute(time, i_tz)
+
+int sessionId = f_inWindow(minuteNY, mAsiaBeg, mAsiaEnd) ? BK_ASIA : f_inWindow(minuteNY, mAsiaEnd, mLdnEnd) ? BK_LDN : f_inWindow(minuteNY, mLdnEnd, mNyBeg) ? BK_LDNNY : f_inWindow(minuteNY, mNyBeg, mNyEnd) ? BK_NY : BK_LATE
+f_sessName(int id) =>
+    id == BK_ASIA ? "Asia" : id == BK_LDN ? "London" : id == BK_LDNNY ? "LDN/NY" : id == BK_NY ? "NY" : "Late"
+
+string sessionName = f_sessName(sessionId)
+
+// =============================================================================
+// 8. PIVOTS (S27) — confirmed only, never before the right-hand bars close
+// =============================================================================
+
+float pivHigh = ta.pivothigh(high, pivLeft, pivRight)
+float pivLow  = ta.pivotlow(low, pivLeft, pivRight)
+bool  hasPH   = not na(pivHigh)
+bool  hasPL   = not na(pivLow)
+int   pivBar  = bar_index - pivRight
+float pivBarHigh  = high[pivRight]
+float pivBarLow   = low[pivRight]
+float pivBarClose = close[pivRight]
+
+// Most recent confirmed swing extremes, used by the break-of-structure test.
+var float swingHigh = na
+var float swingLow  = na
+if hasPH
+    swingHigh := pivHigh
+if hasPL
+    swingLow := pivLow
+
+// =============================================================================
+// 9. STATE (S61, S62)
+// =============================================================================
+
+var int   state    = STATE_WAIT_BOS
+var int   dirState = 0
+var int   bosBar   = 0
+var float bosLevel = na
+var int   p1Bar    = 0
+var float p1Price  = na
+var int   p2Bar    = 0
+var float p2Price  = na
+var int   p3Bar    = 0
+var float p3Price  = na
+var float tlSlope  = na
+var float tlSlopeN = na
+var int   confirmBar = 0
+var int   armBar   = 0
+var float armEntry = na
+var float armStop  = na
+var float armRisk  = na
+var float armLots  = na
+var float armBody  = na
+var float armClv   = na
+var float armAtr   = na
+var int   armSess  = 0
+var line  tlLine   = na
+var bool  tlConfirmed = false
+var string lastKill = "—"
+
+// --- funnel counters (S64) ---------------------------------------------------
+var float fBars   = 0.0
+var float fLongB  = 0.0
+var float fShortB = 0.0
+var float fBosL   = 0.0
+var float fBosS   = 0.0
+var float fP1     = 0.0
+var float fP2     = 0.0
+var float fCand   = 0.0
+var float fP3     = 0.0
+var float fT4     = 0.0
+var float fRej    = 0.0
+var float fArm    = 0.0
+var float fFill   = 0.0
+var float fTrade  = 0.0
+var float fKillRegime = 0.0
+var float fKillExpiry = 0.0
+var float fKillBreak  = 0.0
+var float fKillRej    = 0.0
+var float fKillSlope  = 0.0
+var float fSkipStop   = 0.0
+var float fSkipSize   = 0.0
+var float fSkipMargin = 0.0
+var float fExpireArm  = 0.0
+var float fInvalidArm = 0.0
+
+if tfOK
+    fBars += 1.0
+    if marketMode == 1
+        fLongB += 1.0
+    if marketMode == -1
+        fShortB += 1.0
+
+// The projected line, anchored on P2 exactly as S30 / S38 define it.
+f_tl(int barIdx) =>
+    p2Price + tlSlope * (barIdx - p2Bar)
+
+// Exact 1% sizing (S47). Pure function: no state, no global writes.
+f_lots(float riskBudget, float riskDist, float perLotCost, float contract, float step, float floorLot) =>
+    float perLot = riskDist * contract + perLotCost
+    float raw    = perLot <= 0.0 ? 0.0 : riskBudget / perLot
+    float lots   = f_floorStep(raw, step)
+    if lots * perLot > riskBudget
+        lots := f_floorStep(lots - step, step)
+    if lots * perLot > riskBudget
+        lots := f_floorStep(lots - step, step)
+    lots < floorLot ? 0.0 : lots
+
+bool  flat  = strategy.position_size == 0
+float tlNow = state >= STATE_CANDIDATE ? f_tl(bar_index) : na
+
+// =============================================================================
+// 10. STRUCTURE INVALIDATION
+// =============================================================================
+
+// `flat` is part of every invalidation test on purpose. An entry filled during
+// this bar is not detected until §12, so without it a regime flip on the fill
+// bar would cancel the protective orders of a position that is already open.
+bool structPhase = flat and state != STATE_WAIT_BOS and state != STATE_OPEN
+bool regimeLost = structPhase and dirState != 0 and marketMode != dirState
+bool tlExpired  = structPhase and state == STATE_CONFIRMED and (bar_index - confirmBar) > tlExpiry
+bool tlBroken   = structPhase and i_killBrk and (state == STATE_CANDIDATE or state == STATE_CONFIRMED) and not na(tlNow) and (dirState == 1 ? close < tlNow - i_tol * atr : close > tlNow + i_tol * atr)
+
+bool killNow = false
+string killWhy = ""
+if regimeLost
+    killNow := true
+    killWhy := "REGIME"
+    fKillRegime += 1.0
+else if tlExpired
+    killNow := true
+    killWhy := "EXPIRED"
+    fKillExpiry += 1.0
+else if tlBroken
+    killNow := true
+    killWhy := "LINE BROKEN"
+    fKillBreak += 1.0
+
+if killNow
+    if state == STATE_ARMED
+        // Flat by construction here, so this cannot strip a live position of
+        // its stop; it clears the entry AND the exits armed alongside it.
+        strategy.cancel_all()
+    if not na(tlLine)
+        if tlConfirmed or i_keepDead
+            line.set_x2(tlLine, bar_index)
+            line.set_extend(tlLine, extend.none)
+        else
+            line.delete(tlLine)
+        tlLine := na
+    lastKill := killWhy
+    state := STATE_WAIT_BOS
+    dirState := 0
+    tlConfirmed := false
+
+// =============================================================================
+// 11. STRUCTURE ENGINE (S25-S34, S36-S43)
+// =============================================================================
+
+bool  didBos     = false
+bool  didP1      = false
+bool  didP2      = false
+bool  didP3      = false
+bool  didTouch4  = false
+bool  didReject  = false
+bool  didArm     = false
+float t4Body     = na
+float t4Clv      = na
+
+if tfOK and not killNow
+
+    // ---- S25 / S26 · break of structure -------------------------------------
+    if state == STATE_WAIT_BOS and flat and marketMode != 0
+        if marketMode == 1 and longAllowed and not na(swingHigh) and close > swingHigh + i_bosBuf * atr
+            dirState := 1
+            bosBar   := bar_index
+            bosLevel := swingHigh
+            swingHigh := na
+            state    := STATE_WAIT_P1
+            didBos   := true
+            fBosL    += 1.0
+        else if marketMode == -1 and shortAllowed and not na(swingLow) and close < swingLow - i_bosBuf * atr
+            dirState := -1
+            bosBar   := bar_index
+            bosLevel := swingLow
+            swingLow := na
+            state    := STATE_WAIT_P1
+            didBos   := true
+            fBosS    += 1.0
+
+    // ---- S28 / S36 · touch #1 -----------------------------------------------
+    else if state == STATE_WAIT_P1
+        bool gotPivot = dirState == 1 ? hasPL : hasPH
+        if gotPivot and pivBar >= bosBar
+            p1Bar   := pivBar
+            p1Price := dirState == 1 ? pivBarLow : pivBarHigh
+            state   := STATE_WAIT_P2
+            didP1   := true
+            fP1     += 1.0
+
+    // ---- S29 / S30 / S37 / S38 · touch #2 and the candidate line -------------
+    else if state == STATE_WAIT_P2
+        bool gotPivot = dirState == 1 ? hasPL : hasPH
+        float pv = dirState == 1 ? pivBarLow : pivBarHigh
+        if gotPivot and pivBar > p1Bar
+            bool wrongWay = dirState == 1 ? pv <= p1Price : pv >= p1Price
+            float sep = dirState == 1 ? pv - p1Price : p1Price - pv
+            if wrongWay
+                // The base moved: this pivot becomes the new P1 rather than
+                // pretending a rising line exists through a lower low.
+                p1Bar   := pivBar
+                p1Price := pv
+            else if sep >= i_minSep * atr
+                didP2 := true
+                fP2   += 1.0
+                float m = (pv - p1Price) / math.max(pivBar - p1Bar, 1)
+                float mn = math.abs(f_div(m, atr))
+                bool signOK = dirState == 1 ? m > 0.0 : m < 0.0
+                if signOK and mn <= i_slopeMax
+                    p2Bar    := pivBar
+                    p2Price  := pv
+                    tlSlope  := m
+                    tlSlopeN := mn
+                    state    := STATE_CANDIDATE
+                    fCand    += 1.0
+                    if i_drawTL
+                        tlLine := line.new(p1Bar, p1Price, p2Bar, p2Price, xloc = xloc.bar_index, extend = extend.right, color = color.new(color.gray, 30), style = line.style_dashed, width = 1)
+                else
+                    fKillSlope += 1.0
+                    state := STATE_WAIT_BOS
+                    dirState := 0
+
+    // ---- S31 / S39 · touch #3 confirms the line ------------------------------
+    else if state == STATE_CANDIDATE
+        bool gotPivot = dirState == 1 ? hasPL : hasPH
+        if gotPivot and pivBar > p2Bar
+            float tlAt = f_tl(pivBar)
+            float wick = dirState == 1 ? pivBarLow : pivBarHigh
+            bool contact = math.abs(wick - tlAt) <= i_tol * atr
+            bool holds   = dirState == 1 ? pivBarClose > tlAt : pivBarClose < tlAt
+            bool beyond  = not i_p3Beyond or (dirState == 1 ? wick > p2Price : wick < p2Price)
+            bool through = dirState == 1 ? wick < tlAt - i_tol * atr : wick > tlAt + i_tol * atr
+            if contact and holds and beyond
+                p3Bar   := pivBar
+                p3Price := wick
+                confirmBar := bar_index
+                state   := STATE_CONFIRMED
+                tlConfirmed := true
+                didP3   := true
+                fP3     += 1.0
+                if i_drawTL and not na(tlLine)
+                    line.set_color(tlLine, dirState == 1 ? color.new(color.teal, 0) : color.new(color.maroon, 0))
+                    line.set_style(tlLine, line.style_solid)
+                    line.set_width(tlLine, 2)
+            else if through
+                fKillBreak += 1.0
+                if not na(tlLine)
+                    if i_keepDead
+                        line.set_x2(tlLine, bar_index)
+                        line.set_extend(tlLine, extend.none)
+                    else
+                        line.delete(tlLine)
+                    tlLine := na
+                state := STATE_WAIT_BOS
+                dirState := 0
+
+    // ---- S32-S34 / S40-S43 · touch #4, rejection, arming ---------------------
+    else if state == STATE_CONFIRMED and bar_index > confirmBar and flat
+        float tlHere = f_tl(bar_index)
+        float wick4  = dirState == 1 ? low : high
+        bool contact4 = math.abs(wick4 - tlHere) <= i_tol * atr
+        bool holds4   = dirState == 1 ? close > tlHere : close < tlHere
+        if contact4 and holds4
+            didTouch4 := true
+            fT4 += 1.0
+            float rng = math.max(high - low, tick)
+            t4Body := math.abs(close - open) / rng
+            t4Clv  := dirState == 1 ? (close - low) / rng : (high - close) / rng
+            bool dirCandle = dirState == 1 ? close > open : close < open
+            bool rejOK = dirCandle and t4Body >= i_bodyMin and t4Clv >= i_clvMin
+            if rejOK
+                didReject := true
+                fRej += 1.0
+                float entryPx = dirState == 1 ? high + tick : low - tick
+                float stopPx  = dirState == 1 ? p3Price - i_stopBuf * atr : p3Price + i_stopBuf * atr
+                float riskPx  = dirState == 1 ? entryPx - stopPx : stopPx - entryPx
+                float stopAtr = f_div(riskPx, atr)
+                bool stopOK = riskPx > 0.0 and stopAtr <= i_stopAtrMax
+                float budget = strategy.equity * i_riskPct / 100.0
+                if i_useCap
+                    budget := math.min(budget, i_riskCap)
+                float lots = stopOK ? f_lots(budget, riskPx, costPerLotRT, i_contract, i_lotStep, i_minLot) : 0.0
+                float availMargin = strategy.equity * i_marginUse / 100.0
+                float lotsMarginMax = f_floorStep(f_div(availMargin * i_leverage, close * i_contract), i_lotStep)
+                bool marginCut = lots > lotsMarginMax
+                if marginCut
+                    lots := lotsMarginMax
+                if not stopOK
+                    fSkipStop += 1.0
+                else if lots < i_minLot
+                    if marginCut
+                        fSkipMargin += 1.0
+                    else
+                        fSkipSize += 1.0
+                else
+                    armEntry := entryPx
+                    armStop  := stopPx
+                    armRisk  := riskPx
+                    armLots  := lots
+                    armBody  := t4Body
+                    armClv   := t4Clv
+                    armAtr   := atr
+                    armSess  := sessionId
+                    armBar   := bar_index
+                    state    := STATE_ARMED
+                    didArm   := true
+                    fArm     += 1.0
+                    float units = lots * i_contract
+                    // The protective orders are submitted with the entry, not
+                    // on the bar after the fill. An exit attached to an unfilled
+                    // entry simply waits; without this, the first bar of every
+                    // trade would run naked and the 1% claim would be fiction.
+                    float plannedPart = f_floorStep(lots * i_partialP / 100.0, i_lotStep) * i_contract
+                    float plannedRun  = math.max(units - plannedPart, 0.0)
+                    float plannedTp1  = dirState == 1 ? entryPx + i_partialR * riskPx : entryPx - i_partialR * riskPx
+                    float plannedTpX  = dirState == 1 ? entryPx + i_maxR * riskPx : entryPx - i_maxR * riskPx
+                    string eidArm = dirState == 1 ? "CM-L" : "CM-S"
+                    if dirState == 1
+                        strategy.entry(eidArm, strategy.long, qty = units, stop = entryPx, comment = "T4 long")
+                    else
+                        strategy.entry(eidArm, strategy.short, qty = units, stop = entryPx, comment = "T4 short")
+                    if plannedPart > 0.0
+                        strategy.exit("CM-TP1", from_entry = eidArm, qty = plannedPart, limit = plannedTp1, stop = stopPx, comment_profit = "TP 1.2R", comment_loss = "SL")
+                    if plannedRun > 0.0
+                        strategy.exit("CM-RUN", from_entry = eidArm, qty = plannedRun, limit = plannedTpX, stop = stopPx, comment_profit = "10R cap", comment_loss = "SL/trail")
+            // S44: touch #4 IS the opportunity. A touch that does not arm —
+            // weak rejection, impossible stop, unfundable size — consumes the
+            // line. There is no touch #5 on the same trendline.
+            if not didArm and (didReject or i_killRej)
+                if not didReject
+                    fKillRej += 1.0
+                if not na(tlLine)
+                    line.set_x2(tlLine, bar_index)
+                    line.set_extend(tlLine, extend.none)
+                    tlLine := na
+                state := STATE_WAIT_BOS
+                dirState := 0
+
+// =============================================================================
+// 12. ARMED ORDER LIFECYCLE
+// =============================================================================
+
+var float posEntry  = na
+var float posStop   = na
+var float posRisk   = na
+var float posLots   = na
+var float posUnits  = na
+var float posPartUnits = 0.0
+var int   posDir    = 0
+var int   posBar    = 0
+var int   posSess   = 0
+var float posMFE    = 0.0
+var float posMAE    = 0.0
+var float posExtreme = na
+var float posBody   = na
+var float posClv    = na
+var float posSlopeN = na
+var float posStopAtr = na
+var float posP3     = na
+var float posAtr    = na
+var bool  posBEdone = false
+var bool  posPartDone = false
+var float pnlAnchor = 0.0
+var float structTrail = na
+var bool  didFill   = false
+var bool  didClose  = false
+
+didFill := false
+didClose := false
+
+if state == STATE_ARMED
+    if not flat
+        // Filled. R is frozen here, off the ACTUAL fill (S50).
+        posEntry := strategy.opentrades.entry_price(0)
+        posDir   := dirState
+        posLots  := armLots
+        posUnits := armLots * i_contract
+        posStop  := armStop
+        float rawRisk = posDir == 1 ? posEntry - armStop : armStop - posEntry
+        posRisk  := rawRisk > 0.0 ? rawRisk : armRisk
+        posBar   := bar_index
+        posSess  := armSess
+        posMFE   := 0.0
+        posMAE   := 0.0
+        posBEdone := false
+        posPartDone := false
+        posExtreme := na
+        structTrail := na
+        posBody  := armBody
+        posClv   := armClv
+        posSlopeN := tlSlopeN
+        posStopAtr := f_div(posRisk, armAtr)
+        posP3    := p3Price
+        posAtr   := armAtr
+        pnlAnchor := strategy.netprofit
+        float partLots = f_floorStep(posLots * i_partialP / 100.0, i_lotStep)
+        posPartUnits := partLots * i_contract
+        state := STATE_OPEN
+        didFill := true
+        fFill += 1.0
+    else
+        bool armStale = (bar_index - armBar) >= i_armBars
+        bool armVoid  = dirState == 1 ? close < armStop : close > armStop
+        if armStale or armVoid
+            // Clears the pending entry and the protective orders attached to
+            // it, so a later setup cannot inherit stale exit prices.
+            strategy.cancel_all()
+            if armStale
+                fExpireArm += 1.0
+            else
+                fInvalidArm += 1.0
+            if not na(tlLine)
+                line.set_x2(tlLine, bar_index)
+                line.set_extend(tlLine, extend.none)
+                tlLine := na
+            lastKill := armStale ? "ORDER EXPIRED" : "ORDER INVALIDATED"
+            state := STATE_WAIT_BOS
+            dirState := 0
+            tlConfirmed := false
+
+// =============================================================================
+// 13. POSITION MANAGEMENT — EXIT MODEL B (S51-S57)
+// =============================================================================
+
+float tp1Level = na
+float tpMaxLevel = na
+float beLevel = na
+
+if state == STATE_OPEN and not flat
+    tp1Level   := posDir == 1 ? posEntry + i_partialR * posRisk : posEntry - i_partialR * posRisk
+    tpMaxLevel := posDir == 1 ? posEntry + i_maxR * posRisk : posEntry - i_maxR * posRisk
+    beLevel    := posDir == 1 ? posEntry + costPerOz : posEntry - costPerOz
+
+    // --- excursions, in price; converted to R when the trade closes ----------
+    float fav = posDir == 1 ? high - posEntry : posEntry - low
+    float adv = posDir == 1 ? posEntry - low : high - posEntry
+    posMFE := math.max(posMFE, fav)
+    posMAE := math.max(posMAE, adv)
+
+    // --- S54 · breakeven needs a CLOSED bar beyond 1.2R, never a wick --------
+    if not posBEdone and (posDir == 1 ? close >= tp1Level : close <= tp1Level)
+        posBEdone := true
+        posExtreme := posDir == 1 ? high : low
+        structTrail := na
+
+    // --- S55 / S56 · runner trail -------------------------------------------
+    if posBEdone
+        posExtreme := posDir == 1 ? math.max(nz(posExtreme, high), high) : math.min(nz(posExtreme, low), low)
+        if posDir == 1 and hasPL and pivBar > posBar
+            structTrail := math.max(nz(structTrail, pivBarLow - i_trailBuf * atr), pivBarLow - i_trailBuf * atr)
+        if posDir == -1 and hasPH and pivBar > posBar
+            structTrail := math.min(nz(structTrail, pivBarHigh + i_trailBuf * atr), pivBarHigh + i_trailBuf * atr)
+        float atrTrail = posDir == 1 ? posExtreme - i_trailAtr * atr : posExtreme + i_trailAtr * atr
+        float wanted = posDir == 1 ? math.max(math.max(posStop, beLevel), math.max(nz(structTrail, posStop), atrTrail)) : math.min(math.min(posStop, beLevel), math.min(nz(structTrail, posStop), atrTrail))
+        // Never place the stop through the last close; that is a fill, not a stop.
+        wanted := posDir == 1 ? math.min(wanted, close - tick) : math.max(wanted, close + tick)
+        posStop := posDir == 1 ? math.max(posStop, wanted) : math.min(posStop, wanted)
+
+    float unitsLeft = math.abs(strategy.position_size)
+    if posPartUnits > 0.0 and unitsLeft < posUnits - posPartUnits * 0.5
+        posPartDone := true
+
+    string eid = posDir == 1 ? "CM-L" : "CM-S"
+    if posPartUnits > 0.0 and not posPartDone
+        strategy.exit("CM-TP1", from_entry = eid, qty = posPartUnits, limit = tp1Level, stop = posStop, comment_profit = "TP 1.2R", comment_loss = "SL")
+    float runUnits = math.max(posUnits - posPartUnits, 0.0)
+    if runUnits > 0.0
+        strategy.exit("CM-RUN", from_entry = eid, qty = runUnits, limit = tpMaxLevel, stop = posStop, comment_profit = "10R cap", comment_loss = "SL/trail")
+
+// =============================================================================
+// 14. TRADE ACCOUNTING (S65, S68, S69)
+// =============================================================================
+
+int i_immBars = input.int(3, "Loss analysis: 'P3 failed immediately' window (bars)", minval = 1, group = G_UI)
+
+var array<float> mTrades  = array.new_float(N_BUCKET, 0.0)
+var array<float> mWins    = array.new_float(N_BUCKET, 0.0)
+var array<float> mLosses  = array.new_float(N_BUCKET, 0.0)
+var array<float> mSumR    = array.new_float(N_BUCKET, 0.0)
+var array<float> mWinR    = array.new_float(N_BUCKET, 0.0)
+var array<float> mLossR   = array.new_float(N_BUCKET, 0.0)
+var array<float> mGrossW  = array.new_float(N_BUCKET, 0.0)
+var array<float> mGrossL  = array.new_float(N_BUCKET, 0.0)
+var array<float> mNetUsd  = array.new_float(N_BUCKET, 0.0)
+var array<float> mSumMFE  = array.new_float(N_BUCKET, 0.0)
+var array<float> mSumMAE  = array.new_float(N_BUCKET, 0.0)
+var array<float> mSumHold = array.new_float(N_BUCKET, 0.0)
+var array<float> mHit12   = array.new_float(N_BUCKET, 0.0)
+var array<float> mHit2    = array.new_float(N_BUCKET, 0.0)
+var array<float> mHit3    = array.new_float(N_BUCKET, 0.0)
+var array<float> mHit5    = array.new_float(N_BUCKET, 0.0)
+var array<float> mHit7    = array.new_float(N_BUCKET, 0.0)
+var array<float> mHit10   = array.new_float(N_BUCKET, 0.0)
+var array<float> mEqR     = array.new_float(N_BUCKET, 0.0)
+var array<float> mPeakR   = array.new_float(N_BUCKET, 0.0)
+var array<float> mDDR     = array.new_float(N_BUCKET, 0.0)
+var array<float> mConsec  = array.new_float(N_BUCKET, 0.0)
+var array<float> mMaxCons = array.new_float(N_BUCKET, 0.0)
+
+// Loss-only diagnostics, indexed 0 = long, 1 = short, 2 = all.
+var array<float> lCount   = array.new_float(3, 0.0)
+var array<float> lMFE     = array.new_float(3, 0.0)
+var array<float> lMAE     = array.new_float(3, 0.0)
+var array<float> lSlope   = array.new_float(3, 0.0)
+var array<float> lStopAtr = array.new_float(3, 0.0)
+var array<float> lBody    = array.new_float(3, 0.0)
+var array<float> lClv     = array.new_float(3, 0.0)
+var array<float> lQuick   = array.new_float(3, 0.0)
+
+if state == STATE_OPEN and flat
+    didClose := true
+    fTrade += 1.0
+    float pnl   = strategy.netprofit - pnlAnchor
+    float riskD = posRisk * posUnits
+    float rMult = f_div(pnl, riskD)
+    float mfeR  = f_div(posMFE, posRisk)
+    float maeR  = f_div(posMAE, posRisk)
+    float hold  = bar_index - posBar
+    bool  isWin = pnl > 0.0
+    int   dirIdx = posDir == 1 ? BK_LONG : BK_SHORT
+    array<int> touched = array.from(dirIdx, BK_ALL, posSess)
+    for k = 0 to 2
+        int b = array.get(touched, k)
+        f_bump(mTrades, b, 1.0)
+        f_bump(mSumR, b, rMult)
+        f_bump(mNetUsd, b, pnl)
+        f_bump(mSumMFE, b, mfeR)
+        f_bump(mSumMAE, b, maeR)
+        f_bump(mSumHold, b, hold)
+        if isWin
+            f_bump(mWins, b, 1.0)
+            f_bump(mWinR, b, rMult)
+            f_bump(mGrossW, b, pnl)
+            array.set(mConsec, b, 0.0)
+        else
+            f_bump(mLosses, b, 1.0)
+            f_bump(mLossR, b, math.abs(rMult))
+            f_bump(mGrossL, b, math.abs(pnl))
+            f_bump(mConsec, b, 1.0)
+            array.set(mMaxCons, b, math.max(array.get(mMaxCons, b), array.get(mConsec, b)))
+        if mfeR >= i_partialR
+            f_bump(mHit12, b, 1.0)
+        if mfeR >= 2.0
+            f_bump(mHit2, b, 1.0)
+        if mfeR >= 3.0
+            f_bump(mHit3, b, 1.0)
+        if mfeR >= 5.0
+            f_bump(mHit5, b, 1.0)
+        if mfeR >= 7.0
+            f_bump(mHit7, b, 1.0)
+        if mfeR >= 10.0
+            f_bump(mHit10, b, 1.0)
+        f_bump(mEqR, b, rMult)
+        array.set(mPeakR, b, math.max(array.get(mPeakR, b), array.get(mEqR, b)))
+        array.set(mDDR, b, math.max(array.get(mDDR, b), array.get(mPeakR, b) - array.get(mEqR, b)))
+    if not isWin
+        array<int> lTouched = array.from(posDir == 1 ? 0 : 1, 2)
+        for k = 0 to 1
+            int b = array.get(lTouched, k)
+            f_bump(lCount, b, 1.0)
+            f_bump(lMFE, b, mfeR)
+            f_bump(lMAE, b, maeR)
+            f_bump(lSlope, b, nz(posSlopeN))
+            f_bump(lStopAtr, b, nz(posStopAtr))
+            f_bump(lBody, b, nz(posBody))
+            f_bump(lClv, b, nz(posClv))
+            if hold <= i_immBars
+                f_bump(lQuick, b, 1.0)
+    if i_logTrade
+        log.info("CM,{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13}", str.format_time(time, "yyyy-MM-dd HH:mm", i_tz), tfName, posDir == 1 ? "LONG" : "SHORT", f_sessName(posSess), f_fmt(posEntry, 2), f_fmt(posStop, 2), f_fmt(posRisk, 2), f_fmt(posLots, 2), f_fmt(rMult, 3), f_fmt(mfeR, 3), f_fmt(maeR, 3), f_fmt(nz(posStopAtr), 2), f_fmt(nz(posSlopeN), 3), f_fmt(hold, 0))
+    // S45: the failed line is dead. A new trade needs a completely new BOS.
+    if not na(tlLine)
+        line.set_x2(tlLine, bar_index)
+        line.set_extend(tlLine, extend.none)
+        tlLine := na
+    state := STATE_WAIT_BOS
+    dirState := 0
+    tlConfirmed := false
+
+// =============================================================================
+// 15. VISUALISATION (S63)
+// =============================================================================
+
+f_stateName(int s) =>
+    s == STATE_WAIT_BOS ? "WAIT_BOS" : s == STATE_WAIT_P1 ? "WAIT_P1" : s == STATE_WAIT_P2 ? "WAIT_P2" : s == STATE_CANDIDATE ? "CANDIDATE_TRENDLINE / WAIT_P3" : s == STATE_CONFIRMED ? "TRENDLINE_CONFIRMED / WAIT_TOUCH_4" : s == STATE_ARMED ? "ARMED" : "POSITION_OPEN"
+
+if i_drawTL
+    if didBos
+        label.new(bar_index, dirState == 1 ? low : high, "BOS " + f_fmt(bosLevel, 2), xloc = xloc.bar_index, yloc = dirState == 1 ? yloc.belowbar : yloc.abovebar, style = dirState == 1 ? label.style_label_up : label.style_label_down, color = color.new(color.blue, 20), textcolor = color.white, size = size.tiny)
+    if didP1
+        label.new(p1Bar, p1Price, "P1", xloc = xloc.bar_index, style = dirState == 1 ? label.style_label_up : label.style_label_down, color = color.new(color.gray, 30), textcolor = color.white, size = size.tiny)
+    if didP2
+        label.new(p2Bar, p2Price, "P2", xloc = xloc.bar_index, style = dirState == 1 ? label.style_label_up : label.style_label_down, color = color.new(color.gray, 30), textcolor = color.white, size = size.tiny)
+    if didP3
+        label.new(p3Bar, p3Price, "P3", xloc = xloc.bar_index, style = dirState == 1 ? label.style_label_up : label.style_label_down, color = dirState == 1 ? color.new(color.teal, 0) : color.new(color.maroon, 0), textcolor = color.white, size = size.tiny)
+    if didTouch4
+        label.new(bar_index, dirState == 1 ? low : high, didReject ? "T4 ✓" : "T4 ✗", xloc = xloc.bar_index, yloc = dirState == 1 ? yloc.belowbar : yloc.abovebar, style = dirState == 1 ? label.style_label_up : label.style_label_down, color = didReject ? color.new(color.orange, 0) : color.new(color.gray, 50), textcolor = color.white, size = size.tiny)
+    if didFill
+        label.new(bar_index, posEntry, "ENTRY " + f_fmt(posLots, 2) + " lot", xloc = xloc.bar_index, style = label.style_label_left, color = color.new(color.navy, 10), textcolor = color.white, size = size.tiny)
+    if didClose
+        label.new(bar_index, close, "EXIT", xloc = xloc.bar_index, style = label.style_label_left, color = color.new(color.gray, 20), textcolor = color.white, size = size.tiny)
+
+barcolor(didTouch4 and didReject ? color.orange : na, title = "Touch #4 rejection candle")
+plotshape(didBos, title = "Break of structure", style = shape.triangleup, location = location.belowbar, color = color.new(color.blue, 0), size = size.tiny)
+
+bool showLevels = i_drawLvl and state == STATE_OPEN and not flat
+plot(showLevels ? posEntry : na, title = "Entry", color = color.new(color.navy, 0), style = plot.style_linebr, linewidth = 1)
+plot(showLevels ? posStop : na, title = "Stop (structural / trail)", color = color.new(color.red, 0), style = plot.style_linebr, linewidth = 2)
+plot(showLevels ? tp1Level : na, title = "1.2R partial", color = color.new(color.green, 0), style = plot.style_linebr, linewidth = 1)
+plot(showLevels ? tpMaxLevel : na, title = "10R ceiling", color = color.new(color.purple, 40), style = plot.style_linebr, linewidth = 1)
+plot(showLevels and posBEdone ? beLevel : na, title = "Cost-adjusted breakeven", color = color.new(color.olive, 0), style = plot.style_linebr, linewidth = 1)
+
+// =============================================================================
+// 16. DIAGNOSTIC STRING (S64, S73)
+// =============================================================================
+
+string diag = not tfOK ? TF_ERROR : not htfReady ? "WAITING FOR HTF HISTORY" : marketMode == 0 ? "NO TRADE — HTF DISAGREEMENT" : marketMode == 1 and not longAllowed ? "NO TRADE — LONGS DISABLED" : marketMode == -1 and not shortAllowed ? "NO TRADE — SHORTS DISABLED" : state == STATE_WAIT_BOS ? "NO TRADE — WAITING FOR BREAK OF STRUCTURE" : state == STATE_WAIT_P1 ? "NO TRADE — WAITING FOR P1" : state == STATE_WAIT_P2 ? "NO TRADE — WAITING FOR P2" : state == STATE_CANDIDATE ? "NO TRADE — LINE NOT CONFIRMED (WAITING FOR P3)" : state == STATE_CONFIRMED ? "NO TRADE — WAITING FOR TOUCH #4" : state == STATE_ARMED ? "ARMED — WAITING FOR BREAK OF THE REJECTION CANDLE" : "POSITION OPEN"
+
+// =============================================================================
+// 17. DASHBOARDS (S64, S65, S67, S68, S69)
+// =============================================================================
+
+f_avg(float total, float count) =>
+    count <= 0.0 ? 0.0 : total / count
+
+f_get(arr, idx) =>
+    array.get(arr, idx)
+
+color C_HEAD = color.new(color.black, 20)
+color C_BODY = color.new(color.black, 55)
+color C_TEXT = color.white
+
+if barstate.islast and i_tblState
+    var table tState = table.new(position.top_right, 2, 12, border_width = 1)
+    table.cell(tState, 0, 0, "CYBER MCGIVER v1.0", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.small)
+    table.cell(tState, 1, 0, tfName + " · " + i_dirMode, bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.small)
+    table.cell(tState, 0, 1, "Timeframe", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 1, tfOK ? "OK" : TF_ERROR, bgcolor = tfOK ? C_BODY : color.new(color.red, 10), text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 2, "1D · 4H · 1H", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 2, (dailyBull ? "BULL" : dailyBear ? "BEAR" : "—") + " · " + (h4Bull ? "BULL" : h4Bear ? "BEAR" : "—") + " · " + (h1Bull ? "BULL" : h1Bear ? "BEAR" : "—"), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 3, "Market mode", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 3, modeName, bgcolor = marketMode == 1 ? color.new(color.teal, 30) : marketMode == -1 ? color.new(color.maroon, 30) : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 4, "State", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 4, f_stateName(state), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 5, "Diagnostic", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 5, diag, bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 6, "Structure", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 6, state >= STATE_CANDIDATE ? "slope/ATR " + f_fmt(nz(tlSlopeN), 3) + " · line " + f_fmt(nz(tlNow), 2) : "—", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 7, "Line expiry", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 7, state == STATE_CONFIRMED ? str.tostring(tlExpiry - (bar_index - confirmBar)) + " bars left" : "last kill · " + lastKill, bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 8, "Open position", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 8, state == STATE_OPEN ? (posDir == 1 ? "LONG " : "SHORT ") + f_fmt(posLots, 2) + " lot · stop " + f_fmt(posStop, 2) + " · " + (posBEdone ? "trailing" : "initial") : "flat", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 9, "Equity · 1R budget", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 9, "$" + f_fmt(strategy.equity, 0) + " · $" + f_fmt(strategy.equity * i_riskPct / 100.0, 0), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 10, "Modelled cost / lot RT", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 10, "$" + f_fmt(costPerLotRT, 2), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 0, 11, "Tester costs", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tState, 1, 11, costMismatch ? "MISMATCH: set slippage " + f_fmt(impliedTicks, 0) + " ticks, commission " + f_fmt(impliedCommOz, 3) + "/contract" : "match (" + f_fmt(TESTER_SLIP_TICKS, 0) + " ticks · " + f_fmt(TESTER_COMM_PER_OZ, 3) + ")", bgcolor = costMismatch ? color.new(color.red, 10) : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+
+if barstate.islast and i_tblFun
+    var table tFun = table.new(position.bottom_right, 3, 25, border_width = 1)
+    table.cell(tFun, 0, 0, "FUNNEL", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tFun, 1, 0, "count", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tFun, 2, 0, "pass %", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    array<string> funName = array.from("bars eligible", "HTF LONG bars", "HTF SHORT bars", "BOS long", "BOS short", "P1 anchored", "P2 qualified", "candidate trendlines", "P3 confirmations", "Touch #4 events", "valid rejections", "orders armed", "orders filled", "trades completed", "killed · regime lost", "killed · line expired", "killed · line broken", "killed · weak Touch #4", "killed · slope filter", "skipped · stop > max ATR", "skipped · size < min lot", "skipped · margin", "armed · expired", "armed · invalidated")
+    array<float> funVal = array.from(fBars, fLongB, fShortB, fBosL, fBosS, fP1, fP2, fCand, fP3, fT4, fRej, fArm, fFill, fTrade, fKillRegime, fKillExpiry, fKillBreak, fKillRej, fKillSlope, fSkipStop, fSkipSize, fSkipMargin, fExpireArm, fInvalidArm)
+    array<float> funBase = array.from(0.0, 0.0, 0.0, 0.0, 0.0, fBosL + fBosS, fP1, fP2, fCand, fP3, fT4, fRej, fArm, fFill, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    for k = 0 to 23
+        float base = array.get(funBase, k)
+        table.cell(tFun, 0, k + 1, array.get(funName, k), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tFun, 1, k + 1, f_fmt(array.get(funVal, k), 0), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tFun, 2, k + 1, base > 0.0 ? f_fmt(f_pct(array.get(funVal, k), base), 1) + "%" : "—", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+
+if barstate.islast and i_tblPerf
+    var table tPerf = table.new(position.bottom_left, 4, 22, border_width = 1)
+    array<string> perfRow = array.from("trades", "wins", "losses", "win %", "avg winner (R)", "avg loser (R)", "expectancy (R)", "profit factor", "net R", "net $", "max drawdown (R)", "max consecutive losses", "avg MAE (R)", "avg MFE (R)", "avg hold (bars)", "P(MFE ≥ 1.2R)", "P(MFE ≥ 2R)", "P(MFE ≥ 3R)", "P(MFE ≥ 5R)", "P(MFE ≥ 7R)", "P(MFE ≥ 10R)")
+    array<int> perfCol = array.from(BK_LONG, BK_SHORT, BK_ALL)
+    array<string> perfHead = array.from("LONG", "SHORT", "ALL")
+    table.cell(tPerf, 0, 0, "PERFORMANCE " + tfName, bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    for c = 0 to 2
+        table.cell(tPerf, c + 1, 0, array.get(perfHead, c), bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    for r = 0 to 20
+        table.cell(tPerf, 0, r + 1, array.get(perfRow, r), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    for c = 0 to 2
+        int b = array.get(perfCol, c)
+        float n = f_get(mTrades, b)
+        float w = f_get(mWins, b)
+        float l = f_get(mLosses, b)
+        array<string> vals = array.from(f_fmt(n, 0), f_fmt(w, 0), f_fmt(l, 0), f_fmt(f_pct(w, n), 1) + "%", f_fmt(f_avg(f_get(mWinR, b), w), 2), f_fmt(f_avg(f_get(mLossR, b), l), 2), f_fmt(f_avg(f_get(mSumR, b), n), 3), f_get(mGrossL, b) > 0.0 ? f_fmt(f_div(f_get(mGrossW, b), f_get(mGrossL, b)), 2) : "—", f_fmt(f_get(mSumR, b), 2), "$" + f_fmt(f_get(mNetUsd, b), 0), f_fmt(f_get(mDDR, b), 2), f_fmt(f_get(mMaxCons, b), 0), f_fmt(f_avg(f_get(mSumMAE, b), n), 2), f_fmt(f_avg(f_get(mSumMFE, b), n), 2), f_fmt(f_avg(f_get(mSumHold, b), n), 1), f_fmt(f_pct(f_get(mHit12, b), n), 1) + "%", f_fmt(f_pct(f_get(mHit2, b), n), 1) + "%", f_fmt(f_pct(f_get(mHit3, b), n), 1) + "%", f_fmt(f_pct(f_get(mHit5, b), n), 1) + "%", f_fmt(f_pct(f_get(mHit7, b), n), 1) + "%", f_fmt(f_pct(f_get(mHit10, b), n), 1) + "%")
+        for r = 0 to 20
+            table.cell(tPerf, c + 1, r + 1, array.get(vals, r), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+
+if barstate.islast and i_tblSess
+    var table tSess = table.new(position.top_left, 7, 6, border_width = 1)
+    array<string> sHead = array.from("SESSION", "trades", "win %", "expectancy R", "PF", "avg MFE (R)", "max DD (R)")
+    for c = 0 to 6
+        table.cell(tSess, c, 0, array.get(sHead, c), bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    array<int> sIdx = array.from(BK_ASIA, BK_LDN, BK_LDNNY, BK_NY, BK_LATE)
+    array<string> sName = array.from("Asia", "London", "LDN/NY", "NY", "Late/other")
+    for r = 0 to 4
+        int b = array.get(sIdx, r)
+        float n = f_get(mTrades, b)
+        table.cell(tSess, 0, r + 1, array.get(sName, r), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSess, 1, r + 1, f_fmt(n, 0), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSess, 2, r + 1, f_fmt(f_pct(f_get(mWins, b), n), 1) + "%", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSess, 3, r + 1, f_fmt(f_avg(f_get(mSumR, b), n), 3), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSess, 4, r + 1, f_get(mGrossL, b) > 0.0 ? f_fmt(f_div(f_get(mGrossW, b), f_get(mGrossL, b)), 2) : "—", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSess, 5, r + 1, f_fmt(f_avg(f_get(mSumMFE, b), n), 2), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSess, 6, r + 1, f_fmt(f_get(mDDR, b), 2), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+
+if barstate.islast and i_tblLoss
+    var table tLoss = table.new(position.middle_left, 4, 9, border_width = 1)
+    array<string> lRow = array.from("losing trades", "avg MFE before loss (R)", "avg MAE (R)", "stopped within " + str.tostring(i_immBars) + " bars", "avg slope / ATR", "avg stop distance (ATR)", "avg Touch #4 body ratio", "avg Touch #4 close location")
+    array<string> lHead = array.from("LOSS ANALYSIS", "LONG", "SHORT", "ALL")
+    for c = 0 to 3
+        table.cell(tLoss, c, 0, array.get(lHead, c), bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    for r = 0 to 7
+        table.cell(tLoss, 0, r + 1, array.get(lRow, r), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    for c = 0 to 2
+        float n = f_get(lCount, c)
+        array<string> vals = array.from(f_fmt(n, 0), f_fmt(f_avg(f_get(lMFE, c), n), 2), f_fmt(f_avg(f_get(lMAE, c), n), 2), f_fmt(f_pct(f_get(lQuick, c), n), 1) + "%", f_fmt(f_avg(f_get(lSlope, c), n), 3), f_fmt(f_avg(f_get(lStopAtr, c), n), 2), f_fmt(f_avg(f_get(lBody, c), n), 2), f_fmt(f_avg(f_get(lClv, c), n), 2))
+        for r = 0 to 7
+            table.cell(tLoss, c + 1, r + 1, array.get(vals, r), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)

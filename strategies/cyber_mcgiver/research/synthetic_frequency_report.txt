@@ -1,0 +1,142 @@
+==============================================================================
+CYBER MCGIVER v7 · REFERENCE ENGINE · SYNTHETIC XAUUSD 15m
+2016-08-26 to 2026-08-26 · long only · $100,000
+==============================================================================
+These bars are GENERATED. Frequency, funnel shape and score distribution
+are meaningful. Profit factor and net P&L are not: the generator carries
+no edge, so the exit model is being measured against a random walk.
+
+DAILY FREQUENCY
+------------------------------------------------------------------------------
+  total normal trading days              2609
+  short / holiday days excluded             1
+  total trades                           3193
+  average trades / trading day          1.224   target 1.30 - 1.80
+  median trades / trading day               1
+  days with 0 trades                       805    30.9%
+  days with 1 trade                        798    30.6%
+  days with 2 trades                       623    23.9%
+  days with 3 trades                       383    14.7%
+  days with more than 3                     0   (hard cap is 3)
+  percentage of days with no trade      30.9%   guideline 15 - 20%
+
+ZERO-TRADE DAYS · restrictive engine, or no long setup?
+------------------------------------------------------------------------------
+  A long-only engine cannot trade a day the higher timeframes spend
+  pointing down. Splitting the days by how bullish they were separates
+  'too selective' from 'nothing to buy'.
+
+  bullish bars on the day      days  zero-trade  trades/day  eligible/day
+  0 - 5%                        764       66.6%        0.44          0.88
+  5 - 25%                       130       33.8%        0.95          2.06
+  25 - 50%                      236       24.6%        1.20          2.69
+  50 - 75%                      199       24.1%        1.29          3.22
+  75 - 100%                    1280       11.4%        1.71          5.25
+
+  of the 805 zero-trade days, 645 (80%) produced no eligible
+  candidate at all — the engine was not offered a trade and refused it.
+
+DECISION FUNNEL
+------------------------------------------------------------------------------
+  bars processed                                 239973        
+  -- stage 1 · raw opportunities
+  raw structural events                          112044        
+  -- stage 2 · candidates
+  trigger fired (candidates)                      68087   60.8%
+  bars offering more than one candidate             830        
+  -- stage 3 · score
+  cleared the score floor                         15524   22.8%
+  rejected below the score floor                  52563   77.2%
+  -- stage 4 · mandatory risk gates
+  blocked · regime floor                             72    0.5%
+  blocked · trigger closed too weak                  85    0.5%
+  blocked · volatility shock                          0    0.0%
+  rejected · stop wider than max ATR                695    4.5%
+  rejected · stop tighter than min ATR               17    0.1%
+  rejected · not enough reward room                4394   28.3%
+  rejected · anchor already traded                 1317    8.5%
+  -- stage 5 · availability (counted per bar)
+  blocked · position or order already live         3417        
+  blocked · daily trade cap                         248        
+  blocked · daily loss cutoff                        11        
+  blocked · independence cooldown                   419        
+  rejected · size below minimum lot                 150        
+  rejected · daily risk budget exhausted              0        
+  -- stage 6 · execution
+  orders armed                                     3829        
+  orders filled                                    3194   83.4%
+  · of those, filled and exited in one bar          499   15.6%
+  orders expired unfilled                           468   12.2%
+  orders invalidated before filling                 167    4.4%
+  trades completed                                 3193        
+
+SCORE CALIBRATION · every candidate, taken or not
+------------------------------------------------------------------------------
+  'cand/day at or above' is the frequency the engine would offer if the
+  score floor were moved to the bottom of that bucket. Compare it with
+  the 1.30 - 1.80 target before changing anything else.
+
+  bucket        candidates  cand/day >=   trades    win %    exp R       PF
+  95-100                 1         0.00        0        —        —        —
+  90-94                 55         0.02       10    40.0%   -0.013    0.978
+  85-89                658         0.27      124    37.1%   -0.267    0.586
+  81-84               2071         1.07      372    40.6%   -0.224    0.660
+  78-80               2927         2.19      551    39.0%   -0.293    0.593
+  75-77               4306         3.84      872    35.8%   -0.438    0.454
+  72-74               5506         5.95     1264    34.3%   -0.477    0.439
+  below 72           52563        26.10        0        —        —        —
+
+SETUP FAMILY ANALYTICS
+------------------------------------------------------------------------------
+  family             raw    cand  >=floor  trades   win %      PF    exp R  maxDD R  scoreW  scoreL
+  1 Trendline       2634    2030      314      47   42.6%   0.532   -0.329    17.77    76.0    76.3
+  2 Sweep          47952   16619     1309     294   43.5%   0.669   -0.217    68.52    78.0    78.4
+  3 Breakout        7214    5121     2409     366   34.2%   0.474   -0.410   154.64    78.2    77.4
+  4 VWAP pull      54244   44317    11492    2486   35.7%   0.481   -0.416  1040.89    76.9    76.5
+
+QUALITY TIER
+------------------------------------------------------------------------------
+  tier       trades    share    win %    exp R   risk %
+  A+            134     4.2%    37.3%   -0.248     0.50
+  A             923    28.9%    39.7%   -0.265     0.40
+  B+           2136    66.9%    34.9%   -0.461     0.25
+
+SESSION
+------------------------------------------------------------------------------
+  session        trades    share    win %    exp R
+  Asia              755    23.6%    37.2%   -0.474
+  London            970    30.4%    34.9%   -0.383
+  LDN/NY            292     9.1%    40.4%   -0.225
+  New York          771    24.1%    35.5%   -0.368
+  Late              405    12.7%    36.8%   -0.456
+
+PERFORMANCE  (synthetic bars: shape only, never quote these)
+------------------------------------------------------------------------------
+  trades   3193   wins   1161   losses   2032   win rate  36.4%
+  profit factor    0.495   net P&L $     -96,289   (-96.3%)
+  average R   -0.396   median R   -1.113   max drawdown 1267.97 R
+  avg winner  +1.068 R   avg loser  -1.232 R
+  largest winner   +5.48 R   largest loser   -3.66 R
+  avg bars held   11.0   median bars held      5
+  max consecutive wins    6   max consecutive losses   12
+  median MFE   1.02 R   median MAE   1.09 R
+    share of trades reaching 0.25 R of MFE    81.1%
+    share of trades reaching 0.50 R of MFE    67.4%
+    share of trades reaching 1.00 R of MFE    50.7%
+    share of trades reaching 1.20 R of MFE    45.2%
+    share of trades reaching 2.00 R of MFE    26.6%
+
+SENSITIVITY · one change at a time, everything else at default
+------------------------------------------------------------------------------
+  variant                    trades  trades/day  zero-day %  cand/day
+  baseline                     3193       1.224       30.9%      5.95
+  score floor 70               3583       1.373       26.9%      7.50
+  score floor 75               2430       0.931       40.9%      3.84
+  score floor 80               1229       0.471       65.0%      1.38
+  min reward room 1.2R         3311       1.269       29.9%      6.01
+  min reward room 2.0R         3041       1.166       32.0%      5.88
+  cooldown 0 bars              3273       1.255       30.4%      5.95
+  no anchor rule               3199       1.226       30.9%      5.95
+  regime floor 0.15            3216       1.233       30.0%      5.95
+  regime floor 0.45            3105       1.190       33.1%      5.95
+  daily cap 2                  2878       1.103       30.0%      5.95

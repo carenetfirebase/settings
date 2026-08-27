@@ -1,0 +1,570 @@
+//@version=6
+// =============================================================================
+// XAUUSD 08:30 NEW YORK ORB · ONE TRADE PER DAY · v1.0
+// =============================================================================
+// Chart: XAUUSD, 5-minute
+//
+// Rules:
+// 1) 08:30-08:35 ET builds the opening range (ORB).
+// 2) 08:35-09:00 ET searches for the first confirmed ORB penetration.
+// 3) Confirmation = prior candle interacted with OR boundary, then the NEXT
+//    candle closes beyond the boundary with directional candle quality.
+// 4) Stop = just beyond the wick of the interaction candle.
+// 5) Target = >= 2.0R (default exactly 2.0R).
+// 6) If no confirmation occurs by the 08:55 bar close (09:00 ET), a
+//    deterministic fallback chooses the stronger side and enters, guaranteeing
+//    one order per eligible trading day.
+// 7) Maximum one entry per NY trading day.
+// 8) Day-trade safety: force-flat late in the NY day so the next morning can
+//    always take a fresh trade.
+//
+// IMPORTANT:
+// The fallback is required to guarantee one trade/day. If the market never
+// interacted with the chosen OR boundary, the fallback stop uses the opposite
+// side of the OR as its structural stop.
+//
+// Research/backtest strategy. No profitability is guaranteed.
+// =============================================================================
+
+strategy(
+     title = "XAUUSD 08:30 NY ORB · Guaranteed 1 Trade/Day · 2R",
+     shorttitle = "XAU 0830 ORB 1xDay 2R",
+     overlay = true,
+     initial_capital = 100000,
+     currency = currency.USD,
+     pyramiding = 0,
+     default_qty_type = strategy.fixed,
+     default_qty_value = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.0,
+     slippage = 0,
+     max_bars_back = 5000)
+
+// =============================================================================
+// INPUTS
+// =============================================================================
+
+string TZ = "America/New_York"
+
+string G_TIME = "1 · Time"
+string G_ENTRY = "2 · Confirmation"
+string G_RISK = "3 · Risk / Reward"
+string G_UI = "4 · Visuals"
+
+string i_orSession = input.session("0830-0835", "Opening range", group = G_TIME)
+string i_tradeSession = input.session("0835-0900", "Entry window", group = G_TIME)
+string i_fallbackSession = input.session("0855-0900", "Forced-entry bar", group = G_TIME)
+string i_flatSession = input.session("1655-1700", "Force-flat window", group = G_TIME)
+
+int i_atrLen = input.int(14, "ATR length", minval = 2, group = G_ENTRY)
+float i_touchTolAtr = input.float(0.05, "ORB touch tolerance (ATR)", minval = 0.0, step = 0.01, group = G_ENTRY)
+float i_breakBufAtr = input.float(0.02, "Confirmed penetration buffer (ATR)", minval = 0.0, step = 0.01, group = G_ENTRY)
+float i_bodyMin = input.float(0.35, "Confirmation body / candle range", minval = 0.0, maxval = 1.0, step = 0.05, group = G_ENTRY)
+float i_clvMin = input.float(0.65, "Confirmation close-location value", minval = 0.50, maxval = 1.0, step = 0.05, group = G_ENTRY)
+
+float i_rr = input.float(2.0, "Reward : Risk target", minval = 2.0, step = 0.25, group = G_RISK)
+float i_stopBufAtr = input.float(0.05, "Stop beyond interaction wick (ATR)", minval = 0.0, step = 0.01, group = G_RISK)
+float i_riskPct = input.float(0.50, "Risk budget (% current equity)", minval = 0.05, maxval = 1.00, step = 0.05, group = G_RISK)
+float i_qtyStep = input.float(0.01, "Quantity step", minval = 0.01, step = 0.01, group = G_RISK)
+float i_minQty = input.float(0.01, "Minimum quantity", minval = 0.01, step = 0.01, group = G_RISK)
+
+bool i_showORB = input.bool(true, "Plot ORB high / low", group = G_UI)
+bool i_showTradeLevels = input.bool(true, "Plot active stop / target", group = G_UI)
+bool i_showMarkers = input.bool(true, "Show interaction / entry markers", group = G_UI)
+bool i_showDashboard = input.bool(true, "Show dashboard", group = G_UI)
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+f_floor_step(float x, float step) =>
+    step <= 0.0 ? x : math.floor(x / step) * step
+
+// =============================================================================
+// CHART / SESSION STATE
+// =============================================================================
+
+bool tfOK = timeframe.in_seconds(timeframe.period) == 300
+bool symbolOK = str.contains(str.upper(syminfo.ticker), "XAU")
+
+bool inOR = not na(time(timeframe.period, i_orSession, TZ))
+bool inTradeWindow = not na(time(timeframe.period, i_tradeSession, TZ))
+bool inFallbackBar = not na(time(timeframe.period, i_fallbackSession, TZ))
+bool inFlatWindow = not na(time(timeframe.period, i_flatSession, TZ))
+
+bool orStart = inOR and not inOR[1]
+bool orEnd = not inOR and inOR[1]
+
+bool newNYDay =
+     bar_index > 0 and
+     (
+         dayofmonth(time, TZ) != dayofmonth(time[1], TZ) or
+         month(time, TZ) != month(time[1], TZ) or
+         year(time, TZ) != year(time[1], TZ)
+     )
+
+float atr = ta.atr(i_atrLen)
+
+// =============================================================================
+// OPENING RANGE
+// =============================================================================
+
+var float orHigh = na
+var float orLow = na
+var float orOpen = na
+var bool orReady = false
+
+if newNYDay
+    orHigh := na
+    orLow := na
+    orOpen := na
+    orReady := false
+
+if orStart
+    orHigh := high
+    orLow := low
+    orOpen := open
+    orReady := false
+else if inOR
+    orHigh := na(orHigh) ? high : math.max(orHigh, high)
+    orLow := na(orLow) ? low : math.min(orLow, low)
+
+if orEnd and not na(orHigh) and not na(orLow)
+    orReady := true
+
+float orMid = orReady ? (orHigh + orLow) / 2.0 : na
+float orWidth = orReady ? math.max(orHigh - orLow, syminfo.mintick) : na
+
+// =============================================================================
+// ONE-TRADE-PER-DAY STATE
+// =============================================================================
+
+var bool tradedToday = false
+var int entryDirection = 0
+var string entryReason = ""
+
+var int dbgSignalCount = 0
+var int dbgConfirmedCount = 0
+var int dbgFallbackCount = 0
+var int dbgOrReadyDays = 0
+var int dbgTotalDays = 0
+
+if newNYDay
+    tradedToday := false
+    entryDirection := 0
+    entryReason := ""
+    dbgTotalDays += 1
+
+if orReady and orEnd
+    dbgOrReadyDays += 1
+
+// =============================================================================
+// POST-ORB PRESSURE / EXCURSION TRACKING
+// Used only for deterministic 09:00 fallback.
+// =============================================================================
+
+var float postHigh = na
+var float postLow = na
+
+if newNYDay or orStart
+    postHigh := na
+    postLow := na
+
+if orReady and inTradeWindow
+    postHigh := na(postHigh) ? high : math.max(postHigh, high)
+    postLow := na(postLow) ? low : math.min(postLow, low)
+
+// =============================================================================
+// INTERACTION CANDLE TRACKING
+//
+// Long:
+//   Candle touches/penetrates ORH.
+//   Save that candle's LOW as the structural wick for the stop.
+//
+// Short:
+//   Candle touches/penetrates ORL.
+//   Save that candle's HIGH as the structural wick for the stop.
+// =============================================================================
+
+var int lastLongTouchBar = na
+var float lastLongTouchLow = na
+
+var int lastShortTouchBar = na
+var float lastShortTouchHigh = na
+
+if newNYDay or orStart
+    lastLongTouchBar := na
+    lastLongTouchLow := na
+    lastShortTouchBar := na
+    lastShortTouchHigh := na
+
+float candleRange = math.max(high - low, syminfo.mintick)
+float bodyRatio = math.abs(close - open) / candleRange
+float clvLong = (close - low) / candleRange
+float clvShort = (high - close) / candleRange
+
+// Use the PREVIOUSLY stored interaction candle for confirmation.
+// This guarantees "touch/penetration candle -> NEXT candle confirmation".
+bool longConfirmed =
+     tfOK and symbolOK and orReady and inTradeWindow and not tradedToday and
+     not na(lastLongTouchBar) and lastLongTouchBar == bar_index - 1 and
+     close > orHigh + i_breakBufAtr * atr and
+     close > open and
+     bodyRatio >= i_bodyMin and
+     clvLong >= i_clvMin
+
+bool shortConfirmed =
+     tfOK and symbolOK and orReady and inTradeWindow and not tradedToday and
+     not na(lastShortTouchBar) and lastShortTouchBar == bar_index - 1 and
+     close < orLow - i_breakBufAtr * atr and
+     close < open and
+     bodyRatio >= i_bodyMin and
+     clvShort >= i_clvMin
+
+// =============================================================================
+// DIRECTION SELECTION
+// =============================================================================
+
+int confirmedDir = 0
+
+if longConfirmed and not shortConfirmed
+    confirmedDir := 1
+else if shortConfirmed and not longConfirmed
+    confirmedDir := -1
+else if longConfirmed and shortConfirmed
+    // Extremely unusual outside-bar tie:
+    // choose the side where the confirmation candle closed relative to OR midpoint.
+    confirmedDir := close >= orMid ? 1 : -1
+
+// Deterministic fallback pressure.
+// The strategy MUST trade exactly once if no normal confirmation appears.
+// Pressure combines:
+//   1) excursion outside the OR
+//   2) where the 09:00 close sits relative to the OR midpoint.
+float upsideExcursion =
+     orReady and not na(postHigh) ?
+     math.max(postHigh - orHigh, 0.0) :
+     0.0
+
+float downsideExcursion =
+     orReady and not na(postLow) ?
+     math.max(orLow - postLow, 0.0) :
+     0.0
+
+float closeAboveMid =
+     orReady ?
+     math.max(close - orMid, 0.0) :
+     0.0
+
+float closeBelowMid =
+     orReady ?
+     math.max(orMid - close, 0.0) :
+     0.0
+
+float longPressure = upsideExcursion + closeAboveMid
+float shortPressure = downsideExcursion + closeBelowMid
+
+int fallbackDir =
+     longPressure >= shortPressure ? 1 : -1
+
+bool fallbackNow =
+     tfOK and symbolOK and orReady and inFallbackBar and
+     not tradedToday and confirmedDir == 0
+
+int finalDir =
+     confirmedDir != 0 ?
+     confirmedDir :
+     fallbackNow ?
+     fallbackDir :
+     0
+
+// =============================================================================
+// STOP CONSTRUCTION
+// =============================================================================
+
+float proposedStop = na
+
+if finalDir == 1
+    // Preferred rule:
+    // stop a little below the LOW/WICK of the last candle that touched ORH.
+    // Guaranteed-trade fallback exception:
+    // if ORH was never touched, use below ORL.
+    float structuralWick =
+         not na(lastLongTouchLow) ?
+         lastLongTouchLow :
+         orLow
+
+    proposedStop :=
+         math.min(structuralWick, orHigh) -
+         i_stopBufAtr * atr
+
+else if finalDir == -1
+    // Preferred rule:
+    // stop a little above the HIGH/WICK of the last candle that touched ORL.
+    // Guaranteed-trade fallback exception:
+    // if ORL was never touched, use above ORH.
+    float structuralWick =
+         not na(lastShortTouchHigh) ?
+         lastShortTouchHigh :
+         orHigh
+
+    proposedStop :=
+         math.max(structuralWick, orLow) +
+         i_stopBufAtr * atr
+
+// =============================================================================
+// ENTRY + 2R BRACKET
+//
+// process_orders_on_close=true means the historical broker emulator can fill
+// the market order on the signal bar's close. With slippage=0, using close as
+// the bracket's reference entry keeps the modeled target exactly at i_rr R.
+//
+// Add realistic broker costs/slippage in TradingView Properties when testing.
+// =============================================================================
+
+var float activeStop = na
+var float activeTarget = na
+var float modelEntry = na
+var float modelRisk = na
+var float modelQty = na
+
+bool canEnter =
+     finalDir != 0 and
+     strategy.position_size == 0 and
+     not tradedToday and
+     not na(proposedStop)
+
+if canEnter
+    float entryPx = close
+
+    float riskDistance =
+         finalDir == 1 ?
+         entryPx - proposedStop :
+         proposedStop - entryPx
+
+    // Safety for pathological fallback geometry.
+    if riskDistance <= syminfo.mintick
+        proposedStop :=
+             finalDir == 1 ?
+             entryPx - math.max(atr * 0.25, syminfo.mintick) :
+             entryPx + math.max(atr * 0.25, syminfo.mintick)
+
+        riskDistance :=
+             math.abs(entryPx - proposedStop)
+
+    float pointValue =
+         syminfo.pointvalue > 0 ?
+         syminfo.pointvalue :
+         1.0
+
+    float riskBudget =
+         strategy.equity *
+         i_riskPct /
+         100.0
+
+    float rawQty =
+         riskDistance > 0 and pointValue > 0 ?
+         riskBudget / (riskDistance * pointValue) :
+         i_minQty
+
+    float qty =
+         math.max(i_minQty, f_floor_step(rawQty, i_qtyStep))
+
+    float targetPx =
+         finalDir == 1 ?
+         entryPx + i_rr * riskDistance :
+         entryPx - i_rr * riskDistance
+
+    modelEntry := entryPx
+    modelRisk := riskDistance
+    modelQty := qty
+    activeStop := proposedStop
+    activeTarget := targetPx
+
+    dbgSignalCount += 1
+    if confirmedDir != 0
+        dbgConfirmedCount += 1
+    else
+        dbgFallbackCount += 1
+
+    if finalDir == 1
+        strategy.entry("ORB-L", strategy.long, qty = qty, comment = confirmedDir != 0 ? "CONFIRMED ORH" : "09:00 FALLBACK LONG")
+        strategy.exit("ORB-L-X", from_entry = "ORB-L", stop = activeStop, limit = activeTarget)
+    else
+        strategy.entry("ORB-S", strategy.short, qty = qty, comment = confirmedDir != 0 ? "CONFIRMED ORL" : "09:00 FALLBACK SHORT")
+        strategy.exit("ORB-S-X", from_entry = "ORB-S", stop = activeStop, limit = activeTarget)
+
+    tradedToday := true
+    entryDirection := finalDir
+    entryReason := confirmedDir != 0 ? "CONFIRMED" : "09:00 FALLBACK"
+
+// Keep the bracket alive while the position is open.
+if strategy.position_size > 0 and not na(activeStop) and not na(activeTarget)
+    strategy.exit("ORB-L-X", from_entry = "ORB-L", stop = activeStop, limit = activeTarget)
+
+if strategy.position_size < 0 and not na(activeStop) and not na(activeTarget)
+    strategy.exit("ORB-S-X", from_entry = "ORB-S", stop = activeStop, limit = activeTarget)
+
+// Day-trade cleanup so the next morning can always take a new trade.
+if inFlatWindow and strategy.position_size != 0
+    strategy.close_all(comment = "DAY FLAT")
+
+bool justClosed =
+     strategy.position_size == 0 and
+     strategy.position_size[1] != 0
+
+if justClosed
+    activeStop := na
+    activeTarget := na
+    modelEntry := na
+    modelRisk := na
+    modelQty := na
+
+// =============================================================================
+// UPDATE INTERACTION CANDLES
+//
+// Do this AFTER checking confirmation so the current candle cannot confirm
+// itself. It can only become the interaction candle for the next bar.
+// =============================================================================
+
+bool longInteraction =
+     tfOK and symbolOK and orReady and inTradeWindow and not tradedToday and
+     high >= orHigh and
+     low <= orHigh + i_touchTolAtr * atr
+
+bool shortInteraction =
+     tfOK and symbolOK and orReady and inTradeWindow and not tradedToday and
+     low <= orLow and
+     high >= orLow - i_touchTolAtr * atr
+
+if longInteraction
+    lastLongTouchBar := bar_index
+    lastLongTouchLow := low
+
+if shortInteraction
+    lastShortTouchBar := bar_index
+    lastShortTouchHigh := high
+
+// =============================================================================
+// VISUALS
+// =============================================================================
+
+plot(
+     i_showORB and orReady ? orHigh : na,
+     "ORB High",
+     color = color.new(color.green, 0),
+     linewidth = 2,
+     style = plot.style_linebr)
+
+plot(
+     i_showORB and orReady ? orLow : na,
+     "ORB Low",
+     color = color.new(color.red, 0),
+     linewidth = 2,
+     style = plot.style_linebr)
+
+plot(
+     i_showORB and orReady ? orMid : na,
+     "ORB Mid",
+     color = color.new(color.gray, 60),
+     linewidth = 1,
+     style = plot.style_linebr)
+
+plot(
+     i_showTradeLevels and strategy.position_size != 0 ? activeStop : na,
+     "Active Stop",
+     color = color.new(color.red, 0),
+     linewidth = 2,
+     style = plot.style_linebr)
+
+plot(
+     i_showTradeLevels and strategy.position_size != 0 ? activeTarget : na,
+     "2R+ Target",
+     color = color.new(color.green, 0),
+     linewidth = 2,
+     style = plot.style_linebr)
+
+plotshape(
+     i_showMarkers and longInteraction,
+     title = "ORH interaction",
+     style = shape.circle,
+     location = location.belowbar,
+     size = size.tiny,
+     color = color.new(color.green, 25),
+     text = "H")
+
+plotshape(
+     i_showMarkers and shortInteraction,
+     title = "ORL interaction",
+     style = shape.circle,
+     location = location.abovebar,
+     size = size.tiny,
+     color = color.new(color.red, 25),
+     text = "L")
+
+plotshape(
+     i_showMarkers and canEnter and finalDir == 1,
+     title = "Long entry",
+     style = shape.triangleup,
+     location = location.belowbar,
+     size = size.small,
+     color = color.new(color.green, 0),
+     text = "LONG")
+
+plotshape(
+     i_showMarkers and canEnter and finalDir == -1,
+     title = "Short entry",
+     style = shape.triangledown,
+     location = location.abovebar,
+     size = size.small,
+     color = color.new(color.red, 0),
+     text = "SHORT")
+
+// =============================================================================
+// DASHBOARD
+// =============================================================================
+
+var table dash = table.new(position.top_right, 2, 13, border_width = 1)
+
+if barstate.islast and i_showDashboard
+    table.cell(dash, 0, 0, "XAU 08:30 ORB")
+    table.cell(dash, 1, 0, tfOK and symbolOK ? "READY" : "USE XAUUSD 5m")
+
+    table.cell(dash, 0, 1, "ORB")
+    table.cell(dash, 1, 1, orReady ? str.tostring(orLow, format.mintick) + " → " + str.tostring(orHigh, format.mintick) : "BUILDING / WAIT")
+
+    table.cell(dash, 0, 2, "Trade today")
+    table.cell(dash, 1, 2, tradedToday ? "YES" : "NO")
+
+    table.cell(dash, 0, 3, "Entry reason")
+    table.cell(dash, 1, 3, entryReason == "" ? "—" : entryReason)
+
+    table.cell(dash, 0, 4, "Direction")
+    table.cell(dash, 1, 4, entryDirection == 1 ? "LONG" : entryDirection == -1 ? "SHORT" : "—")
+
+    table.cell(dash, 0, 5, "Target R")
+    table.cell(dash, 1, 5, str.tostring(i_rr, "#.00") + "R")
+
+    table.cell(dash, 0, 6, "Risk budget")
+    table.cell(dash, 1, 6, str.tostring(i_riskPct, "#.00") + "%")
+
+    table.cell(dash, 0, 7, "Fallback")
+    table.cell(dash, 1, 7, "08:55 close / 09:00 ET")
+
+    table.cell(dash, 0, 8, "DBG total days")
+    table.cell(dash, 1, 8, str.tostring(dbgTotalDays))
+
+    table.cell(dash, 0, 9, "DBG orReady days")
+    table.cell(dash, 1, 9, str.tostring(dbgOrReadyDays))
+
+    table.cell(dash, 0, 10, "DBG signals fired")
+    table.cell(dash, 1, 10, str.tostring(dbgSignalCount) + " (C:" + str.tostring(dbgConfirmedCount) + " F:" + str.tostring(dbgFallbackCount) + ")")
+
+    table.cell(dash, 0, 11, "DBG closed trades")
+    table.cell(dash, 1, 11, str.tostring(strategy.closedtrades))
+
+    table.cell(dash, 0, 12, "DBG open trades")
+    table.cell(dash, 1, 12, str.tostring(strategy.opentrades))

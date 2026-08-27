@@ -1,0 +1,464 @@
+//@version=6
+// =============================================================================
+// XAUUSD 08:30 NEW YORK ORB · DECISIONS ON 1-MINUTE BARS · ONE TRADE PER DAY
+// v2.0
+// =============================================================================
+// Chart: XAUUSD, 1-minute.
+//
+// WHAT CHANGED FROM v1 AND WHY
+//
+// v1 was hard-gated to a 5-minute chart:
+//     tfOK = timeframe.in_seconds(timeframe.period) == 300
+// and every signal, every interaction record and the forced entry were ANDed
+// with tfOK. On a 1-minute chart v1 does not take a worse trade — it takes no
+// trade at all, on any day, forever. That gate is gone. This version runs on
+// the chart's own timeframe and only refuses timeframes too coarse to resolve
+// the opening range.
+//
+// Four further changes follow from actually deciding on 1-minute bars:
+//
+//   1. The forced entry fires on the LAST bar of the entry window (08:59),
+//      not 08:55. On 5-minute bars those were the same bar. On 1-minute bars
+//      v1's 08:55 threw away the final four minutes of the search.
+//   2. A safety net fires on the first bar after the window closes, so a
+//      missing 08:59 bar cannot cost the day its trade. v1 had no such net:
+//      one absent bar and the "guaranteed" trade silently did not happen.
+//   3. The stop distance has a floor (default 0.5 ATR). A 1-minute interaction
+//      candle can sit a few cents from the break, and unfloored that produces
+//      a near-zero risk distance — which the position sizer turns into an
+//      enormous position. v1 had no floor because 5-minute wicks are wider.
+//   4. Confirmation may arrive within N bars of the interaction, not strictly
+//      the next bar. On 1-minute bars price usually probes a level for two or
+//      three minutes before it goes. Set N = 1 for v1's exact behaviour.
+//
+// THE RULES
+//
+// 1) 08:30-08:35 ET builds the opening range (five 1-minute bars).
+// 2) 08:35-09:00 ET searches for the first confirmed penetration.
+// 3) Confirmation = an earlier bar interacted with the boundary, then a LATER
+//    bar closes beyond it with directional candle quality. A bar can never
+//    confirm itself.
+// 4) Stop = beyond the interaction candle's wick, floored at a minimum ATR
+//    distance.
+// 5) Target = rr x risk (default 2.0R).
+// 6) No confirmation by the end of the window => forced entry, so the day
+//    still trades. Its stop is the opposite side of the opening range.
+// 7) One entry per NY trading day. Any open position is flattened late in the
+//    NY day.
+//
+// The rule set in this file is mirrored in Python at
+// src/invest/strategies/orb.py and exercised by tests/test_orb_strategy.py —
+// entry timing, self-confirmation, stop placement, the forced entry, the
+// missing-bar net, and the 1m-versus-5m difference are all asserted there.
+//
+// Research/backtest strategy. No profitability is claimed or implied. A forced
+// daily entry is a constraint on the schedule, not an edge.
+// =============================================================================
+
+strategy(
+     title = "XAUUSD 08:30 NY ORB · 1m Decisions · 1 Trade/Day · 2R",
+     shorttitle = "XAU 0830 ORB 1m 2R",
+     overlay = true,
+     initial_capital = 100000,
+     currency = currency.USD,
+     pyramiding = 0,
+     default_qty_type = strategy.fixed,
+     default_qty_value = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.0,
+     slippage = 0,
+     max_bars_back = 5000)
+
+// =============================================================================
+// INPUTS
+// =============================================================================
+
+string TZ = "America/New_York"
+
+string G_TIME = "1 · Time"
+string G_ENTRY = "2 · Confirmation"
+string G_RISK = "3 · Risk / Reward"
+string G_UI = "4 · Visuals"
+
+string i_orSession = input.session("0830-0835", "Opening range", group = G_TIME)
+string i_tradeSession = input.session("0835-0900", "Entry window", group = G_TIME)
+string i_forcedSession = input.session("0859-0900", "Forced-entry bar (last bar of window)", group = G_TIME)
+string i_flatSession = input.session("1655-1700", "Force-flat window", group = G_TIME)
+
+int i_atrLen = input.int(14, "ATR length", minval = 2, group = G_ENTRY)
+float i_touchTolAtr = input.float(0.05, "ORB touch tolerance (ATR)", minval = 0.0, step = 0.01, group = G_ENTRY)
+float i_breakBufAtr = input.float(0.02, "Confirmed penetration buffer (ATR)", minval = 0.0, step = 0.01, group = G_ENTRY)
+float i_bodyMin = input.float(0.35, "Confirmation body / candle range", minval = 0.0, maxval = 1.0, step = 0.05, group = G_ENTRY)
+float i_clvMin = input.float(0.65, "Confirmation close-location value", minval = 0.50, maxval = 1.0, step = 0.05, group = G_ENTRY)
+int i_maxBarsSinceTouch = input.int(2, "Confirm within N bars of the interaction", minval = 1, maxval = 10, group = G_ENTRY, tooltip = "1 reproduces v1's strict next-bar rule. On 1-minute bars, 2-3 matches how price probes a level.")
+
+float i_rr = input.float(2.0, "Reward : Risk target", minval = 1.0, step = 0.25, group = G_RISK)
+float i_stopBufAtr = input.float(0.05, "Stop beyond interaction wick (ATR)", minval = 0.0, step = 0.01, group = G_RISK)
+float i_minStopAtr = input.float(0.50, "Minimum stop distance (ATR)", minval = 0.0, step = 0.05, group = G_RISK, tooltip = "Floors the risk distance. Without it a tight 1-minute interaction candle produces a near-zero stop and an enormous position.")
+float i_riskPct = input.float(0.50, "Risk budget (% current equity)", minval = 0.05, maxval = 5.00, step = 0.05, group = G_RISK)
+float i_maxNotionalX = input.float(5.0, "Max position notional (x equity)", minval = 0.1, step = 0.1, group = G_RISK)
+float i_qtyStep = input.float(0.01, "Quantity step", minval = 0.01, step = 0.01, group = G_RISK)
+float i_minQty = input.float(0.01, "Minimum quantity", minval = 0.01, step = 0.01, group = G_RISK)
+
+bool i_forceDaily = input.bool(true, "Force one entry per day", group = G_RISK, tooltip = "Off = only confirmed penetrations trade, and some days will not trade at all.")
+
+bool i_showORB = input.bool(true, "Plot ORB high / low", group = G_UI)
+bool i_showTradeLevels = input.bool(true, "Plot active stop / target", group = G_UI)
+bool i_showMarkers = input.bool(true, "Show interaction / entry markers", group = G_UI)
+bool i_showDashboard = input.bool(true, "Show dashboard", group = G_UI)
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+f_floor_step(float x, float step) =>
+    step <= 0.0 ? x : math.floor(x / step) * step
+
+// =============================================================================
+// CHART / SESSION STATE
+// =============================================================================
+
+// The opening range is five minutes long. Anything coarser than that cannot
+// resolve it, and anything at or below 5 minutes can. 1 minute is the intent.
+int tfSec = timeframe.in_seconds(timeframe.period)
+bool tfOK = not timeframe.isdwm and tfSec <= 300
+bool tfIdeal = tfSec == 60
+
+bool inOR = not na(time(timeframe.period, i_orSession, TZ))
+bool inTradeWindow = not na(time(timeframe.period, i_tradeSession, TZ))
+bool inForcedBar = not na(time(timeframe.period, i_forcedSession, TZ))
+bool inFlatWindow = not na(time(timeframe.period, i_flatSession, TZ))
+
+bool orStart = inOR and not inOR[1]
+bool orEnd = not inOR and inOR[1]
+
+// The bar on which the entry window has just ended. This is the safety net:
+// if the forced-entry bar itself is missing from the feed, the day still
+// trades here.
+bool windowJustClosed = not inTradeWindow and inTradeWindow[1]
+
+bool newNYDay =
+     bar_index > 0 and
+     (
+         dayofmonth(time, TZ) != dayofmonth(time[1], TZ) or
+         month(time, TZ) != month(time[1], TZ) or
+         year(time, TZ) != year(time[1], TZ)
+     )
+
+float atr = ta.atr(i_atrLen)
+bool atrReady = not na(atr) and atr > 0
+
+// =============================================================================
+// OPENING RANGE
+// =============================================================================
+
+var float orHigh = na
+var float orLow = na
+var bool orReady = false
+
+if newNYDay
+    orHigh := na
+    orLow := na
+    orReady := false
+
+if orStart
+    orHigh := high
+    orLow := low
+    orReady := false
+else if inOR
+    orHigh := na(orHigh) ? high : math.max(orHigh, high)
+    orLow := na(orLow) ? low : math.min(orLow, low)
+
+if orEnd and not na(orHigh) and not na(orLow)
+    orReady := true
+
+float orMid = orReady ? (orHigh + orLow) / 2.0 : na
+
+// =============================================================================
+// ONE-TRADE-PER-DAY STATE
+// =============================================================================
+
+var bool tradedToday = false
+var int entryDirection = 0
+var string entryReason = ""
+
+var int dbgTotalDays = 0
+var int dbgOrReadyDays = 0
+var int dbgConfirmed = 0
+var int dbgForced = 0
+
+if newNYDay
+    tradedToday := false
+    entryDirection := 0
+    entryReason := ""
+    dbgTotalDays += 1
+
+if orEnd and orReady
+    dbgOrReadyDays += 1
+
+// =============================================================================
+// POST-ORB EXCURSION — used only to pick the forced entry's side
+// =============================================================================
+
+var float postHigh = na
+var float postLow = na
+
+if newNYDay or orStart
+    postHigh := na
+    postLow := na
+
+if orReady and inTradeWindow
+    postHigh := na(postHigh) ? high : math.max(postHigh, high)
+    postLow := na(postLow) ? low : math.min(postLow, low)
+
+// =============================================================================
+// INTERACTION + CONFIRMATION
+//
+// Long : a candle reaches ORH and stays inside the tolerance zone. Its LOW is
+//        the structural wick for the stop.
+// Short: a candle reaches ORL and stays inside the tolerance zone. Its HIGH is
+//        the structural wick.
+//
+// Interactions are recorded at the BOTTOM of this script, after the
+// confirmation check has run, so a bar can only ever confirm a later bar.
+// =============================================================================
+
+var int lastLongTouchBar = na
+var float lastLongTouchLow = na
+var int lastShortTouchBar = na
+var float lastShortTouchHigh = na
+
+if newNYDay or orStart
+    lastLongTouchBar := na
+    lastLongTouchLow := na
+    lastShortTouchBar := na
+    lastShortTouchHigh := na
+
+float candleRange = math.max(high - low, syminfo.mintick)
+float bodyRatio = math.abs(close - open) / candleRange
+float clvLong = (close - low) / candleRange
+float clvShort = (high - close) / candleRange
+
+int longTouchAge = na(lastLongTouchBar) ? -1 : bar_index - lastLongTouchBar
+int shortTouchAge = na(lastShortTouchBar) ? -1 : bar_index - lastShortTouchBar
+
+bool longTouchFresh = longTouchAge >= 1 and longTouchAge <= i_maxBarsSinceTouch
+bool shortTouchFresh = shortTouchAge >= 1 and shortTouchAge <= i_maxBarsSinceTouch
+
+// The entry window plus the one bar on which it closes.
+bool entryEligible =
+     tfOK and orReady and atrReady and not tradedToday and
+     (inTradeWindow or windowJustClosed)
+
+bool longConfirmed =
+     entryEligible and longTouchFresh and
+     close > orHigh + i_breakBufAtr * atr and
+     close > open and
+     bodyRatio >= i_bodyMin and
+     clvLong >= i_clvMin
+
+bool shortConfirmed =
+     entryEligible and shortTouchFresh and
+     close < orLow - i_breakBufAtr * atr and
+     close < open and
+     bodyRatio >= i_bodyMin and
+     clvShort >= i_clvMin
+
+int confirmedDir =
+     longConfirmed and not shortConfirmed ? 1 :
+     shortConfirmed and not longConfirmed ? -1 :
+     longConfirmed and shortConfirmed ? (close >= orMid ? 1 : -1) :
+     0
+
+// =============================================================================
+// FORCED ENTRY
+//
+// Side is deterministic: excursion outside the range plus where the bar closed
+// relative to the midpoint. It fires on the designated last bar of the window,
+// or on the bar the window closes on if that bar never arrived.
+// =============================================================================
+
+float upExcursion = orReady and not na(postHigh) ? math.max(postHigh - orHigh, 0.0) : 0.0
+float downExcursion = orReady and not na(postLow) ? math.max(orLow - postLow, 0.0) : 0.0
+float closeAboveMid = orReady ? math.max(close - orMid, 0.0) : 0.0
+float closeBelowMid = orReady ? math.max(orMid - close, 0.0) : 0.0
+
+float longPressure = upExcursion + closeAboveMid
+float shortPressure = downExcursion + closeBelowMid
+
+int forcedDir = longPressure >= shortPressure ? 1 : -1
+
+bool forcedNow =
+     i_forceDaily and entryEligible and confirmedDir == 0 and
+     (inForcedBar or windowJustClosed)
+
+int finalDir = confirmedDir != 0 ? confirmedDir : forcedNow ? forcedDir : 0
+
+// =============================================================================
+// STOP CONSTRUCTION
+// =============================================================================
+
+float proposedStop = na
+
+if finalDir == 1
+    // Below the wick of the candle that interacted with ORH. With no
+    // interaction — only reachable on a forced entry — the structure is the
+    // opposite side of the range.
+    float wick = not na(lastLongTouchLow) ? lastLongTouchLow : orLow
+    proposedStop := math.min(wick, orHigh) - i_stopBufAtr * atr
+else if finalDir == -1
+    float wick = not na(lastShortTouchHigh) ? lastShortTouchHigh : orHigh
+    proposedStop := math.max(wick, orLow) + i_stopBufAtr * atr
+
+// =============================================================================
+// ENTRY + BRACKET
+// =============================================================================
+
+var float activeStop = na
+var float activeTarget = na
+var float modelRisk = na
+
+bool canEnter =
+     finalDir != 0 and
+     strategy.position_size == 0 and
+     not tradedToday and
+     not na(proposedStop)
+
+if canEnter
+    float entryPx = close
+
+    float riskDistance = finalDir == 1 ? entryPx - proposedStop : proposedStop - entryPx
+
+    // The floor. A 1-minute interaction candle can sit cents from the break;
+    // unfloored, riskDistance goes to zero and quantity goes to the moon.
+    float minRisk = math.max(i_minStopAtr * atr, syminfo.mintick)
+    if riskDistance < minRisk
+        riskDistance := minRisk
+        proposedStop := finalDir == 1 ? entryPx - riskDistance : entryPx + riskDistance
+
+    float pointValue = syminfo.pointvalue > 0 ? syminfo.pointvalue : 1.0
+    float riskBudget = strategy.equity * i_riskPct / 100.0
+    float rawQty = riskBudget / (riskDistance * pointValue)
+
+    // Two caps, because a risk-based size says nothing about whether the
+    // account could actually carry the position.
+    float notionalCap = entryPx > 0 ? strategy.equity * i_maxNotionalX / (entryPx * pointValue) : rawQty
+    float qty = math.max(i_minQty, f_floor_step(math.min(rawQty, notionalCap), i_qtyStep))
+
+    float targetPx = finalDir == 1 ? entryPx + i_rr * riskDistance : entryPx - i_rr * riskDistance
+
+    modelRisk := riskDistance
+    activeStop := proposedStop
+    activeTarget := targetPx
+
+    if confirmedDir != 0
+        dbgConfirmed += 1
+    else
+        dbgForced += 1
+
+    if finalDir == 1
+        strategy.entry("ORB-L", strategy.long, qty = qty, comment = confirmedDir != 0 ? "CONFIRMED ORH" : "FORCED LONG")
+        strategy.exit("ORB-L-X", from_entry = "ORB-L", stop = activeStop, limit = activeTarget)
+    else
+        strategy.entry("ORB-S", strategy.short, qty = qty, comment = confirmedDir != 0 ? "CONFIRMED ORL" : "FORCED SHORT")
+        strategy.exit("ORB-S-X", from_entry = "ORB-S", stop = activeStop, limit = activeTarget)
+
+    tradedToday := true
+    entryDirection := finalDir
+    entryReason := confirmedDir != 0 ? "CONFIRMED" : "FORCED"
+
+// Keep the bracket alive while the position is open.
+if strategy.position_size > 0 and not na(activeStop) and not na(activeTarget)
+    strategy.exit("ORB-L-X", from_entry = "ORB-L", stop = activeStop, limit = activeTarget)
+
+if strategy.position_size < 0 and not na(activeStop) and not na(activeTarget)
+    strategy.exit("ORB-S-X", from_entry = "ORB-S", stop = activeStop, limit = activeTarget)
+
+// Day-trade cleanup so the next morning always starts flat.
+if inFlatWindow and strategy.position_size != 0
+    strategy.close_all(comment = "DAY FLAT")
+
+bool justClosed = strategy.position_size == 0 and strategy.position_size[1] != 0
+
+if justClosed
+    activeStop := na
+    activeTarget := na
+    modelRisk := na
+
+// =============================================================================
+// RECORD INTERACTIONS — last, so no bar can confirm itself
+// =============================================================================
+
+bool longInteraction =
+     tfOK and orReady and atrReady and inTradeWindow and not tradedToday and
+     high >= orHigh and low <= orHigh + i_touchTolAtr * atr
+
+bool shortInteraction =
+     tfOK and orReady and atrReady and inTradeWindow and not tradedToday and
+     low <= orLow and high >= orLow - i_touchTolAtr * atr
+
+if longInteraction
+    lastLongTouchBar := bar_index
+    lastLongTouchLow := low
+
+if shortInteraction
+    lastShortTouchBar := bar_index
+    lastShortTouchHigh := high
+
+// =============================================================================
+// VISUALS
+// =============================================================================
+
+plot(i_showORB and orReady ? orHigh : na, "ORB High", color = color.new(color.green, 0), linewidth = 2, style = plot.style_linebr)
+plot(i_showORB and orReady ? orLow : na, "ORB Low", color = color.new(color.red, 0), linewidth = 2, style = plot.style_linebr)
+plot(i_showORB and orReady ? orMid : na, "ORB Mid", color = color.new(color.gray, 60), linewidth = 1, style = plot.style_linebr)
+
+plot(i_showTradeLevels and strategy.position_size != 0 ? activeStop : na, "Active Stop", color = color.new(color.red, 0), linewidth = 2, style = plot.style_linebr)
+plot(i_showTradeLevels and strategy.position_size != 0 ? activeTarget : na, "Target", color = color.new(color.green, 0), linewidth = 2, style = plot.style_linebr)
+
+plotshape(i_showMarkers and longInteraction, title = "ORH interaction", style = shape.circle, location = location.belowbar, size = size.tiny, color = color.new(color.green, 25), text = "H")
+plotshape(i_showMarkers and shortInteraction, title = "ORL interaction", style = shape.circle, location = location.abovebar, size = size.tiny, color = color.new(color.red, 25), text = "L")
+plotshape(i_showMarkers and canEnter and finalDir == 1, title = "Long entry", style = shape.triangleup, location = location.belowbar, size = size.small, color = color.new(color.green, 0), text = "LONG")
+plotshape(i_showMarkers and canEnter and finalDir == -1, title = "Short entry", style = shape.triangledown, location = location.abovebar, size = size.small, color = color.new(color.red, 0), text = "SHORT")
+
+// =============================================================================
+// DASHBOARD
+// =============================================================================
+
+var table dash = table.new(position.top_right, 2, 10, border_width = 1)
+
+if barstate.islast and i_showDashboard
+    string tfText = not tfOK ? "TOO COARSE — USE 1m" : tfIdeal ? "1m ✓" : str.tostring(math.round(tfSec / 60.0)) + "m (1m intended)"
+
+    table.cell(dash, 0, 0, "XAU 08:30 ORB v2")
+    table.cell(dash, 1, 0, tfText)
+
+    table.cell(dash, 0, 1, "Symbol")
+    table.cell(dash, 1, 1, syminfo.ticker + (str.contains(str.upper(syminfo.ticker), "XAU") ? "" : " (not XAU?)"))
+
+    table.cell(dash, 0, 2, "ORB")
+    table.cell(dash, 1, 2, orReady ? str.tostring(orLow, format.mintick) + " → " + str.tostring(orHigh, format.mintick) : "BUILDING / WAIT")
+
+    table.cell(dash, 0, 3, "Traded today")
+    table.cell(dash, 1, 3, tradedToday ? "YES" : "NO")
+
+    table.cell(dash, 0, 4, "Entry reason")
+    table.cell(dash, 1, 4, entryReason == "" ? "—" : entryReason)
+
+    table.cell(dash, 0, 5, "Direction")
+    table.cell(dash, 1, 5, entryDirection == 1 ? "LONG" : entryDirection == -1 ? "SHORT" : "—")
+
+    table.cell(dash, 0, 6, "Target")
+    table.cell(dash, 1, 6, str.tostring(i_rr, "#.00") + "R · risk " + str.tostring(i_riskPct, "#.00") + "%")
+
+    table.cell(dash, 0, 7, "Days / ORB days")
+    table.cell(dash, 1, 7, str.tostring(dbgTotalDays) + " / " + str.tostring(dbgOrReadyDays))
+
+    table.cell(dash, 0, 8, "Entries C / F")
+    table.cell(dash, 1, 8, str.tostring(dbgConfirmed) + " / " + str.tostring(dbgForced))
+
+    table.cell(dash, 0, 9, "Closed / open")
+    table.cell(dash, 1, 9, str.tostring(strategy.closedtrades) + " / " + str.tostring(strategy.opentrades))

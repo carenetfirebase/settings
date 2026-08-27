@@ -245,6 +245,8 @@ class Trade:
     bars_held: int = 0
     entry_bar: int = 0
     exit_bar: int = 0
+    stop_atr: float = 0.0
+    trigger_close: float = 0.0
 
 
 @dataclass(slots=True)
@@ -865,7 +867,8 @@ class Engine:
 
         self._arm = {"bar": i, "trig": c["trig"], "stop": c["stop"], "risk": c["risk"],
                      "score": score, "fam": fam, "tier": tier, "anchor": c["anchor"],
-                     "sess": c["sess"], "risk_pct": risk_pct, "risk_usd": budget}
+                     "sess": c["sess"], "risk_pct": risk_pct, "risk_usd": budget,
+                     "trigger_close": bar.close, "stop_atr": c["risk"] / (self._atr or c["risk"])}
         f.armed += 1
 
     def _broker(self, bar) -> None:
@@ -881,7 +884,8 @@ class Engine:
                              "sess": a["sess"], "risk_pct": a["risk_pct"],
                              "risk_usd": a["risk_usd"], "bar": self.i, "ts": bar.ts,
                              "remaining": 1.0, "r_realised": 0.0, "partial_done": False,
-                             "be_done": False, "extreme": entry, "mfe": 0.0, "mae": 0.0}
+                             "be_done": False, "extreme": entry, "mfe": 0.0, "mae": 0.0,
+                             "trigger_close": a["trigger_close"], "stop_atr": a["stop_atr"]}
                 self._last_anchor[a["fam"]] = a["anchor"]
                 self.day_trades += 1
                 self.f.filled += 1
@@ -953,6 +957,7 @@ class Engine:
             r_multiple=r_total, pnl=pnl,
             mfe_r=pos["mfe"] / pos["risk"], mae_r=pos["mae"] / pos["risk"],
             bars_held=self.i - pos["bar"], entry_bar=pos["bar"], exit_bar=self.i,
+            stop_atr=pos["stop_atr"], trigger_close=pos["trigger_close"],
         ))
         self.f.trades += 1
         self._pos = None

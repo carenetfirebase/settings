@@ -30,11 +30,14 @@ from pathlib import Path
 from .ablation import (
     DELETE,
     KEEP,
+    LOOKAHEAD,
+    NOT_EVALUABLE,
     AblationRow,
     AtrBasisPoint,
     Baseline,
     BetaRegimeTable,
     CostPoint,
+    EntryModeComparison,
     Sweep,
     WalkForward,
 )
@@ -69,6 +72,7 @@ class Phase0Results:
     costs: list[CostPoint]
     walk: WalkForward
     atr_bases: list[AtrBasisPoint]
+    entry_modes: EntryModeComparison | None = None
 
 
 def _fmt(value: float, places: int = 3) -> str:
@@ -205,6 +209,7 @@ def render_report(results: Phase0Results) -> str:
     add("")
     failures = [row for row in results.ablations if row.recommendation == DELETE]
     passes = [row for row in results.ablations if row.recommendation == KEEP]
+    excluded = [row for row in results.ablations if row.recommendation == NOT_EVALUABLE]
 
     def table(rows: list[AblationRow]) -> None:
         add("| Filter | Threshold | n | Retained | Mean R | 95% CI | Δ vs control | Verdict |")
@@ -228,6 +233,21 @@ def render_report(results: Phase0Results) -> str:
         add("")
     else:
         add("None.")
+        add("")
+
+    if excluded:
+        add(f"### Not evaluable — {len(excluded)} condition(s) would read the future")
+        add("")
+        add("These are **not failures**. They describe things that have not happened at")
+        add("the moment the order is placed, so scoring them against this entry rule would")
+        add("select trades on information that does not exist yet — lookahead of the kind")
+        add("that produces a confident false positive rather than an obvious one. They are")
+        add("listed here rather than omitted, because a missing row looks like an")
+        add("oversight. Section 4 below tests them the only causal way there is: as the")
+        add("entry rule itself.")
+        add("")
+        for row in excluded:
+            add(f"- **{row.label}** — {row.causality_note}")
         add("")
 
     add(f"### Retained — {len(passes)} filter(s) cleared the control")
@@ -264,7 +284,41 @@ def render_report(results: Phase0Results) -> str:
         add("")
 
     # --- beta regime ------------------------------------------------------
-    add("## 4. The beta regime test (§3.5)")
+    if results.entry_modes is not None:
+        comparison = results.entry_modes
+        add("## 4. Entry rule: T+3 against the delayed break")
+        add("")
+        add("The pullback, origin-hold and breakout conditions cannot be tested as filters")
+        add("on a T+3 entry. As the entry rule itself they are perfectly testable, and this")
+        add("is that test. The paired columns are the informative ones: the delayed entry")
+        add("declines every event that never breaks structure, so its unpaired mean is")
+        add("measured on a different, self-selected set of events.")
+        add("")
+        add(f"**Verdict: {comparison.verdict}.** {comparison.note}")
+        add("")
+        add("| Rule | n | Mean R | 95% CI | Win rate |")
+        add("| --- | ---: | ---: | :---: | ---: |")
+        add(
+            f"| Control, all events | {comparison.control.n} | {_fmt(comparison.control.mean)} | "
+            f"{comparison.control.ci} | {_pct(comparison.control.win_rate)} |"
+        )
+        add(
+            f"| Delayed break, all events | {comparison.breakout.n} | {_fmt(comparison.breakout.mean)} | "
+            f"{comparison.breakout.ci} | {_pct(comparison.breakout.win_rate)} |"
+        )
+        add(
+            f"| Control, shared events | {comparison.control_on_shared.n} | "
+            f"{_fmt(comparison.control_on_shared.mean)} | {comparison.control_on_shared.ci} | "
+            f"{_pct(comparison.control_on_shared.win_rate)} |"
+        )
+        add(
+            f"| Delayed break, shared events | {comparison.breakout_on_shared.n} | "
+            f"{_fmt(comparison.breakout_on_shared.mean)} | {comparison.breakout_on_shared.ci} | "
+            f"{_pct(comparison.breakout_on_shared.win_rate)} |"
+        )
+        add("")
+
+    add("## 5. The beta regime test (§3.5)")
     add("")
     add("Is the model's directional accuracy conditional on beta regime? This is the")
     add("central thesis of v2, and it is allowed to fail.")
@@ -286,7 +340,7 @@ def render_report(results: Phase0Results) -> str:
         add("")
 
     # --- structural sensitivities ----------------------------------------
-    add("## 5. Structural choices and sensitivities")
+    add("## 6. Structural choices and sensitivities")
     add("")
     add("These are **not calibrated constants**. They are decisions the handoff left")
     add("open that the harness had to make in order to run at all. Each is a place")
@@ -311,7 +365,7 @@ def render_report(results: Phase0Results) -> str:
     add("")
 
     # --- costs and walk-forward ------------------------------------------
-    add("## 6. Cost sensitivity (§4.3)")
+    add("## 7. Cost sensitivity (§4.3)")
     add("")
     add("v1 assumed 20 ticks of slippage — twenty cents on gold — and zero commission.")
     add("Real CPI-minute spreads are dollars wide. If the edge dies by 200 ticks it is")
@@ -326,7 +380,7 @@ def render_report(results: Phase0Results) -> str:
         )
     add("")
 
-    add("## 7. Walk-forward (§4.3)")
+    add("## 8. Walk-forward (§4.3)")
     add("")
     walk = results.walk
     add(f"Chronological 60/40 split at {walk.split_at}. Never shuffled.")
@@ -339,7 +393,7 @@ def render_report(results: Phase0Results) -> str:
     add("")
 
     # --- design findings --------------------------------------------------
-    add("## 8. Findings that do not depend on the data")
+    add("## 9. Findings that do not depend on the data")
     add("")
     add("These are statements about v1's design rather than about gold, so no sample")
     add("size changes them.")
@@ -357,6 +411,13 @@ def render_report(results: Phase0Results) -> str:
         "reprice off the same headline in the same second. Requiring agreement inside a "
         "three-minute window counts one piece of information several times, and in v1 it "
         "is 25% of the score plus part of the price score."
+    )
+    add(
+        "- **Three of v1's conditions cannot be filters on a T+3 entry at all.** The "
+        "pullback depth, the origin hold and the micro breakout all describe the half "
+        "hour after the entry bar. Used as filters they read the future; used as the "
+        "entry rule they are exactly what v1 does. Only the second question is askable, "
+        "and section 4 asks it."
     )
     add(
         "- **The global surprise unit is a bug, not a tuning choice.** A single divisor "
@@ -401,8 +462,24 @@ def constants_payload(results: Phase0Results) -> dict[str, object]:
         "deleted_filters": [
             {"filter": row.filter_key, "v1_claim": row.v1_claim, "verdict": row.verdict}
             for row in results.ablations
-            if row.recommendation != KEEP
+            if row.recommendation == DELETE
         ],
+        "not_evaluable_filters": [
+            {"filter": row.filter_key, "v1_claim": row.v1_claim, "reason": row.causality_note}
+            for row in results.ablations
+            if row.verdict == LOOKAHEAD
+        ],
+        "entry_mode_comparison": (
+            {
+                "verdict": results.entry_modes.verdict,
+                "note": results.entry_modes.note,
+                "shared_events": results.entry_modes.shared_events,
+                "control_on_shared": results.entry_modes.control_on_shared.as_dict(),
+                "breakout_on_shared": results.entry_modes.breakout_on_shared.as_dict(),
+            }
+            if results.entry_modes is not None
+            else None
+        ),
         "structural_choices": [
             {"choice": name, "value": str(value), "why": why}
             for name, value, why in structural_choices(results.spec)

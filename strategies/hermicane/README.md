@@ -6,9 +6,17 @@ Phase 0 research harness for the XAUUSD macro-release strategy.
 
 ## Status, stated plainly
 
-**Phase 0 is built and tested. Phase 0 has not been run on real data, because
-this environment cannot reach any of the required data providers. Phase 1
-(the Pine v2 port) has therefore not been started, and must not be.**
+**Phase 0 is built and tested. It has not been run on real data, because this
+environment cannot reach any of the required data providers, so no
+`calibrated_constants.json` exists.**
+
+`HERMICANE_v2.pine` exists anyway, at the operator's explicit direction, and it
+is built around that gap rather than pretending it is closed. What ships enabled
+is the control rule, which has no thresholds to calibrate. Every filter that
+would consume an uncalibrated number ships **off**, and every such input is
+labelled `UNCALIBRATED` in the Settings pane. The script is a measuring
+instrument for running the ablation by hand on TradingView's data — the data
+this environment could not reach — not a strategy to trade.
 
 The handoff is explicit that every threshold in v2 comes from
 `calibrated_constants.json`, and that Phase 1 does not begin until that file
@@ -130,7 +138,28 @@ entering at T+3 sits at the top of the impulse and the pullback reaches the
 stop first. If that survives contact with real data, the control's *entry
 timing* is the thing to fix, not its direction signal.
 
-### 2. A wide plateau is not evidence when the subsets are nested
+### 2. Three of v1's conditions cannot be filters at all
+
+The control enters at T+3. The pullback depth, the origin hold and the micro
+breakout all describe the half hour *after* that bar. Filtering the control on
+them selects trades using information that does not exist when the order is
+placed — and this is the false positive that looks like a discovery rather than
+a bug, because the filtered subset really does perform better.
+
+The first version of this harness had exactly that bug. The fix is not to
+delete the conditions but to notice what they actually are: preconditions of a
+**delayed entry**, which is what v1 does. So each filter now declares which
+entry rules it is causal under, `apply_filters` raises rather than obliging,
+the ablation reports the excluded ones as `NOT EVALUABLE` with the reason, and
+`ablation.entry_mode_comparison` asks the real question — does waiting for the
+break beat entering at T+3? — by comparing the two entry rules on the events
+both of them traded.
+
+`micro_breakout` turns out not to be evaluable as a filter in *either* mode: at
+T+3 it has not happened, and under the delayed entry it *is* the entry, so every
+traded row has one. Only the entry-rule comparison can answer it.
+
+### 3. A wide plateau is not evidence when the subsets are nested
 
 §3.4's plateau-versus-spike heuristic assumes adjacent thresholds are
 independent looks at the data. They are not — the sample at 0.25 contains
@@ -142,7 +171,7 @@ producing a confident `PLATEAU` verdict on coin flips.
 `sweep_threshold` now requires a plateau to be wide **and** to contain at least
 one threshold that clears the control on its own lower confidence bound.
 
-### 3. Three v1 defects need no data to condemn
+### 4. Three v1 defects need no data to condemn
 
 - **Score components that are constant at entry.** v1's entry condition already
   requires the breakout and the 5-minute confirmation, so `breakoutScore` and
@@ -182,6 +211,65 @@ Being blunt about this, per §5:
   separate a good system from a coin. `stats.sample_health` labels every
   reported n, and `ablation.MIN_EVALUABLE` refuses to let a filter pass on
   fewer than 30 surviving events.
+
+## The Pine script
+
+`HERMICANE_v2.pine` — Pine v6, 1-minute XAUUSD. Paste it into the Pine Editor.
+
+Two entry modes, both causal:
+
+| Mode | Entry | Which filters are offered |
+| --- | --- | --- |
+| `CONTROL` (default) | T+3, unconditionally | those knowable at T+3 |
+| `BREAKOUT` | the break of structure after a retracement | all of them |
+
+The script **refuses to start** if you ask for the pullback or origin-hold
+filters in CONTROL mode, for the reason in finding 2 above.
+
+How to use it:
+
+1. Put it on a 1-minute XAUUSD chart. Anything else raises immediately — the
+   3-minute impulse window and the time exits are counted in 1-minute bars.
+2. Paste the real release calendar into the timestamps box, in UTC. The six
+   dates shipped are examples. Mind daylight saving: 08:30 New York is 13:30 UTC
+   in winter and 12:30 UTC in summer.
+3. **Sweep the ATR timeframe first** (5 / 15 / 60 / 240 / D). Finding 1 is not
+   a footnote — the control's sign can change across that range, and until it is
+   settled nothing else you measure means anything.
+4. Run the control with every filter off and write down the trade count and net
+   profit. That is your baseline.
+5. Switch **one** filter on. If it does not clearly beat the baseline, it has
+   not earned its place — delete it rather than tuning it.
+6. Repeat at 20 / 100 / 200 / 400 ticks of slippage. If the edge dies by 200,
+   it is not tradable through a news print.
+
+The dashboard separates **NO DATA** from **rejected**, because `TVC:US02Y`
+intraday history is short on many accounts and a run that could not read the 2Y
+looks otherwise identical to a run that found no setups. If the "no data" count
+is not zero, the rest of the numbers are not measuring what you think.
+
+`Point value` defaults to 1.0, which is right for spot XAUUSD units and wrong by
+two orders of magnitude for a 100oz COMEX contract. Check it.
+
+The script writes a CSV trade log to the Pine Logs pane, in the shape the Phase 0
+harness reads, so a TradingView run can feed the offline ablation.
+
+### Verification
+
+There is no Pine compiler here, so `phase0/pine_lint.py` is the only check the
+script gets. It looks for the mistakes that are silent or that fail at runtime:
+`ta.*` inside a conditional block, a cross-timeframe `request.security` with no
+inner `[1]`, `array.get` guarded by `and` where Pine does not promise
+short-circuit evaluation, a loop that counts down on an empty array, table
+writes past the declared size, and each of the thirteen v1 defects as an
+assertion.
+
+    python -m phase0.pine_lint HERMICANE_v2.pine
+
+Every check has a test that feeds it broken Pine and asserts it fires — a lint
+that reports nothing is otherwise indistinguishable from a lint that checks
+nothing. **This is static analysis, not compilation. Expect to fix something on
+first paste.**
 
 ## Example output
 

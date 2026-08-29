@@ -5,6 +5,20 @@ independent, sweepable predicate over a panel row so the ablation can ask the
 only question that keeps a filter in a strategy: does applying it to the
 control beat the control?
 
+**Causality is enforced here, and it caught a real bug.** The §3.3 control
+enters at T+3, but the pullback depth, the origin hold and the micro breakout
+all describe the half hour *after* that bar. Filtering a T+3 entry on them
+selects trades using information that does not exist when the order is placed —
+lookahead, and the kind that produces a confident false positive rather than an
+obvious one. Each filter therefore declares which entry rules it is causal
+under, `apply_filters` refuses a filter outside them, and the ablation reports
+the excluded ones as NOT EVALUABLE rather than quietly omitting them.
+
+The conditions that are not causal at T+3 are not thereby untestable: they are
+preconditions of v1's *delayed* entry, so `control.simulate_breakout` and
+`ablation.entry_mode_comparison` test the whole pullback-and-break rule against
+the control, head to head, which is the causal form of the same question.
+
 Two deliberate departures from v1's shape:
 
 * **Bands are split into two filters.** v1 requires the impulse to sit inside
@@ -54,6 +68,14 @@ class Filter:
     sweep: tuple[float, ...] = ()
     #: Human-readable units for the swept threshold.
     units: str = ""
+    #: Entry rules under which this condition is known at the moment the order
+    #: is placed. An empty tuple means it is causal under none of them.
+    entry_modes: tuple[str, ...] = ("t3", "breakout")
+    #: Why, when `entry_modes` excludes a mode. Printed by the report.
+    causality_note: str = ""
+
+    def is_causal_under(self, entry_mode: str) -> bool:
+        return entry_mode in self.entry_modes
 
     @property
     def is_boolean(self) -> bool:
@@ -89,15 +111,17 @@ def _impulse_max(row: EventRow, threshold: float) -> bool:
 
 
 def _pullback_min(row: EventRow, threshold: float) -> bool:
-    return _finite(row.pullback_frac) and row.pullback_frac >= threshold
+    # The at-breakout measurement, never the whole-window one: this is what a
+    # delayed entry knows when it fires.
+    return _finite(row.pullback_at_breakout) and row.pullback_at_breakout >= threshold
 
 
 def _pullback_max(row: EventRow, threshold: float) -> bool:
-    return _finite(row.pullback_frac) and row.pullback_frac <= threshold
+    return _finite(row.pullback_at_breakout) and row.pullback_at_breakout <= threshold
 
 
 def _origin_held(row: EventRow, _: float) -> bool:
-    return row.origin_held
+    return row.origin_held_at_breakout
 
 
 def _macro_align(row: EventRow, threshold: float) -> bool:
@@ -180,16 +204,34 @@ FILTERS: tuple[Filter, ...] = (
         "pullback_min", "Pullback floor",
         "A shallow pullback offers no better price than the impulse high.",
         _pullback_min, tuple(round(0.05 * i, 2) for i in range(13)), "fraction of impulse",
+        entry_modes=("breakout",),
+        causality_note=(
+            "Describes the retracement that follows T+3, so it cannot filter a T+3 "
+            "entry without reading the future. Causal only as a precondition of the "
+            "delayed entry, where it is measured up to the breakout bar."
+        ),
     ),
     Filter(
         "pullback_max", "Pullback ceiling",
         "A deep pullback means the impulse is being rejected outright.",
         _pullback_max, tuple(round(0.2 + 0.05 * i, 2) for i in range(17)), "fraction of impulse",
+        entry_modes=("breakout",),
+        causality_note=(
+            "Describes the retracement that follows T+3, so it cannot filter a T+3 "
+            "entry without reading the future. Causal only as a precondition of the "
+            "delayed entry, where it is measured up to the breakout bar."
+        ),
     ),
     Filter(
         "origin_held", "Pre-news level held",
         "A retracement through the pre-news level invalidates the reaction.",
-        _origin_held,
+        _origin_held, (), "",
+        entry_modes=("breakout",),
+        causality_note=(
+            "Describes the retracement that follows T+3, so it cannot filter a T+3 "
+            "entry without reading the future. Causal only as a precondition of the "
+            "delayed entry, where it is measured up to the breakout bar."
+        ),
     ),
     Filter(
         "macro_align", "Macro confirmation",
@@ -199,7 +241,15 @@ FILTERS: tuple[Filter, ...] = (
     Filter(
         "micro_breakout", "Micro-structure breakout",
         "Continuation needs a break of structure, not just a pullback.",
-        _micro_breakout,
+        _micro_breakout, (), "",
+        entry_modes=(),
+        causality_note=(
+            "Not evaluable as a filter in either mode. At T+3 the break has not "
+            "happened yet, so using it reads the future; under the delayed entry it "
+            "IS the entry, so every traded row has one and the filter is a no-op. "
+            "The question it is really asking — does waiting for a break beat "
+            "entering at T+3? — is answered by ablation.entry_mode_comparison."
+        ),
     ),
     Filter(
         "five_min_confirm", "5-minute confirmation",
@@ -209,7 +259,13 @@ FILTERS: tuple[Filter, ...] = (
     Filter(
         "impulse_agrees", "Gold impulse agrees with Δ2Y",
         "New in v2: gold should move the way the 2Y implies within 3 minutes.",
-        _impulse_agrees,
+        _impulse_agrees, (), "",
+        entry_modes=("t3",),
+        causality_note=(
+            "Already required by the delayed entry, which trades the impulse "
+            "direction only when it agrees with the 2Y, so the filter is a no-op "
+            "there."
+        ),
     ),
     Filter(
         "trend_align", "1H trend alignment",
@@ -241,20 +297,32 @@ FILTERS: tuple[Filter, ...] = (
 FILTERS_BY_KEY = {f.key: f for f in FILTERS}
 
 
+class NotCausal(ValueError):
+    """A filter was applied to an entry rule it cannot see the inputs for."""
+
+
 def apply_filters(
     rows: list[EventRow],
     selections: dict[str, float],
+    entry_mode: str = "t3",
 ) -> list[EventRow]:
     """Rows surviving every named filter at its given threshold.
 
     `selections` maps filter key to threshold; a boolean filter's value is
     ignored. An unknown key raises rather than being skipped, so a typo in a
-    constants file cannot quietly widen the strategy.
+    constants file cannot quietly widen the strategy, and a filter that is not
+    causal under `entry_mode` raises too — that one is not a typo, it is a
+    backtest reading the future, and it must be loud.
     """
     survivors = rows
     for key, threshold in selections.items():
         if key not in FILTERS_BY_KEY:
             raise KeyError(f"unknown filter {key!r}; known: {sorted(FILTERS_BY_KEY)}")
         filt = FILTERS_BY_KEY[key]
+        if not filt.is_causal_under(entry_mode):
+            raise NotCausal(
+                f"{key!r} is not causal under the {entry_mode!r} entry: "
+                f"{filt.causality_note}"
+            )
         survivors = [row for row in survivors if filt.passes(row, threshold)]
     return survivors

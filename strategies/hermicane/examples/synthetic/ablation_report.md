@@ -9,7 +9,7 @@
 
 ## Provenance
 
-Generated 2026-08-29T15:25:17+00:00. Quality: **synthetic**.
+Generated 2026-08-29T15:50:23+00:00. Quality: **synthetic**.
 
 | Series | Origin | Detail | Proxy for |
 | --- | --- | --- | --- |
@@ -59,18 +59,14 @@ its lower confidence bound clears the control's upper bound — anything weaker
 cannot be told from a coincidence at this sample size. Failures are listed
 first, deliberately (§5).
 
-### Deleted — 15 filter(s) did not clear the control
+### Deleted — 11 filter(s) did not clear the control
 
 | Filter | Threshold | n | Retained | Mean R | 95% CI | Δ vs control | Verdict |
 | --- | ---: | ---: | ---: | ---: | :---: | ---: | :---: |
 | Surprise magnitude | +1.50 | 44 | 11.3% | +0.324 | [-0.090, +0.752] | +0.380 | **MARGINAL** |
 | Impulse floor | +0.80 | 301 | 77.0% | -0.057 | [-0.210, +0.094] | -0.001 | **FAIL** |
 | Impulse ceiling (anti-chase) | +1.75 | 147 | 37.6% | -0.105 | [-0.277, +0.065] | -0.049 | **FAIL** |
-| Pullback floor | +0.30 | 352 | 90.0% | -0.045 | [-0.176, +0.084] | +0.011 | **FAIL** |
-| Pullback ceiling | +0.60 | 165 | 42.2% | +0.000 | [-0.201, +0.203] | +0.056 | **FAIL** |
-| Pre-news level held | +0.00 | 309 | 79.0% | -0.035 | [-0.184, +0.111] | +0.021 | **FAIL** |
 | Macro confirmation | +0.50 | 391 | 100.0% | -0.056 | [-0.177, +0.069] | +0.000 | **FAIL** |
-| Micro-structure breakout | +0.00 | 343 | 87.7% | -0.062 | [-0.197, +0.075] | -0.006 | **FAIL** |
 | 5-minute confirmation | +0.00 | 188 | 48.1% | -0.084 | [-0.253, +0.096] | -0.028 | **FAIL** |
 | Gold impulse agrees with Δ2Y | +0.00 | 228 | 58.3% | -0.487 | [-0.614, -0.348] | -0.431 | **FAIL** |
 | 1H trend alignment | +0.00 | 205 | 52.4% | -0.114 | [-0.279, +0.054] | -0.058 | **FAIL** |
@@ -84,11 +80,7 @@ The claim each deleted filter was making, now unsupported by this panel:
 - **Surprise magnitude** — “A bigger surprise moves gold further and more reliably.”
 - **Impulse floor** — “Below some size the release did not actually move the market.”
 - **Impulse ceiling (anti-chase)** — “Above some size the move is exhausted and entering is chasing.”
-- **Pullback floor** — “A shallow pullback offers no better price than the impulse high.”
-- **Pullback ceiling** — “A deep pullback means the impulse is being rejected outright.”
-- **Pre-news level held** — “A retracement through the pre-news level invalidates the reaction.”
 - **Macro confirmation** — “DXY and the 2Y agreeing with gold confirms the read.”
-- **Micro-structure breakout** — “Continuation needs a break of structure, not just a pullback.”
 - **5-minute confirmation** — “The higher timeframe should agree before entering.”
 - **Gold impulse agrees with Δ2Y** — “New in v2: gold should move the way the 2Y implies within 3 minutes.”
 - **1H trend alignment** — “v1's regime score: trade with the prevailing hourly trend.”
@@ -96,6 +88,21 @@ The claim each deleted filter was making, now unsupported by this panel:
 - **Beta sign is classic** — “v2 thesis: trade only while gold trades as a real-rates instrument.”
 - **Beta R² floor** — “v2 thesis: a collapsed R² means gold is driven from outside the model.”
 - **Full beta regime gate** — “v2 thesis: classic sign AND healthy R², as a single hard gate.”
+
+### Not evaluable — 4 condition(s) would read the future
+
+These are **not failures**. They describe things that have not happened at
+the moment the order is placed, so scoring them against this entry rule would
+select trades on information that does not exist yet — lookahead of the kind
+that produces a confident false positive rather than an obvious one. They are
+listed here rather than omitted, because a missing row looks like an
+oversight. Section 4 below tests them the only causal way there is: as the
+entry rule itself.
+
+- **Pullback floor** — Describes the retracement that follows T+3, so it cannot filter a T+3 entry without reading the future. Causal only as a precondition of the delayed entry, where it is measured up to the breakout bar.
+- **Pullback ceiling** — Describes the retracement that follows T+3, so it cannot filter a T+3 entry without reading the future. Causal only as a precondition of the delayed entry, where it is measured up to the breakout bar.
+- **Pre-news level held** — Describes the retracement that follows T+3, so it cannot filter a T+3 entry without reading the future. Causal only as a precondition of the delayed entry, where it is measured up to the breakout bar.
+- **Micro-structure breakout** — Not evaluable as a filter in either mode. At T+3 the break has not happened yet, so using it reads the future; under the delayed entry it IS the entry, so every traded row has one and the filter is a no-op. The question it is really asking — does waiting for a break beat entering at T+3? — is answered by ablation.entry_mode_comparison.
 
 ### Retained — 0 filter(s) cleared the control
 
@@ -171,50 +178,6 @@ Shape: **NONE**. No threshold beat the control on a sample large enough to judge
 | 2.75 | 188 | -0.118 | [-0.280, +0.046] |
 | 3 | 196 | -0.130 | [-0.277, +0.015] |
 
-### Pullback floor (`pullback_min`)
-
-Shape: **NONE**. No threshold beat the control on a sample large enough to judge. Delete the filter.
-
-| Threshold (fraction of impulse) | n | Mean R | 95% CI |
-| ---: | ---: | ---: | :---: |
-| 0 | 391 | -0.056 | [-0.179, +0.061] |
-| 0.05 | 391 | -0.056 | [-0.179, +0.061] |
-| 0.1 | 391 | -0.056 | [-0.179, +0.061] |
-| 0.15 | 385 | -0.061 | [-0.192, +0.066] |
-| 0.2 | 377 | -0.049 | [-0.185, +0.071] |
-| 0.25 | 364 | -0.048 | [-0.184, +0.083] |
-| 0.3 | 352 | -0.045 | [-0.170, +0.086] |
-| 0.35 | 324 | -0.027 | [-0.171, +0.107] |
-| 0.4 | 310 | -0.030 | [-0.175, +0.105] |
-| 0.45 | 287 | -0.015 | [-0.171, +0.137] |
-| 0.5 | 266 | -0.057 | [-0.202, +0.088] |
-| 0.55 | 253 | -0.070 | [-0.229, +0.088] |
-| 0.6 | 226 | -0.097 | [-0.261, +0.057] |
-
-### Pullback ceiling (`pullback_max`)
-
-Shape: **NONE**. No threshold beat the control on a sample large enough to judge. Delete the filter.
-
-| Threshold (fraction of impulse) | n | Mean R | 95% CI |
-| ---: | ---: | ---: | :---: |
-| 0.2 | 14 | -0.230 | [-0.786, +0.500] |
-| 0.25 | 27 | -0.157 | [-0.601, +0.354] |
-| 0.3 | 39 | -0.154 | [-0.538, +0.262] |
-| 0.35 | 67 | -0.197 | [-0.480, +0.123] |
-| 0.4 | 81 | -0.155 | [-0.427, +0.140] |
-| 0.45 | 104 | -0.169 | [-0.419, +0.091] |
-| 0.5 | 125 | -0.053 | [-0.282, +0.177] |
-| 0.55 | 138 | -0.031 | [-0.245, +0.190] |
-| 0.6 | 165 | +0.000 | [-0.195, +0.206] |
-| 0.65 | 179 | +0.042 | [-0.158, +0.246] |
-| 0.7 | 204 | +0.011 | [-0.169, +0.197] |
-| 0.75 | 229 | -0.052 | [-0.218, +0.120] |
-| 0.8 | 251 | -0.058 | [-0.218, +0.089] |
-| 0.85 | 269 | -0.012 | [-0.174, +0.149] |
-| 0.9 | 281 | -0.029 | [-0.187, +0.134] |
-| 0.95 | 299 | -0.023 | [-0.175, +0.129] |
-| 1 | 309 | -0.035 | [-0.191, +0.111] |
-
 ### Macro confirmation (`macro_align`)
 
 Shape: **NONE**. No threshold beat the control on a sample large enough to judge. Delete the filter.
@@ -288,7 +251,24 @@ Shape: **NONE**. No threshold beat the control on a sample large enough to judge
 | 0.28 | 200 | -0.590 | [-0.714, -0.455] |
 | 0.3 | 200 | -0.590 | [-0.714, -0.455] |
 
-## 4. The beta regime test (§3.5)
+## 4. Entry rule: T+3 against the delayed break
+
+The pullback, origin-hold and breakout conditions cannot be tested as filters
+on a T+3 entry. As the entry rule itself they are perfectly testable, and this
+is that test. The paired columns are the informative ones: the delayed entry
+declines every event that never breaks structure, so its unpaired mean is
+measured on a different, self-selected set of events.
+
+**Verdict: BREAKOUT WINS.** On the events both rules traded, waiting for the break beat entering at T+3 with non-overlapping intervals. v1's price-action stack is earning its place as an entry rule, whatever the individual filters do.
+
+| Rule | n | Mean R | 95% CI | Win rate |
+| --- | ---: | ---: | :---: | ---: |
+| Control, all events | 391 | -0.056 | [-0.177, +0.069] | 34.8% |
+| Delayed break, all events | 228 | +1.306 | [+1.157, +1.448] | 81.1% |
+| Control, shared events | 228 | -0.487 | [-0.614, -0.348] | 19.7% |
+| Delayed break, shared events | 228 | +1.306 | [+1.157, +1.448] | 81.1% |
+
+## 5. The beta regime test (§3.5)
 
 Is the model's directional accuracy conditional on beta regime? This is the
 central thesis of v2, and it is allowed to fail.
@@ -305,7 +285,7 @@ central thesis of v2, and it is allowed to fail.
 | INVERTED / R² low | 69 | +0.492 | [+0.172, +0.808] | 55.1% | 17.4% |
 | INVERTED / R² mid | 56 | +0.873 | [+0.511, +1.218] | 62.5% | 3.6% |
 
-## 5. Structural choices and sensitivities
+## 6. Structural choices and sensitivities
 
 These are **not calibrated constants**. They are decisions the handoff left
 open that the harness had to make in order to run at all. Each is a place
@@ -332,7 +312,7 @@ The control's stop is "1.0 ATR". What ATR means changes the rule completely.
 | 240m | 14 | 7.22 | 391 | +0.089 | [+0.003, +0.177] |
 | 1440m | 14 | 20.20 | 391 | +0.088 | [+0.037, +0.143] |
 
-## 6. Cost sensitivity (§4.3)
+## 7. Cost sensitivity (§4.3)
 
 v1 assumed 20 ticks of slippage — twenty cents on gold — and zero commission.
 Real CPI-minute spreads are dollars wide. If the edge dies by 200 ticks it is
@@ -345,7 +325,7 @@ not tradable through a news print.
 | 200 | 2.00 | 391 | -1.121 | [-1.243, -0.998] | 0.0% |
 | 400 | 4.00 | 391 | -2.186 | [-2.313, -2.056] | 0.0% |
 
-## 7. Walk-forward (§4.3)
+## 8. Walk-forward (§4.3)
 
 Chronological 60/40 split at 2025-03-14. Never shuffled.
 
@@ -355,12 +335,13 @@ Chronological 60/40 split at 2025-03-14. Never shuffled.
 
 > Out-of-sample mean R falls outside the calibration interval. Treat every constant chosen on the first segment as suspect.
 
-## 8. Findings that do not depend on the data
+## 9. Findings that do not depend on the data
 
 These are statements about v1's design rather than about gold, so no sample
 size changes them.
 
 - **Score components that are constant at entry.** v1's entry condition already requires the breakout and the 5-minute confirmation, so `breakoutScore`, `fiveScore` are pinned at 10 on every trade that happens — a fixed +0.8 on every score that looks variable. With the 5-minute filter switched off, `fiveScore` stays 10, so *disabling* a filter raises the score. A hard gate must never also contribute a score term.
 - **Macro confirmation is not independent confirmation.** Gold, DXY and the 2Y reprice off the same headline in the same second. Requiring agreement inside a three-minute window counts one piece of information several times, and in v1 it is 25% of the score plus part of the price score.
+- **Three of v1's conditions cannot be filters on a T+3 entry at all.** The pullback depth, the origin hold and the micro breakout all describe the half hour after the entry bar. Used as filters they read the future; used as the entry rule they are exactly what v1 does. Only the second question is askable, and section 4 asks it.
 - **The global surprise unit is a bug, not a tuning choice.** A single divisor of 0.20 saturates instantly for Jobless Claims, GDP, ISM, Retail Sales and JOLTS, pinning them at 10/10 on every release. The z-score against the same event type's own recent dispersion removes the input entirely.
 

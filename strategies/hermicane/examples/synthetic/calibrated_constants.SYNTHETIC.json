@@ -1,9 +1,9 @@
 {
   "schema": "hermicane/calibrated_constants/1",
   "calibrated": false,
-  "generated_utc": "2026-08-29T15:25:17+00:00",
+  "generated_utc": "2026-08-29T15:50:23+00:00",
   "provenance": {
-    "generated_utc": "2026-08-29T15:25:17+00:00",
+    "generated_utc": "2026-08-29T15:50:23+00:00",
     "quality": "synthetic",
     "entries": [
       {
@@ -173,28 +173,8 @@
       "verdict": "FAIL"
     },
     {
-      "filter": "pullback_min",
-      "v1_claim": "A shallow pullback offers no better price than the impulse high.",
-      "verdict": "FAIL"
-    },
-    {
-      "filter": "pullback_max",
-      "v1_claim": "A deep pullback means the impulse is being rejected outright.",
-      "verdict": "FAIL"
-    },
-    {
-      "filter": "origin_held",
-      "v1_claim": "A retracement through the pre-news level invalidates the reaction.",
-      "verdict": "FAIL"
-    },
-    {
       "filter": "macro_align",
       "v1_claim": "DXY and the 2Y agreeing with gold confirms the read.",
-      "verdict": "FAIL"
-    },
-    {
-      "filter": "micro_breakout",
-      "v1_claim": "Continuation needs a break of structure, not just a pullback.",
       "verdict": "FAIL"
     },
     {
@@ -233,6 +213,55 @@
       "verdict": "FAIL"
     }
   ],
+  "not_evaluable_filters": [
+    {
+      "filter": "pullback_min",
+      "v1_claim": "A shallow pullback offers no better price than the impulse high.",
+      "reason": "Describes the retracement that follows T+3, so it cannot filter a T+3 entry without reading the future. Causal only as a precondition of the delayed entry, where it is measured up to the breakout bar."
+    },
+    {
+      "filter": "pullback_max",
+      "v1_claim": "A deep pullback means the impulse is being rejected outright.",
+      "reason": "Describes the retracement that follows T+3, so it cannot filter a T+3 entry without reading the future. Causal only as a precondition of the delayed entry, where it is measured up to the breakout bar."
+    },
+    {
+      "filter": "origin_held",
+      "v1_claim": "A retracement through the pre-news level invalidates the reaction.",
+      "reason": "Describes the retracement that follows T+3, so it cannot filter a T+3 entry without reading the future. Causal only as a precondition of the delayed entry, where it is measured up to the breakout bar."
+    },
+    {
+      "filter": "micro_breakout",
+      "v1_claim": "Continuation needs a break of structure, not just a pullback.",
+      "reason": "Not evaluable as a filter in either mode. At T+3 the break has not happened yet, so using it reads the future; under the delayed entry it IS the entry, so every traded row has one and the filter is a no-op. The question it is really asking \u2014 does waiting for a break beat entering at T+3? \u2014 is answered by ablation.entry_mode_comparison."
+    }
+  ],
+  "entry_mode_comparison": {
+    "verdict": "BREAKOUT WINS",
+    "note": "On the events both rules traded, waiting for the break beat entering at T+3 with non-overlapping intervals. v1's price-action stack is earning its place as an entry rule, whatever the individual filters do.",
+    "shared_events": 228,
+    "control_on_shared": {
+      "n": 228,
+      "mean_r": -0.4873381569226427,
+      "median_r": -1.0,
+      "stdev_r": 1.014698096090703,
+      "standard_error": 0.06720002304622157,
+      "ci_low": -0.6136580456000104,
+      "ci_high": -0.3476335264201978,
+      "win_rate": 0.19736842105263158,
+      "prob_positive": 0.0
+    },
+    "breakout_on_shared": {
+      "n": 228,
+      "mean_r": 1.3062775727202836,
+      "median_r": 2.0,
+      "stdev_r": 1.1168234321653498,
+      "standard_error": 0.07396343865157215,
+      "ci_low": 1.1574990007165074,
+      "ci_high": 1.44805677152073,
+      "win_rate": 0.8114035087719298,
+      "prob_positive": 1.0
+    }
+  },
   "structural_choices": [
     {
       "choice": "ATR basis",

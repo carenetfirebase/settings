@@ -34,6 +34,7 @@ __all__ = [
     "filters",
     "loaders",
     "panel",
+    "pine_lint",
     "report",
     "sources",
     "stats",

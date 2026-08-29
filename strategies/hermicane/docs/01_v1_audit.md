@@ -176,3 +176,28 @@ A Phase 1 lint should assert all of these mechanically:
 8. Every threshold traceable to a key in `calibrated_constants.json`.
 9. No filter present as a disabled input or an optional toggle — if Phase 0
    deleted it, it is gone.
+
+---
+
+## Addendum: a fourteenth defect, found while porting
+
+### 16. Three conditions cannot be filters on a T+3 entry
+
+Not a v1 defect — v1's entry waits for the breakout, so v1 is causal here — but
+a defect the *port* introduced and which anyone reimplementing this will hit.
+
+The control rule enters at T+3. The pullback depth, the origin hold and the
+micro breakout all describe the half hour after that bar. Applying them as
+filters to a T+3 entry selects trades on information that does not exist when
+the order is placed. It is the dangerous kind of lookahead: the filtered subset
+genuinely does perform better, so the result looks like a discovery.
+
+**Requirement**: every filter declares the entry rules under which it is causal.
+`phase0.filters.Filter.entry_modes` carries that, `apply_filters` raises
+`NotCausal` rather than obliging, and the ablation prints the excluded ones as
+NOT EVALUABLE with the reason. The Pine enforces the same rule with a
+`runtime.error` when the pullback filters are requested in CONTROL mode.
+
+The conditions themselves remain testable — as the entry rule, which is what
+they are. `phase0.ablation.entry_mode_comparison` compares T+3 against the
+delayed break on the events both rules traded.

@@ -31,6 +31,7 @@ from .ablation import (
     beta_regime_table,
     control_baseline,
     cost_curve,
+    entry_mode_comparison,
     run_all_ablations,
     walk_forward,
 )
@@ -170,6 +171,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     print("Ablating filters and sweeping thresholds…")
     ablations, sweeps = run_all_ablations(rows, baseline, resamples=args.resamples)
 
+    print("Comparing the two entry rules…")
+    entry_modes = entry_mode_comparison(rows, resamples=args.resamples)
+    print(f"  entry rule: {entry_modes.verdict} (on {entry_modes.shared_events} shared events)")
+
     print("Testing the beta regime thesis…")
     regime = beta_regime_table(rows, window=args.beta_window, resamples=args.resamples)
     print(f"  beta regime: {regime.verdict}")
@@ -186,6 +191,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         costs=cost_curve(rows, resamples=args.resamples),
         walk=walk_forward(rows, resamples=args.resamples),
         atr_bases=atr_basis_sensitivity(rows, inputs.prices, spec=inputs.spec, resamples=args.resamples),
+        entry_modes=entry_modes,
     )
 
     out_dir = Path(args.out)

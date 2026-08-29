@@ -21,8 +21,11 @@ import pytest
 
 from phase0 import beta, control, filters, loaders, panel, report, stats
 from phase0.ablation import (
+    BREAKOUT,
     KEEP,
+    LOOKAHEAD,
     NONE_FOUND,
+    NOT_EVALUABLE,
     PASS,
     PLATEAU,
     SPIKE,
@@ -31,6 +34,8 @@ from phase0.ablation import (
     beta_regime_table,
     control_baseline,
     cost_curve,
+    entry_mode_comparison,
+    run_all_ablations,
     sweep_threshold,
     walk_forward,
 )
@@ -61,14 +66,37 @@ def make_row(
     impulse_dir: int = 1,
     predicted_dir: int = 1,
     risk_price: float = 2.0,
+    breakout_r: float | None = None,
 ) -> panel.EventRow:
-    """A panel row carrying a chosen outcome. Only the fields the tests read."""
+    """A panel row carrying a chosen outcome. Only the fields the tests read.
+
+    `breakout_r` gives the delayed entry a different outcome from the T+3 one,
+    so the entry-mode comparison has something to compare. Left None, the
+    delayed entry did not fire — which is the common case, since most events
+    never break structure.
+    """
     fit = beta.BetaFit(90, 90, beta_value, 0.0, r_squared, -5.0, ts.date())
     result = ControlResult(
         traded=True, direction=predicted_dir, entry_ts=ts, entry_price=100.0,
         stop_price=98.0, target_price=104.0, risk_price=risk_price, exit_ts=ts,
         exit_price=100.0, exit_reason="target", r_multiple=r_multiple,
         mae_r=0.0, mfe_r=abs(r_multiple), minutes_held=10,
+    )
+    breakout_result = (
+        ControlResult(
+            traded=True, direction=predicted_dir, entry_ts=ts, entry_price=100.0,
+            stop_price=98.0, target_price=104.0, risk_price=risk_price, exit_ts=ts,
+            exit_price=100.0, exit_reason="target", r_multiple=breakout_r,
+            mae_r=0.0, mfe_r=abs(breakout_r), minutes_held=20,
+        )
+        if breakout_r is not None
+        else ControlResult(
+            traded=False, direction=0, entry_ts=None, entry_price=float("nan"),
+            stop_price=float("nan"), target_price=float("nan"),
+            risk_price=float("nan"), exit_ts=None, exit_price=float("nan"),
+            exit_reason=control.EXIT_NO_BREAKOUT, r_multiple=float("nan"),
+            mae_r=float("nan"), mfe_r=float("nan"), minutes_held=0,
+        )
     )
     return panel.EventRow(
         ts_utc=ts, ts_ny=ts.astimezone(panel.NEW_YORK), event_type="CPI",
@@ -81,8 +109,10 @@ def make_row(
         d_xau={h: 1.0 for h in panel.REACTION_HORIZONS},
         impulse_atr=1.2, impulse_dir=impulse_dir, pullback_frac=pullback_frac,
         origin_held=True, micro_breakout=True, breakout_minute=8.0,
+        pullback_at_breakout=pullback_frac, origin_held_at_breakout=True,
         macro_aligned=1.0, five_min_dir=1, predicted_dir=predicted_dir,
         fwd_r={h: r_multiple for h in panel.REACTION_HORIZONS}, control=result,
+        control_breakout=breakout_result,
     )
 
 
@@ -288,19 +318,26 @@ def test_macro_alignment_counts_only_the_legs_that_exist():
 
 # --- ablation ------------------------------------------------------------
 
-def _baseline_from(rows: list[panel.EventRow]) -> Baseline:
-    return control_baseline(rows, resamples=1500)
+def _baseline_from(rows: list[panel.EventRow], entry_mode: str = "t3") -> Baseline:
+    return control_baseline(rows, resamples=1500, entry_mode=entry_mode)
 
 
 def test_ablation_recovers_a_filter_that_really_separates():
     """Half the events are +2R with a shallow pullback; half -1R with a deep one."""
     rows = (
-        [make_row(+2.0, pullback_frac=0.10, ts=T0 + timedelta(days=i)) for i in range(120)]
-        + [make_row(-1.0, pullback_frac=0.80, ts=T0 + timedelta(days=200 + i)) for i in range(120)]
+        [
+            make_row(+2.0, pullback_frac=0.10, breakout_r=+2.0, ts=T0 + timedelta(days=i))
+            for i in range(120)
+        ]
+        + [
+            make_row(-1.0, pullback_frac=0.80, breakout_r=-1.0, ts=T0 + timedelta(days=200 + i))
+            for i in range(120)
+        ]
     )
-    baseline = _baseline_from(rows)
+    baseline = _baseline_from(rows, BREAKOUT)
     assert baseline.estimate.mean == pytest.approx(0.5, abs=0.05)
-    row = ablate_one(rows, filters.FILTERS_BY_KEY["pullback_max"], 0.40, baseline, resamples=1500)
+    row = ablate_one(rows, filters.FILTERS_BY_KEY["pullback_max"], 0.40, baseline,
+                       resamples=1500, entry_mode=BREAKOUT)
     assert row.estimate.n == 120
     assert row.estimate.mean == pytest.approx(2.0)
     assert row.verdict == PASS
@@ -309,32 +346,44 @@ def test_ablation_recovers_a_filter_that_really_separates():
 
 def test_ablation_rejects_a_filter_that_only_shrinks_the_sample():
     rng = random.Random(2)
-    rows = [
-        make_row(rng.choice([2.0, -1.0]), pullback_frac=rng.uniform(0.0, 1.0),
-                 ts=T0 + timedelta(days=i))
-        for i in range(300)
-    ]
-    baseline = _baseline_from(rows)
-    row = ablate_one(rows, filters.FILTERS_BY_KEY["pullback_max"], 0.50, baseline, resamples=1500)
+    rows = []
+    for i in range(300):
+        outcome = rng.choice([2.0, -1.0])
+        rows.append(
+            make_row(outcome, pullback_frac=rng.uniform(0.0, 1.0), breakout_r=outcome,
+                     ts=T0 + timedelta(days=i))
+        )
+    baseline = _baseline_from(rows, BREAKOUT)
+    row = ablate_one(rows, filters.FILTERS_BY_KEY["pullback_max"], 0.50, baseline,
+                       resamples=1500, entry_mode=BREAKOUT)
     assert row.recommendation != KEEP
 
 
 def test_a_filter_that_leaves_too_few_events_cannot_pass():
-    rows = [make_row(+2.0, pullback_frac=0.10, ts=T0 + timedelta(days=i)) for i in range(10)]
-    rows += [make_row(-1.0, pullback_frac=0.90, ts=T0 + timedelta(days=100 + i)) for i in range(200)]
-    baseline = _baseline_from(rows)
-    row = ablate_one(rows, filters.FILTERS_BY_KEY["pullback_max"], 0.40, baseline, resamples=1000)
+    rows = [
+        make_row(+2.0, pullback_frac=0.10, breakout_r=+2.0, ts=T0 + timedelta(days=i))
+        for i in range(10)
+    ]
+    rows += [
+        make_row(-1.0, pullback_frac=0.90, breakout_r=-1.0, ts=T0 + timedelta(days=100 + i))
+        for i in range(200)
+    ]
+    baseline = _baseline_from(rows, BREAKOUT)
+    row = ablate_one(rows, filters.FILTERS_BY_KEY["pullback_max"], 0.40, baseline,
+                       resamples=1000, entry_mode=BREAKOUT)
     assert row.estimate.n == 10
     assert row.recommendation != KEEP
 
 
 def test_sweep_calls_a_broad_effect_a_plateau_and_takes_its_middle():
     rows = [
-        make_row(+2.0 if p <= 0.5 else -1.0, pullback_frac=p, ts=T0 + timedelta(days=i))
+        make_row(+2.0 if p <= 0.5 else -1.0, pullback_frac=p,
+                 breakout_r=+2.0 if p <= 0.5 else -1.0, ts=T0 + timedelta(days=i))
         for i, p in enumerate([0.05 * (j % 20) for j in range(400)])
     ]
-    baseline = _baseline_from(rows)
-    sweep = sweep_threshold(rows, filters.FILTERS_BY_KEY["pullback_max"], baseline, resamples=800)
+    baseline = _baseline_from(rows, BREAKOUT)
+    sweep = sweep_threshold(rows, filters.FILTERS_BY_KEY["pullback_max"], baseline,
+                            resamples=800, entry_mode=BREAKOUT)
     assert sweep.shape == PLATEAU
     assert not math.isnan(sweep.recommended)
     low, high = sweep.plateau
@@ -343,13 +392,16 @@ def test_sweep_calls_a_broad_effect_a_plateau_and_takes_its_middle():
 
 def test_sweep_finds_nothing_in_noise():
     rng = random.Random(4)
-    rows = [
-        make_row(rng.choice([2.0, -1.0]), pullback_frac=rng.uniform(0.0, 1.0),
-                 ts=T0 + timedelta(days=i))
-        for i in range(400)
-    ]
-    baseline = _baseline_from(rows)
-    sweep = sweep_threshold(rows, filters.FILTERS_BY_KEY["pullback_max"], baseline, resamples=800)
+    rows = []
+    for i in range(400):
+        outcome = rng.choice([2.0, -1.0])
+        rows.append(
+            make_row(outcome, pullback_frac=rng.uniform(0.0, 1.0), breakout_r=outcome,
+                     ts=T0 + timedelta(days=i))
+        )
+    baseline = _baseline_from(rows, BREAKOUT)
+    sweep = sweep_threshold(rows, filters.FILTERS_BY_KEY["pullback_max"], baseline,
+                            resamples=800, entry_mode=BREAKOUT)
     assert sweep.shape in (NONE_FOUND, SPIKE)
     assert math.isnan(sweep.recommended)
 
@@ -405,6 +457,59 @@ def test_walk_forward_splits_chronologically_and_never_shuffles():
     assert result.calibration.mean == pytest.approx(2.0)
     assert result.test.mean == pytest.approx(-1.0)
     assert "suspect" in result.note
+
+
+def test_a_post_entry_filter_cannot_be_applied_to_a_t3_entry():
+    """The lookahead guard. Applying the pullback to a T+3 entry reads the future."""
+    rows = [make_row(+1.0, ts=T0 + timedelta(days=i)) for i in range(40)]
+    with pytest.raises(filters.NotCausal):
+        filters.apply_filters(rows, {"pullback_max": 0.5}, entry_mode="t3")
+    # ...and it is fine as a precondition of the delayed entry.
+    filters.apply_filters(rows, {"pullback_max": 0.5}, entry_mode=BREAKOUT)
+
+
+def test_the_ablation_reports_a_non_causal_filter_rather_than_scoring_it():
+    rows = [make_row(+1.0, ts=T0 + timedelta(days=i)) for i in range(60)]
+    baseline = _baseline_from(rows)
+    row = ablate_one(rows, filters.FILTERS_BY_KEY["pullback_max"], 0.5, baseline, entry_mode="t3")
+    assert row.verdict == LOOKAHEAD
+    assert row.recommendation == NOT_EVALUABLE
+    assert "future" in row.causality_note
+
+
+def test_micro_breakout_is_not_evaluable_as_a_filter_in_either_mode():
+    assert filters.FILTERS_BY_KEY["micro_breakout"].entry_modes == ()
+    for mode in ("t3", BREAKOUT):
+        assert not filters.FILTERS_BY_KEY["micro_breakout"].is_causal_under(mode)
+
+
+def test_run_all_ablations_flags_every_non_causal_filter():
+    rows = [make_row(+1.0, ts=T0 + timedelta(days=i)) for i in range(60)]
+    baseline = _baseline_from(rows)
+    ablations, _ = run_all_ablations(rows, baseline, resamples=400, entry_mode="t3")
+    flagged = {r.filter_key for r in ablations if r.verdict == LOOKAHEAD}
+    assert {"pullback_min", "pullback_max", "origin_held", "micro_breakout"} <= flagged
+
+
+def test_entry_mode_comparison_prefers_the_control_when_the_two_cannot_be_separated():
+    rows = [make_row(+1.0, breakout_r=+1.0, ts=T0 + timedelta(days=i)) for i in range(80)]
+    result = entry_mode_comparison(rows, resamples=800)
+    assert result.shared_events == 80
+    assert result.verdict == "INDISTINGUISHABLE"
+    assert "simpler rule" in result.note
+
+
+def test_entry_mode_comparison_detects_a_better_delayed_entry():
+    rows = [make_row(-1.0, breakout_r=+2.0, ts=T0 + timedelta(days=i)) for i in range(80)]
+    result = entry_mode_comparison(rows, resamples=800)
+    assert result.verdict == "BREAKOUT WINS"
+
+
+def test_entry_mode_comparison_is_underpowered_when_few_events_break():
+    rows = [make_row(+1.0, ts=T0 + timedelta(days=i)) for i in range(80)]
+    result = entry_mode_comparison(rows, resamples=400)
+    assert result.shared_events == 0
+    assert result.verdict == "UNDERPOWERED"
 
 
 # --- loaders and guards --------------------------------------------------

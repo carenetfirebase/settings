@@ -73,6 +73,7 @@ EXIT_TARGET = "target"
 EXIT_TIME = "time"
 EXIT_NO_DATA = "no_data"
 EXIT_NO_DIRECTION = "no_direction"
+EXIT_NO_BREAKOUT = "no_breakout"
 
 
 @dataclass(frozen=True)
@@ -214,26 +215,26 @@ def control_direction(delta_yield: float) -> int:
     return -1 if delta_yield > 0 else 1
 
 
-def simulate(
+def simulate_from(
     prices: BarSeries,
-    event_ts: datetime,
+    entry_ts: datetime,
     direction: int,
     atr: float,
     spec: ControlSpec = ControlSpec(),
 ) -> ControlResult:
-    """Walk the control rule forward bar by bar from T+entry_offset.
+    """Walk the exit rules forward from an entry at `entry_ts`.
 
-    Returns a non-traded result rather than raising on any missing input, so a
-    panel build over five years does not abort on one bad session.
+    Split out from `simulate` so that an alternative entry — v1's delayed
+    pullback-and-break, for instance — reuses exactly the same exit logic and
+    the same cost model, and the comparison between entry rules is a comparison
+    of entries rather than of two subtly different simulators.
     """
     if direction == 0:
         return _no_trade(EXIT_NO_DIRECTION)
     if math.isnan(atr) or atr <= 0:
         return _no_trade(EXIT_NO_DATA)
 
-    entry_bar = prices.bar_at_or_after(
-        event_ts + timedelta(minutes=spec.entry_offset_minutes), tolerance_minutes=5
-    )
+    entry_bar = prices.bar_at_or_after(entry_ts, tolerance_minutes=5)
     if entry_bar is None or math.isnan(entry_bar.close):
         return _no_trade(EXIT_NO_DATA)
 
@@ -241,9 +242,7 @@ def simulate(
     risk = spec.stop_atr * atr
     stop = entry - direction * risk
     target = entry + direction * spec.target_atr * risk
-    deadline = event_ts + timedelta(
-        minutes=spec.entry_offset_minutes + spec.time_exit_minutes
-    )
+    deadline = entry_bar.ts + timedelta(minutes=spec.time_exit_minutes)
     forward = prices.window(entry_bar.ts + timedelta(minutes=1), deadline + timedelta(minutes=1))
     cost_r = (spec.cost_ticks * spec.tick_size) / risk if risk > 0 else 0.0
 
@@ -282,3 +281,37 @@ def simulate(
         EXIT_TIME, gross - cost_r, mae, mfe,
         int((last.ts - entry_bar.ts).total_seconds() // 60),
     )
+
+
+def simulate(
+    prices: BarSeries,
+    event_ts: datetime,
+    direction: int,
+    atr: float,
+    spec: ControlSpec = ControlSpec(),
+) -> ControlResult:
+    """The §3.3 control: enter at T+entry_offset, unconditionally."""
+    return simulate_from(
+        prices, event_ts + timedelta(minutes=spec.entry_offset_minutes), direction, atr, spec
+    )
+
+
+def simulate_breakout(
+    prices: BarSeries,
+    breakout_ts: datetime | None,
+    direction: int,
+    atr: float,
+    spec: ControlSpec = ControlSpec(),
+) -> ControlResult:
+    """v1's actual entry: wait for the break of structure, then enter.
+
+    Exists so that the pullback, origin-hold and breakout conditions can be
+    evaluated **causally**. Applied to a T+3 entry they are lookahead — they
+    describe the half hour after the entry bar — but as preconditions of a
+    delayed entry they are exactly what v1 does and are known when the order is
+    placed. `breakout_ts` of None means no qualifying break occurred, which is a
+    real outcome and is recorded as a non-trade rather than dropped.
+    """
+    if breakout_ts is None:
+        return _no_trade(EXIT_NO_BREAKOUT)
+    return simulate_from(prices, breakout_ts, direction, atr, spec)

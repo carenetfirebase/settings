@@ -36,7 +36,14 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from .beta import BetaFit, DailyObservation, fit_prepared, prepare
-from .control import ControlResult, ControlSpec, average_true_range, control_direction, simulate
+from .control import (
+    ControlResult,
+    ControlSpec,
+    average_true_range,
+    control_direction,
+    simulate,
+    simulate_breakout,
+)
 from .loaders import Bar, BarSeries, MacroEvent
 
 NAN = float("nan")
@@ -102,19 +109,36 @@ class EventRow:
     origin_held: bool
     micro_breakout: bool
     breakout_minute: float
+    #: Causal versions of the retracement description: what a delayed entry
+    #: actually knows at the moment it breaks structure. The plain
+    #: `pullback_frac` above spans the whole window and is NOT knowable at T+3.
+    pullback_at_breakout: float
+    origin_held_at_breakout: bool
     macro_aligned: float
     five_min_dir: int
 
     # --- outcome ----------------------------------------------------------
     predicted_dir: int
     fwd_r: dict[int, float]
+    #: The §3.3 control: entry at T+3, unconditionally.
     control: ControlResult
+    #: v1's actual entry: wait for the break of structure. Carried alongside so
+    #: the two entry rules can be compared head to head, which is the only
+    #: causal way to ask whether the pullback machinery earns its place.
+    control_breakout: ControlResult
     flags: tuple[str, ...] = ()
 
     @property
     def is_evaluable(self) -> bool:
         """Does this row carry a control outcome the ablation can use?"""
         return self.control.traded and not math.isnan(self.control.r_multiple)
+
+    @property
+    def is_evaluable_breakout(self) -> bool:
+        return self.control_breakout.traded and not math.isnan(self.control_breakout.r_multiple)
+
+    def outcome(self, entry_mode: str) -> ControlResult:
+        return self.control_breakout if entry_mode == "breakout" else self.control
 
     def beta(self, window: int) -> BetaFit | None:
         return self.beta_fits.get(window)
@@ -140,6 +164,8 @@ class EventRow:
             "origin_held": self.origin_held,
             "micro_breakout": self.micro_breakout,
             "breakout_minute": self.breakout_minute,
+            "pullback_at_breakout": self.pullback_at_breakout,
+            "origin_held_at_breakout": self.origin_held_at_breakout,
             "macro_aligned": self.macro_aligned,
             "five_min_dir": self.five_min_dir,
             "predicted_dir": self.predicted_dir,
@@ -159,6 +185,8 @@ class EventRow:
             out[f"fwd_r_{horizon}m"] = value
         for key, value in self.control.as_dict().items():
             out[f"control_{key}"] = value
+        for key, value in self.control_breakout.as_dict().items():
+            out[f"breakout_{key}"] = value
         return out
 
 
@@ -309,7 +337,19 @@ def _delta_grid(series: BarSeries | None, event_ts: datetime) -> dict[int, float
 
 @dataclass
 class ImpulseShape:
-    """The v1 price-action sequence, measured rather than asserted."""
+    """The v1 price-action sequence, measured rather than asserted.
+
+    Two versions of the pullback are carried, and the distinction is the whole
+    reason this class exists in this shape:
+
+    * `pullback_frac` and `origin_held` describe the **entire** search window.
+      They are the honest description of what the retracement did, and they are
+      **not knowable at T+3**. Filtering a T+3 entry on them reads the future.
+    * `pullback_at_breakout` and `origin_held_at_breakout` are measured only up
+      to the bar that broke structure. They are what a delayed entry actually
+      knows when it places the order, and they are the only versions any filter
+      may use.
+    """
 
     pre_news: float = NAN
     impulse_atr: float = NAN
@@ -319,6 +359,9 @@ class ImpulseShape:
     origin_held: bool = False
     breakout: bool = False
     breakout_minute: float = NAN
+    breakout_ts: datetime | None = None
+    pullback_at_breakout: float = NAN
+    origin_held_at_breakout: bool = False
 
 
 def measure_impulse(prices: BarSeries, event_ts: datetime, atr: float) -> ImpulseShape:
@@ -370,27 +413,38 @@ def measure_impulse(prices: BarSeries, event_ts: datetime, atr: float) -> Impuls
         retrace_extreme > shape.pre_news if shape.direction > 0 else retrace_extreme < shape.pre_news
     )
 
-    # Micro-structure breakout: the first bar after the retracement extreme
-    # that takes out the prior BREAKOUT_LOOKBACK_BARS extreme in the impulse
-    # direction. Searching only after the retracement is what makes this a
-    # continuation signal rather than a restatement of the impulse.
-    pivot_index = next(
-        (
-            i for i, b in enumerate(search)
-            if (b.low if shape.direction > 0 else b.high) == retrace_extreme
-        ),
-        0,
-    )
-    for i in range(pivot_index + BREAKOUT_LOOKBACK_BARS, len(search)):
+    # Micro-structure breakout: the first bar that takes out the prior
+    # BREAKOUT_LOOKBACK_BARS extreme in the impulse direction.
+    #
+    # The scan below walks forward once, tracking the retracement as it deepens
+    # and testing for a break of the prior extreme on every bar. Doing it in one
+    # pass is what makes the "at breakout" measurements causal: at the bar that
+    # breaks, `running_extreme` holds only what had already happened.
+    running_extreme = search[0].low if shape.direction > 0 else search[0].high
+    for i, bar in enumerate(search):
+        running_extreme = (
+            min(running_extreme, bar.low) if shape.direction > 0 else max(running_extreme, bar.high)
+        )
+        if i < BREAKOUT_LOOKBACK_BARS:
+            continue
         window = search[i - BREAKOUT_LOOKBACK_BARS:i]
-        if shape.direction > 0 and search[i].high > max(b.high for b in window):
-            shape.breakout = True
-            shape.breakout_minute = (search[i].ts - event_ts).total_seconds() / 60.0
-            break
-        if shape.direction < 0 and search[i].low < min(b.low for b in window):
-            shape.breakout = True
-            shape.breakout_minute = (search[i].ts - event_ts).total_seconds() / 60.0
-            break
+        broke = (
+            bar.high > max(b.high for b in window)
+            if shape.direction > 0
+            else bar.low < min(b.low for b in window)
+        )
+        if not broke:
+            continue
+        shape.breakout = True
+        shape.breakout_minute = (bar.ts - event_ts).total_seconds() / 60.0
+        shape.breakout_ts = bar.ts
+        shape.pullback_at_breakout = abs(shape.extreme - running_extreme) / span
+        shape.origin_held_at_breakout = (
+            running_extreme > shape.pre_news
+            if shape.direction > 0
+            else running_extreme < shape.pre_news
+        )
+        break
     return shape
 
 
@@ -507,6 +561,13 @@ def build_panel(inputs: PanelInputs) -> list[EventRow]:
         shape = measure_impulse(inputs.prices, event.ts_utc, atr)
         direction = control_direction(d_yield.get(inputs.spec.entry_offset_minutes, NAN))
         result = simulate(inputs.prices, event.ts_utc, direction, atr, inputs.spec)
+        # The delayed entry only makes sense as a continuation of the impulse,
+        # so it trades the impulse direction and requires it to agree with the
+        # 2Y. A disagreement is a non-trade, not a reversal.
+        breakout_dir = direction if shape.direction == direction else 0
+        breakout_result = simulate_breakout(
+            inputs.prices, shape.breakout_ts, breakout_dir, atr, inputs.spec
+        )
 
         fwd_r: dict[int, float] = {}
         for horizon in REACTION_HORIZONS:
@@ -542,6 +603,8 @@ def build_panel(inputs: PanelInputs) -> list[EventRow]:
                 origin_held=shape.origin_held,
                 micro_breakout=shape.breakout,
                 breakout_minute=shape.breakout_minute,
+                pullback_at_breakout=shape.pullback_at_breakout,
+                origin_held_at_breakout=shape.origin_held_at_breakout,
                 macro_aligned=macro_alignment(
                     d_yield.get(inputs.spec.entry_offset_minutes, NAN),
                     d_dxy.get(inputs.spec.entry_offset_minutes, NAN),
@@ -554,6 +617,7 @@ def build_panel(inputs: PanelInputs) -> list[EventRow]:
                 predicted_dir=direction,
                 fwd_r=fwd_r,
                 control=result,
+                control_breakout=breakout_result,
                 flags=tuple(flags),
             )
         )

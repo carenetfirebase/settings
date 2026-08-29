@@ -40,11 +40,18 @@ from .stats import Interval, MeanEstimate, bootstrap_mean, sample_health, tercil
 
 KEEP = "KEEP"
 DELETE = "DELETE"
+NOT_EVALUABLE = "NOT EVALUABLE"
+
+#: The two entry rules a filter can sit on top of. "t3" is the §3.3 control;
+#: "breakout" is v1's delayed pullback-and-break entry.
+T3 = "t3"
+BREAKOUT = "breakout"
 
 PASS = "PASS"
 MARGINAL = "MARGINAL"
 FAIL = "FAIL"
 EMPTY = "NO SAMPLE"
+LOOKAHEAD = "LOOKAHEAD"
 
 #: Below this many surviving events, a filter's interval is too wide to clear
 #: anything and the honest verdict is "untested", not "failed". §4.3's health
@@ -52,12 +59,19 @@ EMPTY = "NO SAMPLE"
 MIN_EVALUABLE = 30
 
 
-def evaluable(rows: list[EventRow]) -> list[EventRow]:
-    """Rows the control actually traded. Everything else has no outcome."""
+def evaluable(rows: list[EventRow], entry_mode: str = T3) -> list[EventRow]:
+    """Rows the given entry rule actually traded. Everything else has no outcome."""
+    if entry_mode == BREAKOUT:
+        return [row for row in rows if row.is_evaluable_breakout]
     return [row for row in rows if row.is_evaluable]
 
 
-def control_r(rows: list[EventRow], cost_ticks: int = 0, tick_size: float = TICK_SIZE) -> list[float]:
+def control_r(
+    rows: list[EventRow],
+    cost_ticks: int = 0,
+    tick_size: float = TICK_SIZE,
+    entry_mode: str = T3,
+) -> list[float]:
     """Control R-multiples, optionally re-costed.
 
     Re-costing is analytic rather than a re-simulation: under the first-order
@@ -66,8 +80,8 @@ def control_r(rows: list[EventRow], cost_ticks: int = 0, tick_size: float = TICK
     unchanged. That makes the §4.3 cost curve cheap enough to always print.
     """
     out: list[float] = []
-    for row in evaluable(rows):
-        result = row.control
+    for row in evaluable(rows, entry_mode):
+        result = row.outcome(entry_mode)
         adjustment = (
             (cost_ticks * tick_size) / result.risk_price
             if cost_ticks and result.risk_price > 0
@@ -86,26 +100,34 @@ class Baseline:
     events_traded: int
     rejections: dict[str, int]
     by_event_type: dict[str, MeanEstimate] = field(default_factory=dict)
+    entry_mode: str = T3
 
     @property
     def health(self) -> str:
         return sample_health(self.estimate.n)
 
 
-def control_baseline(rows: list[EventRow], resamples: int = 10_000) -> Baseline:
-    traded = evaluable(rows)
+def control_baseline(
+    rows: list[EventRow],
+    resamples: int = 10_000,
+    entry_mode: str = T3,
+) -> Baseline:
+    traded = evaluable(rows, entry_mode)
     rejections: dict[str, int] = {}
     for row in rows:
-        if row.is_evaluable:
+        result = row.outcome(entry_mode)
+        if result.traded and not math.isnan(result.r_multiple):
             continue
-        rejections[row.control.exit_reason] = rejections.get(row.control.exit_reason, 0) + 1
+        rejections[result.exit_reason] = rejections.get(result.exit_reason, 0) + 1
 
     by_type: dict[str, list[float]] = {}
     for row in traded:
-        by_type.setdefault(row.event_type, []).append(row.control.r_multiple)
+        by_type.setdefault(row.event_type, []).append(row.outcome(entry_mode).r_multiple)
 
     return Baseline(
-        estimate=bootstrap_mean([r.control.r_multiple for r in traded], resamples=resamples),
+        estimate=bootstrap_mean(
+            [r.outcome(entry_mode).r_multiple for r in traded], resamples=resamples
+        ),
         events_total=len(rows),
         events_traded=len(traded),
         rejections=rejections,
@@ -113,6 +135,7 @@ def control_baseline(rows: list[EventRow], resamples: int = 10_000) -> Baseline:
             name: bootstrap_mean(values, resamples=resamples)
             for name, values in sorted(by_type.items())
         },
+        entry_mode=entry_mode,
     )
 
 
@@ -127,6 +150,7 @@ class AblationRow:
     verdict: str
     recommendation: str
     retained_share: float
+    causality_note: str = ""
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -144,6 +168,7 @@ class AblationRow:
             "verdict": self.verdict,
             "recommendation": self.recommendation,
             "sample_health": sample_health(self.estimate.n),
+            "causality_note": self.causality_note,
         }
 
 
@@ -171,9 +196,27 @@ def ablate_one(
     threshold: float,
     baseline: Baseline,
     resamples: int = 10_000,
+    entry_mode: str = T3,
 ) -> AblationRow:
-    survivors = [row for row in evaluable(rows) if filt.passes(row, threshold)]
-    estimate = bootstrap_mean([r.control.r_multiple for r in survivors], resamples=resamples)
+    """One filter, alone, on top of the control.
+
+    A filter that is not causal under `entry_mode` is never scored. It returns a
+    LOOKAHEAD row instead, carrying the reason, so the report shows the gap
+    rather than hiding it — an omitted line looks like an oversight, and a
+    scored line would be a lie.
+    """
+    if not filt.is_causal_under(entry_mode):
+        empty = bootstrap_mean([], resamples=1)
+        return AblationRow(
+            filter_key=filt.key, label=filt.label, v1_claim=filt.v1_claim,
+            threshold=float("nan"), estimate=empty, delta_mean=float("nan"),
+            verdict=LOOKAHEAD, recommendation=NOT_EVALUABLE,
+            retained_share=float("nan"), causality_note=filt.causality_note,
+        )
+    survivors = [row for row in evaluable(rows, entry_mode) if filt.passes(row, threshold)]
+    estimate = bootstrap_mean(
+        [r.outcome(entry_mode).r_multiple for r in survivors], resamples=resamples
+    )
     outcome = verdict(estimate, baseline.estimate.ci)
     return AblationRow(
         filter_key=filt.key,
@@ -242,6 +285,7 @@ def sweep_threshold(
     filt: Filter,
     baseline: Baseline,
     resamples: int = 2_000,
+    entry_mode: str = T3,
 ) -> Sweep:
     """Mean R against threshold, plus a verdict on the curve's shape.
 
@@ -258,12 +302,12 @@ def sweep_threshold(
     threshold that clears the control on its own confidence bound — the same
     bar `verdict` applies — before the shape is believed.
     """
-    usable = evaluable(rows)
+    usable = evaluable(rows, entry_mode)
     points: list[SweepPoint] = []
     for threshold in filt.sweep:
         survivors = [row for row in usable if filt.passes(row, threshold)]
         estimate = bootstrap_mean(
-            [r.control.r_multiple for r in survivors], resamples=resamples
+            [r.outcome(entry_mode).r_multiple for r in survivors], resamples=resamples
         )
         points.append(
             SweepPoint(threshold, estimate.n, estimate.mean, estimate.ci.low, estimate.ci.high)
@@ -354,6 +398,7 @@ def beta_regime_table(
     rows: list[EventRow],
     window: int = 90,
     resamples: int = 5_000,
+    entry_mode: str = T3,
 ) -> BetaRegimeTable:
     """Split events by pre-event beta sign and R² tercile; compare mean R.
 
@@ -363,7 +408,7 @@ def beta_regime_table(
     negative result that invalidates the central thesis of v2, and this
     function reports it in the same words either way.
     """
-    usable = [row for row in evaluable(rows) if not math.isnan(beta_at(row, window))]
+    usable = [row for row in evaluable(rows, entry_mode) if not math.isnan(beta_at(row, window))]
     if len(usable) < MIN_EVALUABLE:
         return BetaRegimeTable(
             window, (float("nan"), float("nan")), [], "UNTESTED",
@@ -388,7 +433,7 @@ def beta_regime_table(
 
     buckets: list[RegimeBucket] = []
     for name, members in sorted(grouped.items()):
-        values = [m.control.r_multiple for m in members]
+        values = [m.outcome(entry_mode).r_multiple for m in members]
         agreed = [m for m in members if m.impulse_dir != 0]
         accuracy = (
             sum(1 for m in agreed if m.impulse_dir == m.predicted_dir) / len(agreed)
@@ -452,7 +497,12 @@ class WalkForward:
     note: str
 
 
-def walk_forward(rows: list[EventRow], calibration_share: float = 0.60, resamples: int = 5_000) -> WalkForward:
+def walk_forward(
+    rows: list[EventRow],
+    calibration_share: float = 0.60,
+    resamples: int = 5_000,
+    entry_mode: str = T3,
+) -> WalkForward:
     """Chronological 60/40 split (§4.3). Never shuffled.
 
     A random split of event-study rows leaks the future into the calibration
@@ -460,14 +510,14 @@ def walk_forward(rows: list[EventRow], calibration_share: float = 0.60, resample
     regime. A large gap between the two halves means the constants were fit
     rather than found.
     """
-    traded = sorted(evaluable(rows), key=lambda r: r.ts_utc)
+    traded = sorted(evaluable(rows, entry_mode), key=lambda r: r.ts_utc)
     if len(traded) < 2:
         nan_estimate = bootstrap_mean([], resamples=resamples)
         return WalkForward(nan_estimate, nan_estimate, "n/a", float("nan"), "Too few events to split.")
     cut = max(1, int(len(traded) * calibration_share))
     head, tail = traded[:cut], traded[cut:]
-    first = bootstrap_mean([r.control.r_multiple for r in head], resamples=resamples)
-    second = bootstrap_mean([r.control.r_multiple for r in tail], resamples=resamples)
+    first = bootstrap_mean([r.outcome(entry_mode).r_multiple for r in head], resamples=resamples)
+    second = bootstrap_mean([r.outcome(entry_mode).r_multiple for r in tail], resamples=resamples)
     gap = first.mean - second.mean
     note = (
         "Out-of-sample mean R is within the calibration interval; nothing here "
@@ -483,6 +533,7 @@ def run_all_ablations(
     rows: list[EventRow],
     baseline: Baseline,
     resamples: int = 5_000,
+    entry_mode: str = T3,
 ) -> tuple[list[AblationRow], list[Sweep]]:
     """Every filter, at every swept threshold, against the control.
 
@@ -494,18 +545,100 @@ def run_all_ablations(
     ablations: list[AblationRow] = []
     sweeps: list[Sweep] = []
     for filt in FILTERS:
-        if filt.is_boolean:
-            ablations.append(ablate_one(rows, filt, 0.0, baseline, resamples=resamples))
+        if not filt.is_causal_under(entry_mode):
+            ablations.append(ablate_one(rows, filt, 0.0, baseline, entry_mode=entry_mode))
             continue
-        sweep = sweep_threshold(rows, filt, baseline, resamples=max(1_000, resamples // 3))
+        if filt.is_boolean:
+            ablations.append(
+                ablate_one(rows, filt, 0.0, baseline, resamples=resamples, entry_mode=entry_mode)
+            )
+            continue
+        sweep = sweep_threshold(
+            rows, filt, baseline, resamples=max(1_000, resamples // 3), entry_mode=entry_mode
+        )
         sweeps.append(sweep)
         threshold = (
             sweep.recommended
             if not math.isnan(sweep.recommended)
             else filt.sweep[len(filt.sweep) // 2]
         )
-        ablations.append(ablate_one(rows, filt, threshold, baseline, resamples=resamples))
+        ablations.append(
+            ablate_one(rows, filt, threshold, baseline, resamples=resamples, entry_mode=entry_mode)
+        )
     return ablations, sweeps
+
+
+@dataclass(frozen=True)
+class EntryModeComparison:
+    """§3.4, asked causally: does waiting for the break beat entering at T+3?
+
+    The pullback, origin-hold and breakout conditions cannot be tested as
+    filters on a T+3 entry without reading the future. As the entry rule itself
+    they are perfectly testable, and this is the comparison that answers the
+    question v1's whole price-action stack is making.
+    """
+
+    control: MeanEstimate
+    breakout: MeanEstimate
+    control_on_shared: MeanEstimate
+    breakout_on_shared: MeanEstimate
+    shared_events: int
+    verdict: str
+    note: str
+
+
+def entry_mode_comparison(rows: list[EventRow], resamples: int = 5_000) -> EntryModeComparison:
+    """Compare the two entry rules, both overall and on the events both traded.
+
+    The paired comparison is the informative one. The delayed entry declines
+    every event where no break occurred, so its unpaired mean is measured on a
+    different, self-selected set of events; restricting both rules to the
+    events they *both* traded removes that selection and asks only about
+    timing.
+    """
+    control_values = [r.control.r_multiple for r in evaluable(rows, T3)]
+    breakout_values = [r.control_breakout.r_multiple for r in evaluable(rows, BREAKOUT)]
+    shared = [r for r in rows if r.is_evaluable and r.is_evaluable_breakout]
+
+    control_shared = bootstrap_mean([r.control.r_multiple for r in shared], resamples=resamples)
+    breakout_shared = bootstrap_mean(
+        [r.control_breakout.r_multiple for r in shared], resamples=resamples
+    )
+
+    if len(shared) < MIN_EVALUABLE:
+        verdict, note = "UNDERPOWERED", (
+            f"Only {len(shared)} events were traded by both rules. The delayed entry "
+            "declines everything without a break of structure, so at this sample size "
+            "the two rules cannot be separated from the events they each chose."
+        )
+    elif breakout_shared.ci.low > control_shared.ci.high:
+        verdict, note = "BREAKOUT WINS", (
+            "On the events both rules traded, waiting for the break beat entering at "
+            "T+3 with non-overlapping intervals. v1's price-action stack is earning "
+            "its place as an entry rule, whatever the individual filters do."
+        )
+    elif control_shared.ci.low > breakout_shared.ci.high:
+        verdict, note = "CONTROL WINS", (
+            "On the events both rules traded, entering at T+3 beat waiting for the "
+            "break. v1's pullback-and-break machinery is costing edge, not adding it, "
+            "and v2 should enter at T+3."
+        )
+    else:
+        verdict, note = "INDISTINGUISHABLE", (
+            "The two entry rules cannot be separated on the events they both traded. "
+            "Prefer the control: it is the simpler rule and it has no thresholds to "
+            "calibrate, so it spends none of the parameter budget."
+        )
+
+    return EntryModeComparison(
+        control=bootstrap_mean(control_values, resamples=resamples),
+        breakout=bootstrap_mean(breakout_values, resamples=resamples),
+        control_on_shared=control_shared,
+        breakout_on_shared=breakout_shared,
+        shared_events=len(shared),
+        verdict=verdict,
+        note=note,
+    )
 
 
 @dataclass(frozen=True)

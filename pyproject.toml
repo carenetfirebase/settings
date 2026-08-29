@@ -39,11 +39,14 @@ invest = "invest.cli:app"
 packages = ["src/invest"]
 
 [tool.pytest.ini_options]
-# The AURUM-NY PRIME validation suite is standard-library only and needs no
-# database, so it runs whether or not the platform's own dependencies are
-# installed.
-testpaths = ["tests", "strategies/aurum_ny_prime/validation/tests"]
-pythonpath = ["strategies/aurum_ny_prime"]
+# The strategy research suites are standard-library only and need no database,
+# so they run whether or not the platform's own dependencies are installed.
+testpaths = [
+  "tests",
+  "strategies/aurum_ny_prime/validation/tests",
+  "strategies/hermicane/phase0/tests",
+]
+pythonpath = ["strategies/aurum_ny_prime", "strategies/hermicane"]
 
 [tool.ruff]
 line-length = 100

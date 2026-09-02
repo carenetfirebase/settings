@@ -1,0 +1,4 @@
+.dart_tool/
+build/
+# A library package pins nothing for its consumers.
+pubspec.lock

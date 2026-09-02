@@ -1,0 +1,1951 @@
+//@version=6
+// =============================================================================
+// CYBER MCGIVER v7 · XAUUSD 15m MULTI-SETUP OPPORTUNITY ENGINE
+// -----------------------------------------------------------------------------
+// WHAT CHANGED, AND WHY
+//
+// v6 was a single-setup instrument. It asked for HTF unanimity AND a break of
+// structure AND P1 AND P2 AND a slope inside a band AND P3 AND touch #4 AND a
+// rejection candle AND an entry trigger, every one of them a binary veto. The
+// joint probability of ten independent-ish gates is the product of ten base
+// rates, so the engine produced eleven trades in ten years. That is not a
+// tuning problem. It is an architecture problem, and loosening the trendline
+// tolerance until eleven becomes thirty would not fix it.
+//
+// v7 replaces the AND-chain with an OPPORTUNITY ENGINE:
+//
+//   * FOUR setup families run in parallel and each emits CANDIDATES.
+//       1 · Trendline third-touch continuation   (the v6 idea, preserved)
+//       2 · Liquidity sweep + reclaim
+//       3 · Breakout + retest
+//       4 · VWAP / trend-continuation pullback
+//   * Every candidate, whatever its family, enters ONE pipeline:
+//       score → risk → reward-room → execution
+//   * Non-safety conditions no longer veto. They contribute to a transparent
+//     0–100 SETUP SCORE built from ten weighted components. Every weight is an
+//     input. The score is normalised by the sum of the weights, so changing a
+//     weight re-weights the model without silently moving the tier boundaries.
+//   * A small set of conditions remain MANDATORY, and only for risk reasons:
+//     a valid structural stop, a stop no wider than N ATR, enough reward room,
+//     a fundable position size, available margin, the daily trade cap, and the
+//     daily loss cutoff. Those are not opinions about the market.
+//
+// FREQUENCY IS THE FIRST OBJECTIVE, NOT PROFITABILITY
+//
+// The design target is 1–3 legitimate entries per normal trading day, hard
+// capped at 3, typically 1.3–1.8, with few zero-trade days and no filler
+// trades. Until the sample is large enough to say anything, expectancy
+// numbers are noise. So this build is instrumented before it is optimised:
+// the dashboard shows the WHOLE funnel — raw opportunities, candidates,
+// score passes, risk/reward rejections, fills, trades — plus the score
+// distribution of EVERY candidate, taken or not, so the score threshold can
+// be re-calibrated by reading a table instead of re-running the backtest.
+//
+// WHAT THIS BUILD DELIBERATELY DOES NOT DO
+//
+//   * It does not optimise weights. The weights are research priors, stated
+//     openly, and are meant to be wrong in interesting ways.
+//   * It does not carry v6's "+0.25R MFE within 3 bars or exit" rule. That
+//     number was arbitrary. It is OFF by default and replaced by nothing: the
+//     MFE/MAE histograms in the EXITS panel exist so the replacement can be
+//     derived from data rather than invented.
+//   * It does not model a real bid/ask spread. Pine has none. Spread,
+//     slippage and commission are MODELLED costs that feed sizing and the
+//     cost-adjusted breakeven; the tester's own cost constants are
+//     declaration-time literals and the COSTS row flags any mismatch.
+//   * It does not compute significance. Counts and per-bucket statistics are
+//     computed here; resampling belongs outside Pine.
+//
+// RUN PROFILE FOR THE FIRST RESEARCH PASS
+//   OANDA:XAUUSD · 15m chart · Aug 26 2016 → Aug 26 2026 · $100,000 · LONG ONLY
+//   TradingView DEEP BACKTESTING must be enabled. A 15m chart over ten years
+//   is roughly 240,000 bars, far beyond the standard 20,000-bar history cap;
+//   without deep backtesting the test silently covers about ten months and
+//   every frequency number below is wrong. See docs/02_backtest_protocol.md.
+// =============================================================================
+
+strategy(
+     title                   = "CYBER MCGIVER v7 · XAUUSD 15m OPPORTUNITY ENGINE",
+     shorttitle              = "CM-v7",
+     overlay                 = true,
+     initial_capital         = 100000,
+     currency                = currency.USD,
+     margin_long             = 2,
+     margin_short            = 2,
+     default_qty_type        = strategy.fixed,
+     default_qty_value       = 1,
+     pyramiding              = 0,
+     calc_on_every_tick      = false,
+     calc_on_order_fills     = false,
+     process_orders_on_close = false,
+     use_bar_magnifier       = true,
+     fill_orders_on_standard_ohlc = true,
+     close_entries_rule      = "ANY",
+     commission_type         = strategy.commission.cash_per_contract,
+     commission_value        = 0.035,
+     slippage                = 25,
+     max_labels_count        = 500,
+     max_lines_count         = 500,
+     max_boxes_count         = 100,
+     max_bars_back           = 2000)
+
+// Tester cost constants restated so the dashboard can verify them against the
+// modelled costs. slippage is TICKS per side; commission_value is CASH PER
+// CONTRACT per side, and one contract is one ounce.
+float TESTER_SLIP_TICKS  = 25.0
+float TESTER_COMM_PER_OZ = 0.035
+
+// =============================================================================
+// 0. CONSTANTS
+// =============================================================================
+
+// --- setup families ----------------------------------------------------------
+int FAM_TL = 0      // trendline third-touch continuation
+int FAM_SW = 1      // liquidity sweep + reclaim
+int FAM_BR = 2      // breakout + retest
+int FAM_VW = 3      // VWAP / trend continuation pullback
+int N_FAM  = 4
+
+// --- trendline family state machine -----------------------------------------
+int TL_WAIT_BOS  = 0
+int TL_WAIT_P1   = 1
+int TL_WAIT_P2   = 2
+int TL_CANDIDATE = 3
+int TL_CONFIRMED = 4
+
+// --- sessions ----------------------------------------------------------------
+int SE_ASIA = 0
+int SE_LDN  = 1
+int SE_MID  = 2
+int SE_NY   = 3
+int SE_LATE = 4
+int N_SESS  = 5
+
+// --- score buckets, fixed research boundaries --------------------------------
+// 0: <72 (never traded)  1: 72-74  2: 75-77  3: 78-80
+// 4: 81-84              5: 85-89   6: 90-94  7: 95-100
+int N_SCORE = 8
+
+// --- quality tiers -----------------------------------------------------------
+int TIER_NONE = 0
+int TIER_BP   = 1
+int TIER_A    = 2
+int TIER_AP   = 3
+int N_TIER    = 4
+
+// --- histograms --------------------------------------------------------------
+int N_RHIST   = 28      // R multiple, -3.0 .. +10.0 in 0.5 steps, + under/overflow
+int N_HHIST   = 25      // bars held, 0 .. 119 in steps of 5, + overflow
+int N_EHIST   = 21      // MFE/MAE in R, 0 .. 5.0 in 0.25 steps, + overflow
+int N_DHIST   = 5       // trades per day: 0, 1, 2, 3, >3
+
+// --- input groups ------------------------------------------------------------
+string G_MODE  = "01 · Mode and direction"
+string G_FAM   = "02 · Setup families"
+string G_HTF   = "03 · Higher-timeframe regime"
+string G_TL    = "04 · Family 1 · trendline third touch"
+string G_SW    = "05 · Family 2 · liquidity sweep + reclaim"
+string G_BR    = "06 · Family 3 · breakout + retest"
+string G_VW    = "07 · Family 4 · VWAP continuation pullback"
+string G_WGT   = "08 · Score weights (normalised to 100)"
+string G_QUAL  = "09 · Score component shaping"
+string G_TIER  = "10 · Quality tiers and tier risk"
+string G_DAY   = "11 · Daily frequency and daily risk"
+string G_INDEP = "12 · Setup independence"
+string G_RISK  = "13 · Risk, sizing, margin"
+string G_COST  = "14 · Modelled costs"
+string G_EXIT  = "15 · Exit model"
+string G_SESS  = "16 · Sessions"
+string G_UI    = "17 · Panels, drawing, logging"
+
+// =============================================================================
+// 1. INPUTS
+// =============================================================================
+
+// ---- 1.1 mode ---------------------------------------------------------------
+string i_dirMode = input.string("Long only", "Direction under test", options = ["Long only", "Short only", "Both"], group = G_MODE, tooltip = "First research pass is LONG ONLY, per the objective. Shorts are implemented symmetrically but are researched separately; a combined row mixes two different edges into one meaningless average.")
+
+// ---- 1.2 setup families -----------------------------------------------------
+bool i_famTL = input.bool(true, "Family 1 · trendline third-touch continuation", group = G_FAM)
+bool i_famSW = input.bool(true, "Family 2 · liquidity sweep + reclaim",          group = G_FAM)
+bool i_famBR = input.bool(true, "Family 3 · breakout + retest",                  group = G_FAM)
+bool i_famVW = input.bool(true, "Family 4 · VWAP continuation pullback",         group = G_FAM)
+string i_tieBreak = input.string("Highest score", "When two families fire on the same bar", options = ["Highest score", "Lowest family index"], group = G_FAM, tooltip = "Only one entry per bar is ever taken. Every candidate is still counted in the funnel and in the candidate score distribution.")
+
+// ---- 1.3 higher-timeframe regime -------------------------------------------
+// The regime is SCORED, not vetoed. The only hard rule is a configurable floor
+// that stops the engine from buying into an unambiguous higher-timeframe
+// downtrend. v6 demanded 1D and 4H and 1H unanimity, which is roughly a 20%
+// base rate on its own, before any structure condition was applied.
+string i_tfD    = input.timeframe("D",   "Trend timeframe 1", group = G_HTF)
+string i_tf4    = input.timeframe("240", "Trend timeframe 2", group = G_HTF)
+string i_tf1    = input.timeframe("60",  "Trend timeframe 3", group = G_HTF)
+int   i_dFast   = input.int(50,  "1D fast EMA", minval = 2, group = G_HTF)
+int   i_dSlow   = input.int(200, "1D slow EMA", minval = 3, group = G_HTF)
+int   i_dSlope  = input.int(5,   "1D slope lookback (bars)", minval = 1, group = G_HTF)
+int   i_h4Fast  = input.int(20,  "4H fast EMA", minval = 2, group = G_HTF)
+int   i_h4Slow  = input.int(50,  "4H slow EMA", minval = 3, group = G_HTF)
+int   i_h4Slope = input.int(3,   "4H slope lookback (bars)", minval = 1, group = G_HTF)
+int   i_h1Fast  = input.int(20,  "1H fast EMA", minval = 2, group = G_HTF)
+int   i_h1Slow  = input.int(50,  "1H slow EMA", minval = 3, group = G_HTF)
+int   i_h1Slope = input.int(3,   "1H slope lookback (bars)", minval = 1, group = G_HTF)
+float i_wD      = input.float(0.45, "Regime weight · 1D", minval = 0.0, maxval = 1.0, step = 0.05, group = G_HTF)
+float i_wH4     = input.float(0.35, "Regime weight · 4H", minval = 0.0, maxval = 1.0, step = 0.05, group = G_HTF)
+float i_wH1     = input.float(0.20, "Regime weight · 1H", minval = 0.0, maxval = 1.0, step = 0.05, group = G_HTF)
+float i_regFloor = input.float(0.30, "MANDATORY regime floor (0–1)", minval = 0.0, maxval = 1.0, step = 0.05, group = G_HTF, tooltip = "Safety gate, not a quality opinion. 0.30 blocks longs only when the higher timeframes are clearly and jointly bearish. Set to 0 to remove the floor entirely and let the score carry all of it.")
+
+// ---- 1.4 family 1 · trendline ----------------------------------------------
+int   i_atrLen  = input.int(14, "ATR length (execution timeframe)", minval = 2, group = G_TL)
+int   i_pivL    = input.int(2,  "Pivot left",  minval = 1, group = G_TL)
+int   i_pivR    = input.int(2,  "Pivot right", minval = 1, group = G_TL)
+float i_bosBuf  = input.float(0.05, "BOS buffer (× ATR)", minval = 0.0, step = 0.01, group = G_TL)
+float i_minSep  = input.float(0.10, "P1→P2 minimum separation (× ATR)", minval = 0.0, step = 0.01, group = G_TL)
+float i_tlTol   = input.float(0.20, "Trendline contact tolerance (× ATR)", minval = 0.01, step = 0.01, group = G_TL, tooltip = "v6 used 0.12. Widened because contact tolerance is a measurement precision choice, not an edge; the tightness of the touch is now scored instead of vetoed.")
+float i_slopeMax = input.float(0.30, "Maximum normalised slope |m| / ATR", minval = 0.01, step = 0.01, group = G_TL)
+float i_slopeBest = input.float(0.11, "Best-quality slope |m| / ATR", minval = 0.0, step = 0.005, group = G_TL, tooltip = "Centre of the slope quality curve. v6's 0.075–0.150 research band becomes a smooth score contribution instead of a gate.")
+float i_slopeWide = input.float(0.12, "Slope quality half-width", minval = 0.01, step = 0.005, group = G_TL)
+int   i_tlBuild = input.int(500, "Build expiry after BOS (bars)", minval = 5, group = G_TL)
+int   i_tlLife  = input.int(250, "Confirmed line expiry after P3 (bars)", minval = 5, group = G_TL)
+bool  i_tlOnce  = input.bool(false, "One trade per confirmed trendline", group = G_TL, tooltip = "Off: a confirmed line keeps offering touches until it expires or price breaks it. Setup independence is enforced by the anchor rule in group 12, not by killing the line.")
+
+// ---- 1.5 family 2 · liquidity sweep + reclaim -------------------------------
+int   i_swLen   = input.int(20, "Swing-low lookback for the swept level (bars)", minval = 3, group = G_SW)
+bool  i_swPd    = input.bool(true, "Also sweep the prior day extreme", group = G_SW)
+bool  i_swSess  = input.bool(true, "Also sweep the current session extreme", group = G_SW)
+float i_swPen   = input.float(0.05, "Minimum penetration beyond the level (× ATR)", minval = 0.0, step = 0.01, group = G_SW)
+float i_swPenBest = input.float(0.35, "Best-quality penetration (× ATR)", minval = 0.01, step = 0.05, group = G_SW, tooltip = "A sweep that barely grazes the level is noise; one that runs a long way through it is a breakdown, not a sweep. Quality peaks in between.")
+float i_swPenMax = input.float(1.50, "Penetration beyond which the sweep is a breakdown (× ATR)", minval = 0.1, step = 0.1, group = G_SW)
+float i_swRec   = input.float(0.02, "Reclaim must close this far back above the level (× ATR)", minval = 0.0, step = 0.01, group = G_SW)
+int   i_swMax   = input.int(6, "Reclaim window after the sweep (bars)", minval = 1, group = G_SW)
+
+// ---- 1.6 family 3 · breakout + retest ---------------------------------------
+int   i_brLen   = input.int(30, "Range lookback for the broken level (bars)", minval = 5, group = G_BR)
+float i_brBuf   = input.float(0.05, "Breakout buffer beyond the level (× ATR)", minval = 0.0, step = 0.01, group = G_BR)
+float i_brTol   = input.float(0.30, "Retest tolerance around the level (× ATR)", minval = 0.01, step = 0.01, group = G_BR)
+float i_brFail  = input.float(0.60, "Retest fails if price closes this far back inside (× ATR)", minval = 0.05, step = 0.05, group = G_BR)
+int   i_brMax   = input.int(20, "Retest window after the breakout (bars)", minval = 1, group = G_BR)
+
+// ---- 1.7 family 4 · VWAP continuation pullback ------------------------------
+string i_vwAnchor = input.string("Session", "VWAP anchor", options = ["Session", "Day"], group = G_VW)
+int   i_vwEma   = input.int(20, "Secondary pullback reference EMA", minval = 2, group = G_VW)
+float i_vwTol   = input.float(0.45, "Pullback must reach within this of the reference (× ATR)", minval = 0.01, step = 0.05, group = G_VW)
+float i_vwFail  = input.float(1.20, "Pullback fails if it closes this far beyond the reference (× ATR)", minval = 0.1, step = 0.1, group = G_VW)
+int   i_vwMax   = input.int(8, "Trigger window after touching the reference (bars)", minval = 1, group = G_VW)
+float i_vwMinLeg = input.float(1.00, "Minimum prior leg before the pullback (× ATR)", minval = 0.0, step = 0.1, group = G_VW, tooltip = "Stops the family firing inside a flat range where every bar is 'near VWAP'.")
+
+// ---- 1.8 score weights ------------------------------------------------------
+// These are RESEARCH PRIORS. They are not optimised and are not claimed to be
+// correct. The score is (sum of weight x quality) / (sum of weights) x 100, so
+// the tiers keep their meaning when a weight is changed.
+float i_wHtf   = input.float(15.0, "Weight · higher-timeframe regime",     minval = 0.0, step = 1.0, group = G_WGT)
+float i_wVwap  = input.float(10.0, "Weight · VWAP alignment / location",   minval = 0.0, step = 1.0, group = G_WGT)
+float i_wStruct = input.float(15.0, "Weight · market structure / BOS",     minval = 0.0, step = 1.0, group = G_WGT)
+float i_wPull  = input.float(15.0, "Weight · pullback / trendline quality", minval = 0.0, step = 1.0, group = G_WGT)
+float i_wSweep = input.float(10.0, "Weight · liquidity sweep / reclaim",   minval = 0.0, step = 1.0, group = G_WGT)
+float i_wMom   = input.float(10.0, "Weight · momentum / rejection candle", minval = 0.0, step = 1.0, group = G_WGT)
+float i_wDxy   = input.float(10.0, "Weight · DXY confluence",              minval = 0.0, step = 1.0, group = G_WGT)
+float i_wAtr   = input.float(5.0,  "Weight · ATR / volatility environment", minval = 0.0, step = 1.0, group = G_WGT)
+float i_wRoom  = input.float(5.0,  "Weight · available reward room",       minval = 0.0, step = 1.0, group = G_WGT)
+float i_wSessQ = input.float(5.0,  "Weight · session / liquidity quality", minval = 0.0, step = 1.0, group = G_WGT)
+
+// ---- 1.9 score component shaping -------------------------------------------
+float i_neutralQ = input.float(0.50, "Neutral quality for a component a family cannot measure", minval = 0.0, maxval = 1.0, step = 0.05, group = G_QUAL, tooltip = "A sweep setup has no trendline, and a trendline setup has no sweep. Scoring the missing component as 0 would make every family permanently uncompetitive against its own weights; scoring it neutral keeps families comparable.")
+int   i_bosFresh = input.int(60, "BOS is fully fresh for this many bars", minval = 1, group = G_QUAL)
+float i_bosStrong = input.float(1.50, "BOS displacement scored as fully strong (× ATR)", minval = 0.1, step = 0.1, group = G_QUAL)
+float i_vwBest  = input.float(1.00, "Best distance above VWAP (× ATR)", minval = 0.0, step = 0.1, group = G_QUAL)
+float i_vwFade  = input.float(4.00, "VWAP quality reaches zero this much further out (× ATR)", minval = 0.1, step = 0.5, group = G_QUAL)
+string i_dxySym = input.string("TVC:DXY", "DXY symbol", group = G_QUAL)
+int   i_dxyLook = input.int(8, "DXY change lookback (execution bars)", minval = 1, group = G_QUAL)
+float i_dxyScale = input.float(1.00, "DXY move scored as full confluence (× its own ATR)", minval = 0.1, step = 0.1, group = G_QUAL)
+int   i_atrRef  = input.int(200, "ATR reference average (bars)", minval = 10, group = G_QUAL)
+float i_atrLo   = input.float(0.70, "Volatility quality floor (ATR / reference)", minval = 0.05, step = 0.05, group = G_QUAL)
+float i_atrHi   = input.float(1.60, "Volatility quality ceiling (ATR / reference)", minval = 0.2, step = 0.05, group = G_QUAL)
+float i_atrShock = input.float(2.75, "MANDATORY volatility shock veto (ATR / reference)", minval = 0.5, step = 0.25, group = G_QUAL, tooltip = "Safety gate. A news-spike bar prices the stop far from anything structural and the size calculation stops meaning what it says.")
+float i_pullBest = input.float(0.90, "Best pullback depth from the leg high (× ATR)", minval = 0.1, step = 0.1, group = G_QUAL)
+float i_pullWide = input.float(1.60, "Pullback depth quality half-width (× ATR)", minval = 0.1, step = 0.1, group = G_QUAL)
+float i_qSessAsia = input.float(0.35, "Session quality · Asia",     minval = 0.0, maxval = 1.0, step = 0.05, group = G_QUAL)
+float i_qSessLdn  = input.float(1.00, "Session quality · London",   minval = 0.0, maxval = 1.0, step = 0.05, group = G_QUAL)
+float i_qSessMid  = input.float(0.80, "Session quality · LDN/NY transition", minval = 0.0, maxval = 1.0, step = 0.05, group = G_QUAL)
+float i_qSessNy   = input.float(1.00, "Session quality · New York", minval = 0.0, maxval = 1.0, step = 0.05, group = G_QUAL)
+float i_qSessLate = input.float(0.25, "Session quality · late / rollover", minval = 0.0, maxval = 1.0, step = 0.05, group = G_QUAL)
+float i_momFloor  = input.float(0.30, "MANDATORY minimum trigger-bar close location", minval = 0.0, maxval = 1.0, step = 0.05, group = G_QUAL, tooltip = "Safety gate against entering on a bar that closed on its low. Everything above this floor is scored, not vetoed.")
+
+// ---- 1.10 tiers and tier risk -----------------------------------------------
+float i_thrBP  = input.float(72.0, "Minimum score to trade (B+ floor)", minval = 0.0, maxval = 100.0, step = 0.5, group = G_TIER)
+float i_thrA   = input.float(78.0, "A tier floor",  minval = 0.0, maxval = 100.0, step = 0.5, group = G_TIER)
+float i_thrAP  = input.float(85.0, "A+ tier floor", minval = 0.0, maxval = 100.0, step = 0.5, group = G_TIER)
+float i_riskBP = input.float(0.25, "Risk % · B+ tier", minval = 0.01, maxval = 1.0, step = 0.05, group = G_TIER)
+float i_riskA  = input.float(0.40, "Risk % · A tier",  minval = 0.01, maxval = 1.0, step = 0.05, group = G_TIER)
+float i_riskAP = input.float(0.50, "Risk % · A+ tier", minval = 0.01, maxval = 1.0, step = 0.05, group = G_TIER)
+
+// ---- 1.11 daily frequency and daily risk ------------------------------------
+int   i_maxPerDay = input.int(3, "HARD maximum completed entries per day", minval = 1, maxval = 10, group = G_DAY)
+float i_dayLoss   = input.float(1.25, "Daily loss cutoff (% of the day's opening equity)", minval = 0.1, maxval = 10.0, step = 0.05, group = G_DAY, tooltip = "Research range 1.0–1.5%. On breach, no further entries that day; open positions are still managed to their own exits.")
+float i_scale2    = input.float(0.80, "Risk multiplier · 2nd trade of the day", minval = 0.1, maxval = 1.0, step = 0.05, group = G_DAY)
+float i_scale3    = input.float(0.60, "Risk multiplier · 3rd trade of the day", minval = 0.1, maxval = 1.0, step = 0.05, group = G_DAY)
+bool  i_scaleDD   = input.bool(true, "Also scale risk by the remaining daily loss budget", group = G_DAY, tooltip = "A trade is never allowed to risk more than the daily loss budget that is still unspent, so the cutoff cannot be jumped over in one trade.")
+int   i_minDayBars = input.int(60, "Bars required for a day to count as a normal trading day", minval = 1, group = G_DAY, tooltip = "XAUUSD runs about 92 fifteen-minute bars on a full day. Holidays, half sessions and the Sunday fragment fall below this and are excluded from the frequency statistics, which would otherwise be diluted by days nobody trades.")
+
+// ---- 1.12 setup independence -------------------------------------------------
+int   i_cooldown  = input.int(4, "Cooldown after a trade closes (bars)", minval = 0, group = G_INDEP)
+int   i_pivotsAfter = input.int(1, "Confirmed pivots required after an exit", minval = 0, group = G_INDEP, tooltip = "Forces a genuine structural event between trades. Without it the engine can exit, re-arm on the same unchanged structure and re-enter, which manufactures trade count out of one idea.")
+bool  i_anchorRule = input.bool(true, "A family may not re-trade the same anchor", group = G_INDEP, tooltip = "Each candidate carries the bar index of the structure that produced it: the trendline's P2 bar, the swept low, the breakout bar, the pullback leg's swing high. Trading it once consumes it.")
+
+// ---- 1.13 risk, sizing, margin ----------------------------------------------
+float i_riskCeil = input.float(1.00, "HARD per-trade risk ceiling (% of equity)", minval = 0.01, maxval = 5.0, step = 0.05, group = G_RISK, tooltip = "A ceiling, never a default. Tier risk is what is actually used.")
+float i_stopBuf  = input.float(0.15, "Structural stop buffer (× ATR)", minval = 0.0, step = 0.01, group = G_RISK)
+float i_stopMin  = input.float(0.25, "Minimum stop distance (× ATR)", minval = 0.05, step = 0.05, group = G_RISK, tooltip = "A stop closer than this is inside the noise; the trade is a coin flip against the spread.")
+float i_stopMax  = input.float(3.00, "MANDATORY maximum stop distance (× ATR)", minval = 0.1, step = 0.1, group = G_RISK)
+float i_minRoomR = input.float(1.50, "MANDATORY minimum reward room (R)", minval = 0.1, step = 0.1, group = G_RISK)
+float i_roomFull = input.float(4.00, "Reward room scored as full (R)", minval = 0.5, step = 0.5, group = G_RISK)
+int   i_roomLen  = input.int(50, "Reward-room structure lookback (bars)", minval = 5, group = G_RISK)
+float i_roomSky  = input.float(5.00, "Reward room credited when price is beyond all recent structure (R)", minval = 0.5, step = 0.5, group = G_RISK)
+float i_contract = input.float(100.0, "Contract size (oz per 1.00 lot)", minval = 1.0, group = G_RISK)
+float i_minLot   = input.float(0.01, "Minimum lot", minval = 0.001, step = 0.001, group = G_RISK)
+float i_lotStep  = input.float(0.01, "Lot step", minval = 0.001, step = 0.001, group = G_RISK)
+float i_leverage = input.float(50.0, "Leverage (1:N)", minval = 1.0, group = G_RISK)
+float i_marginUse = input.float(100.0, "Maximum % of equity usable as margin", minval = 1.0, maxval = 100.0, group = G_RISK)
+int   i_armBars  = input.int(3, "Armed order expiry (bars)", minval = 1, group = G_RISK)
+
+// ---- 1.14 modelled costs -----------------------------------------------------
+float i_spread   = input.float(0.30, "Modelled spread ($/oz)", minval = 0.0, step = 0.05, group = G_COST)
+float i_slipIn   = input.float(0.10, "Modelled entry slippage ($/oz)", minval = 0.0, step = 0.05, group = G_COST)
+float i_slipOut  = input.float(0.10, "Modelled exit slippage ($/oz)", minval = 0.0, step = 0.05, group = G_COST)
+float i_commLot  = input.float(7.00, "Commission ($ per lot, round turn)", minval = 0.0, step = 0.5, group = G_COST)
+float i_commPct  = input.float(0.00, "Commission (% of notional, per side)", minval = 0.0, step = 0.001, group = G_COST)
+
+// ---- 1.15 exit model ---------------------------------------------------------
+float i_partialR = input.float(1.20, "Partial target (R)", minval = 0.1, step = 0.1, group = G_EXIT)
+float i_partialP = input.float(50.0, "Partial size (% of position)", minval = 1.0, maxval = 99.0, step = 1.0, group = G_EXIT)
+float i_trailAtr = input.float(2.00, "Runner ATR trail (× ATR)", minval = 0.1, step = 0.1, group = G_EXIT)
+float i_trailBuf = input.float(0.10, "Runner structural trail buffer (× ATR)", minval = 0.0, step = 0.01, group = G_EXIT)
+float i_maxR     = input.float(10.0, "Runner hard ceiling (R)", minval = 1.0, step = 0.5, group = G_EXIT)
+bool  i_useFollow = input.bool(false, "Enable the v6 follow-through timeout", group = G_EXIT, tooltip = "OFF by default and deliberately so. The +0.25R-within-3-bars rule was an invented number with no evidence behind it. Leave it off, read the MFE/MAE histograms in the EXITS panel, and derive a replacement from the distribution. The switch exists only so the old behaviour can be reproduced for comparison.")
+int   i_followBars = input.int(3, "Follow-through window (bars)", minval = 1, maxval = 40, group = G_EXIT)
+float i_followR  = input.float(0.25, "Minimum MFE inside the window (R)", minval = 0.0, step = 0.05, group = G_EXIT)
+
+// ---- 1.16 sessions ------------------------------------------------------------
+string i_tz      = input.string("America/New_York", "Session timezone", group = G_SESS)
+string i_asiaBeg = input.string("20:00", "Asia start", group = G_SESS)
+string i_asiaEnd = input.string("02:00", "Asia end / London start", group = G_SESS)
+string i_ldnEnd  = input.string("08:00", "London end / transition start", group = G_SESS)
+string i_nyBeg   = input.string("09:30", "Transition end / NY start", group = G_SESS)
+string i_nyEnd   = input.string("16:00", "NY end", group = G_SESS)
+bool   i_sessVeto = input.bool(false, "Treat session as a hard filter", group = G_SESS, tooltip = "Off: session is a scored component and an analytical label. On: any session whose quality is below the threshold below is vetoed outright. Off is the research default — vetoing sessions is exactly the kind of binary gate that produced eleven trades.")
+float  i_sessMinQ = input.float(0.30, "Minimum session quality when the hard filter is on", minval = 0.0, maxval = 1.0, step = 0.05, group = G_SESS)
+
+// ---- 1.17 panels --------------------------------------------------------------
+bool i_draw     = input.bool(false, "Draw structure, trendlines and trade markers", group = G_UI, tooltip = "OFF by default. At the intended trade frequency a ten-year run produces thousands of trades and Pine's 500-label ceiling makes the chart both wrong and slow. Turn it on only for short visual inspections.")
+bool i_tblState = input.bool(true,  "Panel · live state and diagnostics", group = G_UI)
+bool i_tblFun   = input.bool(true,  "Panel · decision funnel", group = G_UI)
+bool i_tblFreq  = input.bool(true,  "Panel · daily frequency", group = G_UI)
+bool i_tblScore = input.bool(true,  "Panel · score buckets and calibration", group = G_UI)
+bool i_tblFam   = input.bool(true,  "Panel · setup family analytics", group = G_UI)
+bool i_tblPerf  = input.bool(true,  "Panel · performance", group = G_UI)
+bool i_tblExit  = input.bool(true,  "Panel · exits, MFE / MAE distribution", group = G_UI)
+bool i_tblSess  = input.bool(true,  "Panel · session breakdown", group = G_UI)
+bool i_logTrade = input.bool(false, "Write one CSV log line per closed trade", group = G_UI, tooltip = "Pine's log pane truncates long runs. Useful on a one-year slice, useless on ten years.")
+
+// =============================================================================
+// 2. HELPERS
+// =============================================================================
+// Every helper here is PURE: no `var`, no writes to globals, nothing that would
+// misbehave if it were evaluated inside request.security().
+
+f_pct(float num, float den) =>
+    den <= 0.0 ? 0.0 : num * 100.0 / den
+
+f_div(float num, float den) =>
+    den == 0.0 ? 0.0 : num / den
+
+f_clamp(float value, float lo, float hi) =>
+    math.max(lo, math.min(hi, value))
+
+f_floorStep(float value, float stepSize) =>
+    stepSize <= 0.0 ? value : math.floor(value / stepSize + 0.00000001) * stepSize
+
+f_fmt(float value, int digits) =>
+    string mask = digits == 0 ? "#" : digits == 1 ? "#.0" : digits == 3 ? "#.000" : "#.00"
+    str.tostring(value, mask)
+
+f_hm(string hhmm) =>
+    float hh = str.tonumber(str.substring(hhmm, 0, 2))
+    float mm = str.tonumber(str.substring(hhmm, 3, 5))
+    int out = int(nz(hh) * 60.0 + nz(mm))
+    out
+
+f_inWindow(int minuteOfDay, int beg, int end) =>
+    beg <= end ? (minuteOfDay >= beg and minuteOfDay < end) : (minuteOfDay >= beg or minuteOfDay < end)
+
+// A symmetric tent centred on `best`, reaching zero `width` away from it.
+// Used wherever "more is not better, and less is not better either" — slope,
+// sweep penetration, pullback depth.
+f_tent(float value, float best, float width) =>
+    width <= 0.0 ? 0.0 : f_clamp(1.0 - math.abs(value - best) / width, 0.0, 1.0)
+
+// A plateau: zero below `lo`, one above `hi`, linear between.
+f_ramp(float value, float lo, float hi) =>
+    hi <= lo ? (value >= hi ? 1.0 : 0.0) : f_clamp((value - lo) / (hi - lo), 0.0, 1.0)
+
+// A flat-topped band: full quality inside [lo, hi], fading over `fade` outside.
+f_band(float value, float lo, float hi, float fade) =>
+    value >= lo and value <= hi ? 1.0 : fade <= 0.0 ? 0.0 : value < lo ? f_clamp(1.0 - (lo - value) / fade, 0.0, 1.0) : f_clamp(1.0 - (value - hi) / fade, 0.0, 1.0)
+
+f_bump(arr, idx, value) =>
+    array.set(arr, idx, array.get(arr, idx) + value)
+
+f_get(arr, idx) =>
+    array.get(arr, idx)
+
+f_avg(float total, float count) =>
+    count <= 0.0 ? 0.0 : total / count
+
+// The 0–100 setup score. Normalising by the sum of the weights is what lets a
+// weight be changed without silently moving every tier boundary underneath it.
+f_score(float qHtf, float qVwap, float qStruct, float qPull, float qSweep, float qMom, float qDxy, float qAtr, float qRoom, float qSess, float wHtf, float wVwap, float wStruct, float wPull, float wSweep, float wMom, float wDxy, float wAtr, float wRoom, float wSess) =>
+    float wsum = wHtf + wVwap + wStruct + wPull + wSweep + wMom + wDxy + wAtr + wRoom + wSess
+    float raw = qHtf * wHtf + qVwap * wVwap + qStruct * wStruct + qPull * wPull + qSweep * wSweep + qMom * wMom + qDxy * wDxy + qAtr * wAtr + qRoom * wRoom + qSess * wSess
+    wsum <= 0.0 ? 0.0 : f_clamp(raw * 100.0 / wsum, 0.0, 100.0)
+
+// Exact risk-based sizing. Pure: no state, no global writes.
+f_lots(float riskBudget, float riskDist, float perLotCost, float contract, float stepSize, float floorLot) =>
+    float perLot = riskDist * contract + perLotCost
+    float raw = perLot <= 0.0 ? 0.0 : riskBudget / perLot
+    float lots = f_floorStep(raw, stepSize)
+    if lots * perLot > riskBudget
+        lots := f_floorStep(lots - stepSize, stepSize)
+    if lots * perLot > riskBudget
+        lots := f_floorStep(lots - stepSize, stepSize)
+    lots < floorLot ? 0.0 : lots
+
+// Median read off a fixed-width histogram. `lo` is the left edge of bucket 0
+// and `stepSize` its width; the answer is the centre of the bucket that holds
+// the 50th percentile, which is all a bucketed median can honestly claim.
+f_medHist(array<float> hist, float lo, float stepSize) =>
+    float total = 0.0
+    if array.size(hist) > 0
+        for i = 0 to array.size(hist) - 1
+            total += array.get(hist, i)
+    float cum = 0.0
+    float out = na
+    if total > 0.0 and array.size(hist) > 0
+        for i = 0 to array.size(hist) - 1
+            if na(out)
+                cum += array.get(hist, i)
+                if cum >= total / 2.0
+                    out := lo + (i + 0.5) * stepSize
+    nz(out, 0.0)
+
+// Median of a small histogram of exact integer counts (0, 1, 2, 3, 4+).
+f_medCount(array<float> hist) =>
+    float total = 0.0
+    if array.size(hist) > 0
+        for i = 0 to array.size(hist) - 1
+            total += array.get(hist, i)
+    float cum = 0.0
+    float out = na
+    if total > 0.0 and array.size(hist) > 0
+        for i = 0 to array.size(hist) - 1
+            if na(out)
+                cum += array.get(hist, i)
+                if cum >= total / 2.0
+                    out := i
+    nz(out, 0.0)
+
+f_famName(int fam) =>
+    fam == FAM_TL ? "1 Trendline" : fam == FAM_SW ? "2 Sweep" : fam == FAM_BR ? "3 Breakout" : "4 VWAP pull"
+
+f_sessName(int id) =>
+    id == SE_ASIA ? "Asia" : id == SE_LDN ? "London" : id == SE_MID ? "LDN/NY" : id == SE_NY ? "New York" : "Late"
+
+f_tierName(int t) =>
+    t == TIER_AP ? "A+" : t == TIER_A ? "A" : t == TIER_BP ? "B+" : "—"
+
+// Fixed research buckets. Bucket 0 is everything below the trade floor and is
+// populated by candidates that were never taken; it is the calibration row.
+f_scoreBucket(float s) =>
+    s < 72.0 ? 0 : s < 75.0 ? 1 : s < 78.0 ? 2 : s < 81.0 ? 3 : s < 85.0 ? 4 : s < 90.0 ? 5 : s < 95.0 ? 6 : 7
+
+f_scoreBucketName(int b) =>
+    b == 0 ? "below 72" : b == 1 ? "72–74" : b == 2 ? "75–77" : b == 3 ? "78–80" : b == 4 ? "81–84" : b == 5 ? "85–89" : b == 6 ? "90–94" : "95–100"
+
+// =============================================================================
+// 3. EXECUTION TIMEFRAME GUARD
+// =============================================================================
+
+bool   isTf15   = timeframe.isminutes and timeframe.multiplier == 15
+bool   tfOK     = isTf15
+string tfName   = isTf15 ? "15m" : timeframe.period
+string TF_ERROR = "CYBER MCGIVER v7 REQUIRES XAUUSD 15m"
+
+// =============================================================================
+// 4. ATR AND VOLATILITY ENVIRONMENT
+// =============================================================================
+
+float atr     = ta.atr(i_atrLen)
+float tick    = syminfo.mintick
+float atrRef  = ta.sma(atr, i_atrRef)
+float atrRel  = f_div(atr, nz(atrRef, atr))
+bool  atrReady = not na(atr) and atr > 0.0
+// MANDATORY safety veto: on a shock bar the structural stop is priced off a
+// range that has nothing to do with the structure the setup was built on.
+bool  atrShock = atrReady and not na(atrRef) and atrRef > 0.0 and atrRel > i_atrShock
+
+// =============================================================================
+// 5. COST MODEL
+// =============================================================================
+
+float costNotional = close * i_contract * (i_commPct / 100.0) * 2.0
+float costPerLotRT = (i_spread + i_slipIn + i_slipOut) * i_contract + i_commLot + costNotional
+float costPerOz    = f_div(costPerLotRT, i_contract)
+float impliedTicks = f_div(i_spread / 2.0 + (i_slipIn + i_slipOut) / 2.0, tick)
+float impliedCommOz = f_div(i_commLot, i_contract * 2.0)
+bool  costMismatch = math.abs(impliedTicks - TESTER_SLIP_TICKS) > 0.5 or math.abs(impliedCommOz - TESTER_COMM_PER_OZ) > 0.0005
+// Sizing passes quantity in OUNCES and assumes one unit earns one dollar per
+// one-dollar move. True for a spot XAUUSD CFD, false for some futures tickers,
+// and if it is false every dollar figure below is scaled wrong.
+bool  pointValueSuspect = math.abs(syminfo.pointvalue - 1.0) > 0.0001
+
+// =============================================================================
+// 6. SESSIONS
+// =============================================================================
+
+int mAsiaBeg = f_hm(i_asiaBeg)
+int mAsiaEnd = f_hm(i_asiaEnd)
+int mLdnEnd  = f_hm(i_ldnEnd)
+int mNyBeg   = f_hm(i_nyBeg)
+int mNyEnd   = f_hm(i_nyEnd)
+int minuteNY = hour(time, i_tz) * 60 + minute(time, i_tz)
+
+int sessionId = f_inWindow(minuteNY, mAsiaBeg, mAsiaEnd) ? SE_ASIA : f_inWindow(minuteNY, mAsiaEnd, mLdnEnd) ? SE_LDN : f_inWindow(minuteNY, mLdnEnd, mNyBeg) ? SE_MID : f_inWindow(minuteNY, mNyBeg, mNyEnd) ? SE_NY : SE_LATE
+string sessionName = f_sessName(sessionId)
+float  qSess = sessionId == SE_ASIA ? i_qSessAsia : sessionId == SE_LDN ? i_qSessLdn : sessionId == SE_MID ? i_qSessMid : sessionId == SE_NY ? i_qSessNy : i_qSessLate
+bool   sessionOK = not i_sessVeto or qSess >= i_sessMinQ
+bool   newSession = sessionId != sessionId[1]
+
+// =============================================================================
+// 7. HIGHER-TIMEFRAME REGIME — SCORED, WITH A SAFETY FLOOR
+// =============================================================================
+// Every higher-timeframe series is read with lookahead_off AND an explicit [1],
+// so only CLOSED higher-timeframe candles are ever visible.
+
+[dClose, dFast, dSlow, dFastPrev] = request.security(syminfo.tickerid, i_tfD, [close[1], ta.ema(close, i_dFast)[1], ta.ema(close, i_dSlow)[1], ta.ema(close, i_dFast)[1 + i_dSlope]], lookahead = barmerge.lookahead_off)
+[h4Close, h4Fast, h4Slow, h4FastPrev] = request.security(syminfo.tickerid, i_tf4, [close[1], ta.ema(close, i_h4Fast)[1], ta.ema(close, i_h4Slow)[1], ta.ema(close, i_h4Fast)[1 + i_h4Slope]], lookahead = barmerge.lookahead_off)
+[h1Close, h1Fast, h1Slow, h1FastPrev] = request.security(syminfo.tickerid, i_tf1, [close[1], ta.ema(close, i_h1Fast)[1], ta.ema(close, i_h1Slow)[1], ta.ema(close, i_h1Fast)[1 + i_h1Slope]], lookahead = barmerge.lookahead_off)
+
+bool htfReady = not na(dClose) and not na(dSlow) and not na(dFastPrev) and not na(h4Close) and not na(h4Slow) and not na(h4FastPrev) and not na(h1Close) and not na(h1Slow) and not na(h1FastPrev)
+
+// Each timeframe scores -1 .. +1 rather than answering a yes/no question. Three
+// conditions per timeframe, each worth a third, signed by direction.
+f_tfScore(float c, float fast, float slow, float fastPrev) =>
+    float s = 0.0
+    s += c > slow ? 1.0 : c < slow ? -1.0 : 0.0
+    s += fast > slow ? 1.0 : fast < slow ? -1.0 : 0.0
+    s += fast > fastPrev ? 1.0 : fast < fastPrev ? -1.0 : 0.0
+    s / 3.0
+
+float dScore  = htfReady ? f_tfScore(dClose, dFast, dSlow, dFastPrev) : 0.0
+float h4Score = htfReady ? f_tfScore(h4Close, h4Fast, h4Slow, h4FastPrev) : 0.0
+float h1Score = htfReady ? f_tfScore(h1Close, h1Fast, h1Slow, h1FastPrev) : 0.0
+float wSum    = i_wD + i_wH4 + i_wH1
+// -1 (fully bearish across all three) .. +1 (fully bullish across all three)
+float regimeSigned = wSum <= 0.0 ? 0.0 : (dScore * i_wD + h4Score * i_wH4 + h1Score * i_wH1) / wSum
+// Directional quality in 0..1: 0.5 is genuine indifference, not a missing value.
+float qHtfLong  = f_clamp(0.5 + regimeSigned / 2.0, 0.0, 1.0)
+float qHtfShort = f_clamp(0.5 - regimeSigned / 2.0, 0.0, 1.0)
+
+int   marketMode = regimeSigned > 0.15 ? 1 : regimeSigned < -0.15 ? -1 : 0
+string modeName  = marketMode == 1 ? "BULL" : marketMode == -1 ? "BEAR" : "MIXED"
+bool  longAllowed  = i_dirMode != "Short only"
+bool  shortAllowed = i_dirMode != "Long only"
+
+// =============================================================================
+// 8. VWAP — SESSION OR DAY ANCHORED
+// =============================================================================
+// Computed by hand rather than with ta.vwap so the anchor is explicit and so a
+// symbol with no usable volume degrades to a session mean price instead of na.
+// OANDA gold reports tick volume; if a feed reports none, every bar weighs 1.
+
+bool  vwReset = i_vwAnchor == "Day" ? timeframe.change("D") : newSession
+float vwWeight = nz(volume, 0.0) > 0.0 ? volume : 1.0
+var float vwPV = 0.0
+var float vwWT = 0.0
+if vwReset
+    vwPV := 0.0
+    vwWT := 0.0
+vwPV += hlc3 * vwWeight
+vwWT += vwWeight
+float vwap = f_div(vwPV, vwWT)
+float emaRef = ta.ema(close, i_vwEma)
+bool  vwapReady = vwWT > 0.0 and not na(vwap)
+
+// =============================================================================
+// 9. DXY CONFLUENCE
+// =============================================================================
+// Read on the execution timeframe with an explicit [1] so the foreign bar is
+// always closed. A missing or unavailable symbol scores neutral rather than
+// silently vetoing every trade.
+
+[dxyNow, dxyThen, dxyAtr] = request.security(i_dxySym, timeframe.period, [close[1], close[1 + i_dxyLook], ta.atr(14)[1]], lookahead = barmerge.lookahead_off, ignore_invalid_symbol = true)
+bool  dxyOK   = not na(dxyNow) and not na(dxyThen) and not na(dxyAtr) and dxyAtr > 0.0
+float dxyNorm = dxyOK ? f_div(dxyNow - dxyThen, dxyAtr * i_dxyScale) : 0.0
+// Gold and the dollar are inversely related, so a FALLING DXY is confluence
+// for a long. The mapping is deliberately linear and deliberately bounded.
+float qDxyLong  = dxyOK ? f_clamp(0.5 - dxyNorm / 2.0, 0.0, 1.0) : i_neutralQ
+float qDxyShort = dxyOK ? f_clamp(0.5 + dxyNorm / 2.0, 0.0, 1.0) : i_neutralQ
+
+// =============================================================================
+// 10. PIVOTS AND STRUCTURE LEVELS
+// =============================================================================
+
+int   i_legLen = input.int(20, "Leg lookback for pullback depth (bars)", minval = 3, group = G_QUAL)
+
+float pivHigh = ta.pivothigh(high, i_pivL, i_pivR)
+float pivLow  = ta.pivotlow(low, i_pivL, i_pivR)
+bool  hasPH   = not na(pivHigh)
+bool  hasPL   = not na(pivLow)
+int   pivBar  = bar_index - i_pivR
+float pivBarHigh  = high[i_pivR]
+float pivBarLow   = low[i_pivR]
+float pivBarClose = close[i_pivR]
+
+var float swingHigh = na
+var float swingLow  = na
+var int   swingHighBar = 0
+var int   swingLowBar  = 0
+var float pivotCount = 0.0
+if hasPH
+    swingHigh := pivHigh
+    swingHighBar := pivBar
+    pivotCount += 1.0
+if hasPL
+    swingLow := pivLow
+    swingLowBar := pivBar
+    pivotCount += 1.0
+
+// Ranges are read with [1] so the current, still-forming bar can never be part
+// of the level it is supposed to be breaking.
+float rangeHi = ta.highest(high, i_brLen)[1]
+float rangeLo = ta.lowest(low, i_brLen)[1]
+float sweepLo = ta.lowest(low, i_swLen)[1]
+float sweepHi = ta.highest(high, i_swLen)[1]
+float roomHi  = ta.highest(high, i_roomLen)[1]
+float roomLo  = ta.lowest(low, i_roomLen)[1]
+float legHi   = ta.highest(high, i_legLen)[1]
+float legLo   = ta.lowest(low, i_legLen)[1]
+
+[pdHigh, pdLow] = request.security(syminfo.tickerid, "D", [high[1], low[1]], lookahead = barmerge.lookahead_off)
+
+// Session extremes so far, excluding the current bar.
+var float sessHi = na
+var float sessLo = na
+float sessHiPrev = sessHi
+float sessLoPrev = sessLo
+if newSession
+    sessHi := high
+    sessLo := low
+else
+    sessHi := math.max(nz(sessHi, high), high)
+    sessLo := math.min(nz(sessLo, low), low)
+
+// =============================================================================
+// 11. GLOBAL BREAK OF STRUCTURE — feeds the structure score for every family
+// =============================================================================
+
+var int   gBosBar   = 0
+var int   gBosDir   = 0
+var float gBosLevel = na
+if tfOK and atrReady
+    // The comparison is against the SWING being broken, not against the stored
+    // level. Comparing the close to the stored level re-fires the break on
+    // every bar price stays above it, which pins the freshness half of the
+    // structure score at 1.0 for ever and makes an old break look new.
+    if not na(swingHigh) and close > swingHigh + i_bosBuf * atr and (gBosDir != 1 or swingHigh != gBosLevel)
+        gBosBar := bar_index
+        gBosDir := 1
+        gBosLevel := swingHigh
+    else if not na(swingLow) and close < swingLow - i_bosBuf * atr and (gBosDir != -1 or swingLow != gBosLevel)
+        gBosBar := bar_index
+        gBosDir := -1
+        gBosLevel := swingLow
+
+int   gBosAge = bar_index - gBosBar
+float gBosDisp = na(gBosLevel) or not atrReady ? 0.0 : f_div(math.abs(close - gBosLevel), atr)
+// Freshness and displacement each carry half. An old break is stale structure;
+// a break that barely cleared the level was not displacement, it was a wick.
+float qStructBase = gBosDir == 0 ? i_neutralQ : 0.5 * f_clamp(1.0 - f_div(gBosAge * 1.0, math.max(i_bosFresh, 1) * 1.0), 0.0, 1.0) + 0.5 * f_ramp(gBosDisp, 0.0, i_bosStrong)
+float qStructLong  = gBosDir == 1 ? qStructBase : gBosDir == -1 ? 1.0 - qStructBase : i_neutralQ
+float qStructShort = gBosDir == -1 ? qStructBase : gBosDir == 1 ? 1.0 - qStructBase : i_neutralQ
+
+// =============================================================================
+// 12. DAILY FREQUENCY AND DAILY RISK ENGINE
+// =============================================================================
+
+bool newDay = timeframe.change("D")
+
+var int   dayTrades   = 0
+var int   dayBars     = 0
+var float dayEquity0  = na
+var float dayRealised = 0.0
+var int   dayIndex    = 0
+
+// Frequency histogram over NORMAL trading days only. A four-bar holiday
+// fragment with no trades is not evidence that the engine is too selective,
+// and letting it into the denominator would quietly flatter every zero-trade
+// percentage in the report.
+var array<float> dayHist = array.new_float(N_DHIST, 0.0)
+var float normalDays = 0.0
+var float shortDays  = 0.0
+var float normalTrades = 0.0
+
+f_closeDay(int trades, int bars, int minBars, array<float> hist) =>
+    bool counted = bars >= minBars
+    int slot = math.min(trades, N_DHIST - 1)
+    if counted
+        array.set(hist, slot, array.get(hist, slot) + 1.0)
+    counted
+
+if tfOK and newDay
+    if dayIndex > 0
+        bool counted = f_closeDay(dayTrades, dayBars, i_minDayBars, dayHist)
+        if counted
+            normalDays += 1.0
+            normalTrades += dayTrades * 1.0
+        else
+            shortDays += 1.0
+    dayIndex += 1
+    dayTrades := 0
+    dayBars := 0
+    dayEquity0 := strategy.equity
+    dayRealised := 0.0
+
+if tfOK
+    dayBars += 1
+if na(dayEquity0)
+    dayEquity0 := strategy.equity
+
+// Realised loss for the day, in dollars, as a positive number.
+float dayLossUsd = math.max(-dayRealised, 0.0)
+float dayLossPct = f_pct(dayLossUsd, nz(dayEquity0, strategy.equity))
+float dayBudgetUsd = math.max(nz(dayEquity0, strategy.equity) * i_dayLoss / 100.0 - dayLossUsd, 0.0)
+bool  dayCapHit  = dayTrades >= i_maxPerDay
+bool  dayLossHit = dayLossPct >= i_dayLoss
+bool  dayOpen    = not dayCapHit and not dayLossHit
+
+// =============================================================================
+// 13. PER-BAR TRIGGER GEOMETRY AND GENERIC QUALITY COMPONENTS
+// =============================================================================
+
+float barRange = math.max(high - low, tick)
+float barBody  = math.abs(close - open) / barRange
+float clvLong  = (close - low) / barRange
+float clvShort = (high - close) / barRange
+bool  bullBar  = close > open
+bool  bearBar  = close < open
+
+// Momentum quality of the trigger bar: half body, half close location. The
+// mandatory part is only the close-location floor, which stops the engine
+// buying a bar that closed on its low.
+float qMomLong  = f_clamp(0.5 * barBody + 0.5 * clvLong, 0.0, 1.0)
+float qMomShort = f_clamp(0.5 * barBody + 0.5 * clvShort, 0.0, 1.0)
+bool  momFloorLong  = clvLong >= i_momFloor
+bool  momFloorShort = clvShort >= i_momFloor
+
+// VWAP location quality. Below VWAP is not disqualifying for a long, it is
+// merely worse; far above VWAP is worse again, because the trade is chasing.
+float vwDistL = vwapReady and atrReady ? f_div(close - vwap, atr) : 0.0
+float qVwapLong  = not vwapReady ? i_neutralQ : vwDistL < 0.0 ? f_clamp(0.5 + vwDistL * 0.5, 0.0, 0.5) : vwDistL <= i_vwBest ? 1.0 : f_clamp(1.0 - (vwDistL - i_vwBest) / math.max(i_vwFade, 0.01), 0.0, 1.0)
+float qVwapShort = not vwapReady ? i_neutralQ : vwDistL > 0.0 ? f_clamp(0.5 - vwDistL * 0.5, 0.0, 0.5) : -vwDistL <= i_vwBest ? 1.0 : f_clamp(1.0 - (-vwDistL - i_vwBest) / math.max(i_vwFade, 0.01), 0.0, 1.0)
+
+// Volatility environment: a flat-topped band, so an ordinary session scores
+// full marks and only unusually dead or unusually violent tape is marked down.
+float qAtrEnv = not atrReady or na(atrRef) or atrRef <= 0.0 ? i_neutralQ : f_band(atrRel, i_atrLo, i_atrHi, 0.6)
+
+// Generic pullback depth, used by any family with no better measure of its own.
+float pullDepthL = atrReady ? f_div(nz(legHi, high) - low, atr) : 0.0
+float pullDepthS = atrReady ? f_div(high - nz(legLo, low), atr) : 0.0
+float qPullGenL = f_tent(pullDepthL, i_pullBest, i_pullWide)
+float qPullGenS = f_tent(pullDepthS, i_pullBest, i_pullWide)
+
+// Generic micro-sweep: did the trigger bar take out the previous bar's extreme
+// and close back through it? A weak version of family 2's measurement, which
+// is exactly what it is meant to be.
+float qSweepGenL = f_clamp(0.40 + (low < low[1] ? 0.30 : 0.0) + (close > close[1] ? 0.15 : 0.0), 0.0, 1.0)
+float qSweepGenS = f_clamp(0.40 + (high > high[1] ? 0.30 : 0.0) + (close < close[1] ? 0.15 : 0.0), 0.0, 1.0)
+
+// =============================================================================
+// 14. CANDIDATE SLOTS — one per family, refilled every bar
+// =============================================================================
+
+var array<bool>  cValid = array.new_bool(N_FAM, false)
+var array<int>   cDir   = array.new_int(N_FAM, 0)
+var array<float> cTrig  = array.new_float(N_FAM, na)
+var array<float> cRef   = array.new_float(N_FAM, na)
+var array<int>   cAnch  = array.new_int(N_FAM, 0)
+var array<float> cQPull = array.new_float(N_FAM, 0.0)
+var array<float> cQSwp  = array.new_float(N_FAM, 0.0)
+var array<float> cScore = array.new_float(N_FAM, 0.0)
+var array<float> cRisk  = array.new_float(N_FAM, na)
+var array<float> cStop  = array.new_float(N_FAM, na)
+var array<float> cRoom  = array.new_float(N_FAM, 0.0)
+var array<bool>  cElig  = array.new_bool(N_FAM, false)
+var array<int>   cLastAnchor = array.new_int(N_FAM, -1)
+
+array.fill(cValid, false)
+array.fill(cDir, 0)
+array.fill(cTrig, na)
+array.fill(cRef, na)
+array.fill(cAnch, 0)
+array.fill(cQPull, 0.0)
+array.fill(cQSwp, 0.0)
+array.fill(cScore, 0.0)
+array.fill(cRisk, na)
+array.fill(cStop, na)
+array.fill(cRoom, 0.0)
+array.fill(cElig, false)
+
+// --- funnel counters ---------------------------------------------------------
+var float fBars    = 0.0
+var array<float> fRaw   = array.new_float(N_FAM, 0.0)   // stage-1 structural events
+var array<float> fCand  = array.new_float(N_FAM, 0.0)   // trigger fired
+var array<float> fPass  = array.new_float(N_FAM, 0.0)   // cleared the score floor
+var array<float> fTaken = array.new_float(N_FAM, 0.0)   // became an actual entry
+var float fScoreFail  = 0.0
+var float fStopBad    = 0.0
+var float fStopWide   = 0.0
+var float fStopTight  = 0.0
+var float fRoomShort  = 0.0
+var float fSizeSmall  = 0.0
+var float fMarginCut  = 0.0
+var float fBudgetOut  = 0.0
+var float fBlockAnchor = 0.0
+var float fBlockRegime = 0.0
+var float fBlockMom    = 0.0
+var float fBlockShock  = 0.0
+var float fBlockSess   = 0.0
+var float fBlockOpen   = 0.0
+var float fBlockCap    = 0.0
+var float fBlockLoss   = 0.0
+var float fBlockCool   = 0.0
+var float fMultiBar    = 0.0
+var float fArmed       = 0.0
+var float fFilled      = 0.0
+var float fArmExpired  = 0.0
+var float fArmVoided   = 0.0
+var float fTrades      = 0.0
+
+// Score distribution of EVERY candidate, whether or not it was traded. This is
+// the calibration table: it answers "what would the trade rate be at threshold
+// X" by reading a row instead of re-running the ten-year backtest.
+var array<float> candByScore = array.new_float(N_SCORE, 0.0)
+
+if tfOK
+    fBars += 1.0
+
+bool flat = strategy.position_size == 0
+bool gBosNew = tfOK and gBosBar == bar_index and gBosDir != 0
+
+// =============================================================================
+// 15. FAMILY 1 · TRENDLINE THIRD-TOUCH CONTINUATION
+// =============================================================================
+// The v6 idea, preserved: break of structure, two pivots define a line, a third
+// touch confirms it, a later touch is the opportunity. What changed is that
+// failing the rejection-candle test no longer kills the line, the slope band is
+// scored rather than vetoed, and the contact tolerance is a measurement choice
+// rather than an edge.
+
+var int   tlState  = TL_WAIT_BOS
+var int   tlDir    = 0
+var int   tlBosBar = 0
+var int   tlP1Bar  = 0
+var float tlP1     = na
+var int   tlP2Bar  = 0
+var float tlP2     = na
+var float tlSlope  = na
+var float tlSlopeN = na
+var int   tlP3Bar  = 0
+var float tlP3     = na
+var int   tlConfBar = 0
+
+float tlNow = tlState >= TL_CANDIDATE and not na(tlSlope) ? tlP2 + tlSlope * (bar_index - tlP2Bar) : na
+
+if tfOK and atrReady and i_famTL
+    // --- expiry ---------------------------------------------------------------
+    if tlState != TL_WAIT_BOS and tlState < TL_CONFIRMED and bar_index - tlBosBar > i_tlBuild
+        tlState := TL_WAIT_BOS
+        tlDir := 0
+    if tlState == TL_CONFIRMED and bar_index - tlConfBar > i_tlLife
+        tlState := TL_WAIT_BOS
+        tlDir := 0
+
+    if tlState == TL_WAIT_BOS
+        if gBosNew and (gBosDir == 1 ? longAllowed : shortAllowed)
+            tlDir := gBosDir
+            tlBosBar := bar_index
+            tlState := TL_WAIT_P1
+            f_bump(fRaw, FAM_TL, 1.0)
+
+    else if tlState == TL_WAIT_P1
+        bool gotPivot = tlDir == 1 ? hasPL : hasPH
+        if gotPivot and pivBar >= tlBosBar
+            tlP1Bar := pivBar
+            tlP1 := tlDir == 1 ? pivBarLow : pivBarHigh
+            tlState := TL_WAIT_P2
+
+    else if tlState == TL_WAIT_P2
+        bool gotPivot = tlDir == 1 ? hasPL : hasPH
+        float pv = tlDir == 1 ? pivBarLow : pivBarHigh
+        if gotPivot and pivBar > tlP1Bar
+            bool wrongWay = tlDir == 1 ? pv <= tlP1 : pv >= tlP1
+            float sep = tlDir == 1 ? pv - tlP1 : tlP1 - pv
+            if wrongWay
+                tlP1Bar := pivBar
+                tlP1 := pv
+            else if sep >= i_minSep * atr
+                float m = (pv - tlP1) / math.max(pivBar - tlP1Bar, 1)
+                float mn = math.abs(f_div(m, atr))
+                bool signOK = tlDir == 1 ? m > 0.0 : m < 0.0
+                if signOK and mn <= i_slopeMax
+                    tlP2Bar := pivBar
+                    tlP2 := pv
+                    tlSlope := m
+                    tlSlopeN := mn
+                    tlState := TL_CANDIDATE
+                else
+                    // The line through P1 and this pivot is unusable; the pivot
+                    // itself is a perfectly good new base. A chartist re-anchors.
+                    tlP1Bar := pivBar
+                    tlP1 := pv
+
+    else if tlState == TL_CANDIDATE and bar_index > tlP2Bar + i_pivR
+        float lineHere = tlP2 + tlSlope * (bar_index - tlP2Bar)
+        float wick = tlDir == 1 ? low : high
+        bool contact = math.abs(wick - lineHere) <= i_tlTol * atr
+        bool holds = tlDir == 1 ? close > lineHere : close < lineHere
+        bool through = tlDir == 1 ? close < lineHere - i_tlTol * atr : close > lineHere + i_tlTol * atr
+        if contact and holds
+            tlP3Bar := bar_index
+            tlP3 := wick
+            tlConfBar := bar_index
+            tlState := TL_CONFIRMED
+        else if through
+            tlP1Bar := bar_index
+            tlP1 := wick
+            tlState := TL_WAIT_P2
+
+    else if tlState == TL_CONFIRMED and bar_index > tlConfBar
+        float lineHere = tlP2 + tlSlope * (bar_index - tlP2Bar)
+        float wick = tlDir == 1 ? low : high
+        float miss = f_div(math.abs(wick - lineHere), atr)
+        bool contact = math.abs(wick - lineHere) <= i_tlTol * atr
+        bool holds = tlDir == 1 ? close > lineHere : close < lineHere
+        bool through = tlDir == 1 ? close < lineHere - i_tlTol * atr : close > lineHere + i_tlTol * atr
+        bool dirBar = tlDir == 1 ? bullBar : bearBar
+        if contact and holds and dirBar
+            float qTight = f_clamp(1.0 - f_div(miss, i_tlTol), 0.0, 1.0)
+            float qSlopeQ = f_tent(nz(tlSlopeN, 0.0), i_slopeBest, i_slopeWide)
+            array.set(cValid, FAM_TL, true)
+            array.set(cDir, FAM_TL, tlDir)
+            array.set(cTrig, FAM_TL, tlDir == 1 ? high + tick : low - tick)
+            array.set(cRef, FAM_TL, tlDir == 1 ? math.min(low, nz(tlP3, low)) : math.max(high, nz(tlP3, high)))
+            array.set(cAnch, FAM_TL, tlP2Bar)
+            array.set(cQPull, FAM_TL, 0.5 * qTight + 0.5 * qSlopeQ)
+            array.set(cQSwp, FAM_TL, tlDir == 1 ? qSweepGenL : qSweepGenS)
+        else if through
+            tlState := TL_WAIT_BOS
+            tlDir := 0
+
+// =============================================================================
+// 16. FAMILY 2 · LIQUIDITY SWEEP + RECLAIM
+// =============================================================================
+// A meaningful intraday level is taken out and immediately reclaimed. The level
+// is whichever of the N-bar extreme, the prior day extreme and the session
+// extreme sits nearest to price, because that is the one the market was aiming
+// at. Penetration depth is scored on a tent: a graze is noise, a rout is a
+// breakdown, and the tradable case is in between.
+
+var int   swBar    = 0
+var int   swDir    = 0
+var float swLevel  = na
+var float swExt    = na
+var bool  swActive = false
+
+if tfOK and atrReady and i_famSW
+    if swActive and bar_index - swBar > i_swMax
+        swActive := false
+    if swActive
+        swExt := swDir == 1 ? math.min(nz(swExt, low), low) : math.max(nz(swExt, high), high)
+        float penNow = f_div(swDir == 1 ? swLevel - swExt : swExt - swLevel, atr)
+        if penNow > i_swPenMax
+            // Not a sweep. A breakdown wearing a sweep's clothes.
+            swActive := false
+
+    // --- arm a new sweep ------------------------------------------------------
+    if not swActive
+        float lvlL = na
+        if longAllowed
+            if not na(sweepLo) and low < sweepLo - i_swPen * atr
+                lvlL := sweepLo
+            if i_swPd and not na(pdLow) and low < pdLow - i_swPen * atr
+                lvlL := na(lvlL) ? pdLow : math.max(lvlL, pdLow)
+            if i_swSess and not na(sessLoPrev) and low < sessLoPrev - i_swPen * atr
+                lvlL := na(lvlL) ? sessLoPrev : math.max(lvlL, sessLoPrev)
+        float lvlS = na
+        if shortAllowed
+            if not na(sweepHi) and high > sweepHi + i_swPen * atr
+                lvlS := sweepHi
+            if i_swPd and not na(pdHigh) and high > pdHigh + i_swPen * atr
+                lvlS := na(lvlS) ? pdHigh : math.min(lvlS, pdHigh)
+            if i_swSess and not na(sessHiPrev) and high > sessHiPrev + i_swPen * atr
+                lvlS := na(lvlS) ? sessHiPrev : math.min(lvlS, sessHiPrev)
+        // Long-side sweeps are preferred when both fire on one bar only because
+        // the first research pass is long-only; in "Both" mode this is a coin
+        // toss between two rare simultaneous events, not a directional opinion.
+        if not na(lvlL)
+            swActive := true
+            swDir := 1
+            swBar := bar_index
+            swLevel := lvlL
+            swExt := low
+            f_bump(fRaw, FAM_SW, 1.0)
+        else if not na(lvlS)
+            swActive := true
+            swDir := -1
+            swBar := bar_index
+            swLevel := lvlS
+            swExt := high
+            f_bump(fRaw, FAM_SW, 1.0)
+
+    // --- reclaim --------------------------------------------------------------
+    if swActive
+        bool reclaimed = swDir == 1 ? (close > swLevel + i_swRec * atr and bullBar) : (close < swLevel - i_swRec * atr and bearBar)
+        if reclaimed
+            float pen = f_div(swDir == 1 ? swLevel - swExt : swExt - swLevel, atr)
+            float qDepth = f_tent(pen, i_swPenBest, math.max(i_swPenMax - i_swPenBest, 0.05) * 1.5)
+            float qSpeed = f_clamp(1.0 - f_div((bar_index - swBar) * 1.0, math.max(i_swMax, 1) * 1.0), 0.0, 1.0)
+            array.set(cValid, FAM_SW, true)
+            array.set(cDir, FAM_SW, swDir)
+            array.set(cTrig, FAM_SW, swDir == 1 ? high + tick : low - tick)
+            array.set(cRef, FAM_SW, swExt)
+            array.set(cAnch, FAM_SW, swBar)
+            array.set(cQPull, FAM_SW, swDir == 1 ? qPullGenL : qPullGenS)
+            array.set(cQSwp, FAM_SW, f_clamp(0.65 * qDepth + 0.35 * qSpeed, 0.0, 1.0))
+            swActive := false
+
+// =============================================================================
+// 17. FAMILY 3 · BREAKOUT + RETEST
+// =============================================================================
+// A confirmed close through an N-bar range extreme, then a controlled return to
+// the broken level, then a continuation trigger. The level must hold on the
+// retest: a close far back inside the old range cancels the setup rather than
+// leaving it armed to catch the reversal.
+
+var int   brBar     = 0
+var int   brDir     = 0
+var float brLevel   = na
+var bool  brActive  = false
+var bool  brRetest  = false
+var float brRetestPx = na
+
+if tfOK and atrReady and i_famBR
+    if brActive and bar_index - brBar > i_brMax
+        brActive := false
+        brRetest := false
+    if brActive
+        bool failed = brDir == 1 ? close < brLevel - i_brFail * atr : close > brLevel + i_brFail * atr
+        if failed
+            brActive := false
+            brRetest := false
+
+    if not brActive
+        if longAllowed and not na(rangeHi) and close > rangeHi + i_brBuf * atr
+            brActive := true
+            brDir := 1
+            brBar := bar_index
+            brLevel := rangeHi
+            brRetest := false
+            brRetestPx := na
+            f_bump(fRaw, FAM_BR, 1.0)
+        else if shortAllowed and not na(rangeLo) and close < rangeLo - i_brBuf * atr
+            brActive := true
+            brDir := -1
+            brBar := bar_index
+            brLevel := rangeLo
+            brRetest := false
+            brRetestPx := na
+            f_bump(fRaw, FAM_BR, 1.0)
+
+    if brActive and bar_index > brBar
+        bool touched = brDir == 1 ? low <= brLevel + i_brTol * atr : high >= brLevel - i_brTol * atr
+        if touched
+            brRetest := true
+            brRetestPx := brDir == 1 ? math.min(nz(brRetestPx, low), low) : math.max(nz(brRetestPx, high), high)
+        if brRetest
+            bool trigger = brDir == 1 ? (bullBar and close > brLevel) : (bearBar and close < brLevel)
+            if trigger
+                float retestMiss = f_div(math.abs(nz(brRetestPx, brLevel) - brLevel), atr)
+                float qTight = f_clamp(1.0 - f_div(retestMiss, math.max(i_brTol, 0.01)), 0.0, 1.0)
+                array.set(cValid, FAM_BR, true)
+                array.set(cDir, FAM_BR, brDir)
+                array.set(cTrig, FAM_BR, brDir == 1 ? high + tick : low - tick)
+                array.set(cRef, FAM_BR, brDir == 1 ? math.min(nz(brRetestPx, low), low) : math.max(nz(brRetestPx, high), high))
+                array.set(cAnch, FAM_BR, brBar)
+                array.set(cQPull, FAM_BR, f_clamp(0.6 * qTight + 0.4 * (brDir == 1 ? qPullGenL : qPullGenS), 0.0, 1.0))
+                array.set(cQSwp, FAM_BR, brDir == 1 ? qSweepGenL : qSweepGenS)
+                brActive := false
+                brRetest := false
+
+// =============================================================================
+// 18. FAMILY 4 · VWAP / TREND CONTINUATION PULLBACK
+// =============================================================================
+// Directional regime, a real leg, a controlled pullback into VWAP or the
+// nearby moving average, and a continuation trigger. The reference is whichever
+// of the two is SHALLOWER, because that is the one price reaches first and the
+// one a continuation buyer is actually watching.
+
+var bool  vwActive   = false
+var int   vwTouchBar = 0
+var float vwTouchPx  = na
+var int   vwDir      = 0
+var int   vwAnchor   = 0
+
+float vwRefL = math.max(nz(vwap, emaRef), emaRef)
+float vwRefS = math.min(nz(vwap, emaRef), emaRef)
+float legSize = atrReady and not na(legHi) and not na(legLo) ? f_div(legHi - legLo, atr) : 0.0
+
+if tfOK and atrReady and i_famVW and vwapReady
+    if vwActive and bar_index - vwTouchBar > i_vwMax
+        vwActive := false
+    if vwActive
+        bool failed = vwDir == 1 ? close < vwRefL - i_vwFail * atr : close > vwRefS + i_vwFail * atr
+        if failed
+            vwActive := false
+        else
+            vwTouchPx := vwDir == 1 ? math.min(nz(vwTouchPx, low), low) : math.max(nz(vwTouchPx, high), high)
+
+    if not vwActive and legSize >= i_vwMinLeg
+        bool touchL = longAllowed and marketMode >= 0 and low <= vwRefL + i_vwTol * atr and close > vwRefL - i_vwFail * atr
+        bool touchS = shortAllowed and marketMode <= 0 and high >= vwRefS - i_vwTol * atr and close < vwRefS + i_vwFail * atr
+        if touchL
+            vwActive := true
+            vwDir := 1
+            vwTouchBar := bar_index
+            vwTouchPx := low
+            vwAnchor := swingHighBar
+            f_bump(fRaw, FAM_VW, 1.0)
+        else if touchS
+            vwActive := true
+            vwDir := -1
+            vwTouchBar := bar_index
+            vwTouchPx := high
+            vwAnchor := swingLowBar
+            f_bump(fRaw, FAM_VW, 1.0)
+
+    if vwActive
+        bool trigger = vwDir == 1 ? (bullBar and close > vwRefL) : (bearBar and close < vwRefS)
+        if trigger
+            float depth = vwDir == 1 ? pullDepthL : pullDepthS
+            float refMiss = f_div(math.abs(nz(vwTouchPx, close) - (vwDir == 1 ? vwRefL : vwRefS)), atr)
+            float qNear = f_clamp(1.0 - f_div(refMiss, math.max(i_vwTol, 0.01)), 0.0, 1.0)
+            array.set(cValid, FAM_VW, true)
+            array.set(cDir, FAM_VW, vwDir)
+            array.set(cTrig, FAM_VW, vwDir == 1 ? high + tick : low - tick)
+            array.set(cRef, FAM_VW, nz(vwTouchPx, vwDir == 1 ? low : high))
+            array.set(cAnch, FAM_VW, vwAnchor)
+            array.set(cQPull, FAM_VW, f_clamp(0.5 * f_tent(depth, i_pullBest, i_pullWide) + 0.5 * qNear, 0.0, 1.0))
+            array.set(cQSwp, FAM_VW, vwDir == 1 ? qSweepGenL : qSweepGenS)
+            vwActive := false
+
+// =============================================================================
+// 19. THE SHARED PIPELINE — score, then risk, then reward room
+// =============================================================================
+// Every candidate from every family is measured the same way. Nothing here
+// knows or cares which family produced the candidate; that is the whole point
+// of the restructure.
+
+int   bestFam   = -1
+float bestScore = -1.0
+
+// The safety gates that apply to the BAR rather than to a candidate.
+bool regimeFloorL = qHtfLong  >= i_regFloor
+bool regimeFloorS = qHtfShort >= i_regFloor
+
+if tfOK and atrReady and array.size(cValid) > 0
+    for f = 0 to array.size(cValid) - 1
+        if array.get(cValid, f)
+            int dir = array.get(cDir, f)
+            bool dirOK = dir == 1 ? longAllowed : shortAllowed
+            if not dirOK
+                array.set(cValid, f, false)
+            else
+                f_bump(fCand, f, 1.0)
+
+                // ---- score ---------------------------------------------------
+                float qHtfC   = dir == 1 ? qHtfLong : qHtfShort
+                float qVwapC  = dir == 1 ? qVwapLong : qVwapShort
+                float qStrC   = dir == 1 ? qStructLong : qStructShort
+                float qMomC   = dir == 1 ? qMomLong : qMomShort
+                float qDxyC   = dir == 1 ? qDxyLong : qDxyShort
+                float qPullC  = array.get(cQPull, f)
+                float qSwpC   = array.get(cQSwp, f)
+
+                // ---- stop, risk and reward room ------------------------------
+                float trig = array.get(cTrig, f)
+                float refPx = array.get(cRef, f)
+                float stopPx = dir == 1 ? refPx - i_stopBuf * atr : refPx + i_stopBuf * atr
+                float riskPx = dir == 1 ? trig - stopPx : stopPx - trig
+                float stopAtr = f_div(riskPx, atr)
+                float roomPx = dir == 1 ? (nz(roomHi, trig) > trig ? roomHi - trig : na) : (nz(roomLo, trig) < trig ? trig - roomLo : na)
+                float roomR = riskPx <= 0.0 ? 0.0 : na(roomPx) ? i_roomSky : f_div(roomPx, riskPx)
+                float qRoomC = f_ramp(roomR, i_minRoomR, i_roomFull)
+
+                float sc = f_score(qHtfC, qVwapC, qStrC, qPullC, qSwpC, qMomC, qDxyC, qAtrEnv, qRoomC, qSess, i_wHtf, i_wVwap, i_wStruct, i_wPull, i_wSweep, i_wMom, i_wDxy, i_wAtr, i_wRoom, i_wSessQ)
+                array.set(cScore, f, sc)
+                array.set(cStop, f, stopPx)
+                array.set(cRisk, f, riskPx)
+                array.set(cRoom, f, roomR)
+
+                // Every candidate is recorded here, taken or not. This row is
+                // what makes the score threshold re-calibratable without a
+                // second ten-year run.
+                f_bump(candByScore, f_scoreBucket(sc), 1.0)
+
+                // ---- mandatory gates, in the order a risk desk would ask ------
+                bool okScore  = sc >= i_thrBP
+                bool okRegime = dir == 1 ? regimeFloorL : regimeFloorS
+                bool okMom    = dir == 1 ? momFloorLong : momFloorShort
+                bool okShock  = not atrShock
+                bool okSess   = sessionOK
+                bool okStop   = riskPx > 0.0
+                bool okWide   = stopAtr <= i_stopMax
+                bool okTight  = stopAtr >= i_stopMin
+                bool okRoom   = roomR >= i_minRoomR
+                bool okAnchor = not i_anchorRule or array.get(cAnch, f) != array.get(cLastAnchor, f)
+
+                if not okScore
+                    fScoreFail += 1.0
+                else
+                    f_bump(fPass, f, 1.0)
+                    if not okRegime
+                        fBlockRegime += 1.0
+                    else if not okMom
+                        fBlockMom += 1.0
+                    else if not okShock
+                        fBlockShock += 1.0
+                    else if not okSess
+                        fBlockSess += 1.0
+                    else if not okStop
+                        fStopBad += 1.0
+                    else if not okWide
+                        fStopWide += 1.0
+                    else if not okTight
+                        fStopTight += 1.0
+                    else if not okRoom
+                        fRoomShort += 1.0
+                    else if not okAnchor
+                        fBlockAnchor += 1.0
+                    else
+                        array.set(cElig, f, true)
+
+// --- position state ----------------------------------------------------------
+// Declared here rather than beside the position-management code because the
+// execution gate below has to know that a position closed on THIS bar: the
+// broker reports flat while the trade has not been booked yet, and arming on
+// that bar would step straight over the independence cooldown.
+var float posEntry = na
+var float posStop  = na
+var float posRisk  = na
+var float posLots  = na
+var float posUnits = na
+var float posPartUnits = 0.0
+var int   posDir   = 0
+var int   posBar   = 0
+var int   posSess  = 0
+var int   posFam   = 0
+var int   posTier  = 0
+var float posScore = na
+var float posRoom  = na
+var float posRiskPct = 0.0
+var float posMFE   = 0.0
+var float posMAE   = 0.0
+var float posExtreme = na
+var float structTrail = na
+var bool  posBEdone = false
+var bool  posPartDone = false
+var bool  posEarlyExit = false
+var bool  posOpen  = false
+var float pnlAnchor = 0.0
+var float fEarlyExit = 0.0
+var float fSameBar = 0.0
+var int   lastClosed = 0
+
+bool didFill = false
+bool didClose = false
+
+// =============================================================================
+// 20. EXECUTION GATES AND ORDER PLACEMENT
+// =============================================================================
+
+var bool  armState = false
+var int   armBar   = 0
+var float armEntry = na
+var float armStop  = na
+var float armRisk  = na
+var float armLots  = na
+var float armScore = na
+var int   armFam   = 0
+var int   armDir   = 0
+var int   armSess  = 0
+var int   armAnchor = 0
+var int   armTier  = 0
+var float armAtr   = na
+var float armRoom  = na
+var float armPnlAnchor = 0.0
+var float armRiskPct = 0.0
+
+// Independence state. A trade must be separated from the previous one by real
+// time AND by a real structural event, and it may not re-use the anchor its
+// family already traded. Without all three the engine can exit, re-arm on the
+// same unchanged structure and re-enter, which manufactures trade count out of
+// a single idea and makes the frequency statistics a lie.
+var int   lastExitBar   = -1000000
+var float pivotsAtExit  = 0.0
+
+bool coolOK = bar_index - lastExitBar >= i_cooldown
+bool pivOK  = pivotCount - pivotsAtExit >= i_pivotsAfter
+
+int eligCount = 0
+if array.size(cElig) > 0
+    for f = 0 to array.size(cElig) - 1
+        if array.get(cElig, f)
+            eligCount += 1
+
+if eligCount > 1
+    fMultiBar += 1.0
+
+if tfOK and eligCount > 0
+    if not flat or armState or posOpen
+        fBlockOpen += 1.0
+    else if dayCapHit
+        fBlockCap += 1.0
+    else if dayLossHit
+        fBlockLoss += 1.0
+    else if not coolOK or not pivOK
+        fBlockCool += 1.0
+    else
+        // ---- pick one ----------------------------------------------------
+        if array.size(cElig) > 0
+            for f = 0 to array.size(cElig) - 1
+                if array.get(cElig, f)
+                    float sc = array.get(cScore, f)
+                    bool better = i_tieBreak == "Lowest family index" ? bestFam < 0 : sc > bestScore
+                    if better
+                        bestFam := f
+                        bestScore := sc
+
+        if bestFam >= 0
+            int   dir = array.get(cDir, bestFam)
+            float trig = array.get(cTrig, bestFam)
+            float stopPx = array.get(cStop, bestFam)
+            float riskPx = array.get(cRisk, bestFam)
+            float sc = array.get(cScore, bestFam)
+
+            // ---- tier risk, never the 1% ceiling by default ---------------
+            int tier = sc >= i_thrAP ? TIER_AP : sc >= i_thrA ? TIER_A : TIER_BP
+            float tierRisk = tier == TIER_AP ? i_riskAP : tier == TIER_A ? i_riskA : i_riskBP
+            // The second and third trades of a day are smaller by construction.
+            float nScale = dayTrades == 0 ? 1.0 : dayTrades == 1 ? i_scale2 : i_scale3
+            float riskPct = math.min(tierRisk * nScale, i_riskCeil)
+            float budget = strategy.equity * riskPct / 100.0
+            if i_scaleDD
+                // A single trade may never be able to jump over the daily loss
+                // cutoff; it can only ever reach it.
+                budget := math.min(budget, dayBudgetUsd)
+
+            float lots = f_lots(budget, riskPx, costPerLotRT, i_contract, i_lotStep, i_minLot)
+            float availMargin = strategy.equity * i_marginUse / 100.0
+            float lotsMarginMax = f_floorStep(f_div(availMargin * i_leverage, close * i_contract), i_lotStep)
+            bool marginCut = lots > lotsMarginMax
+            if marginCut
+                lots := lotsMarginMax
+
+            if budget <= 0.0
+                fBudgetOut += 1.0
+            else if lots < i_minLot
+                if marginCut
+                    fMarginCut += 1.0
+                else
+                    fSizeSmall += 1.0
+            else
+                armEntry := trig
+                armStop  := stopPx
+                armRisk  := riskPx
+                armLots  := lots
+                armScore := sc
+                armFam   := bestFam
+                armDir   := dir
+                armSess  := sessionId
+                armAnchor := array.get(cAnch, bestFam)
+                armTier  := tier
+                armAtr   := atr
+                armRoom  := array.get(cRoom, bestFam)
+                armRiskPct := riskPct
+                armPnlAnchor := strategy.netprofit
+                armBar   := bar_index
+                armState := true
+                fArmed   += 1.0
+
+                float units = lots * i_contract
+                float plannedPart = f_floorStep(lots * i_partialP / 100.0, i_lotStep) * i_contract
+                float plannedRun = math.max(units - plannedPart, 0.0)
+                float plannedTp1 = dir == 1 ? trig + i_partialR * riskPx : trig - i_partialR * riskPx
+                float plannedTpX = dir == 1 ? trig + i_maxR * riskPx : trig - i_maxR * riskPx
+                string eidArm = dir == 1 ? "CM-L" : "CM-S"
+                // Protective orders go in WITH the entry, not on the bar after
+                // the fill. An exit attached to an unfilled entry simply waits;
+                // without this the first bar of every trade runs naked and the
+                // risk figure above would be fiction.
+                if dir == 1
+                    strategy.entry(eidArm, strategy.long, qty = units, stop = trig, comment = f_famName(bestFam))
+                else
+                    strategy.entry(eidArm, strategy.short, qty = units, stop = trig, comment = f_famName(bestFam))
+                if plannedPart > 0.0
+                    strategy.exit("CM-TP1", from_entry = eidArm, qty = plannedPart, limit = plannedTp1, stop = stopPx, comment_profit = "partial", comment_loss = "SL")
+                if plannedRun > 0.0
+                    strategy.exit("CM-RUN", from_entry = eidArm, qty = plannedRun, limit = plannedTpX, stop = stopPx, comment_profit = "R ceiling", comment_loss = "SL/trail")
+
+// =============================================================================
+// 21. ARMED ORDER LIFECYCLE
+// =============================================================================
+
+// A stop entry cannot fill on the bar it was submitted, so a fill is seen here
+// at the earliest one bar later. It can, however, fill AND be stopped out
+// inside that one bar. The broker reports flat at the close of such a bar, and
+// treating it as an unfilled order would drop a real trade — with its loss —
+// out of every table below while TradingView's own list still shows it. The
+// round trip is detected on the closed-trade counter, which can only move here
+// because arming is blocked on any bar that books an exit.
+bool armFilled = armState and not flat
+bool armRoundTrip = armState and flat and strategy.closedtrades > lastClosed
+
+if armState
+    if armFilled or armRoundTrip
+        // R is frozen here, off the ACTUAL fill price where one is available.
+        posEntry := armFilled ? strategy.opentrades.entry_price(0) : armEntry
+        posDir   := armDir
+        posLots  := armLots
+        posUnits := armLots * i_contract
+        posStop  := armStop
+        float rawRisk = posDir == 1 ? posEntry - armStop : armStop - posEntry
+        posRisk  := rawRisk > 0.0 ? rawRisk : armRisk
+        posBar   := bar_index
+        posSess  := armSess
+        posFam   := armFam
+        posTier  := armTier
+        posScore := armScore
+        posRoom  := armRoom
+        posRiskPct := armRiskPct
+        // On a same-bar round trip the excursions are whatever that one bar
+        // reached; there is no later bar for them to come from.
+        posMFE   := armRoundTrip ? math.max(posDir == 1 ? high - posEntry : posEntry - low, 0.0) : 0.0
+        posMAE   := armRoundTrip ? math.max(posDir == 1 ? posEntry - low : high - posEntry, 0.0) : 0.0
+        posBEdone := false
+        posPartDone := false
+        posEarlyExit := false
+        posExtreme := na
+        structTrail := na
+        pnlAnchor := armPnlAnchor
+        posPartUnits := f_floorStep(posLots * i_partialP / 100.0, i_lotStep) * i_contract
+        posOpen := true
+        armState := false
+        didFill := true
+        fFilled += 1.0
+        dayTrades += 1
+        f_bump(fTaken, posFam, 1.0)
+        if armRoundTrip
+            fSameBar += 1.0
+        // The anchor is consumed the moment it becomes a position, so the same
+        // structure cannot produce a second entry after this one closes.
+        array.set(cLastAnchor, posFam, armAnchor)
+    else
+        bool armStale = bar_index - armBar >= i_armBars
+        bool armVoid = armDir == 1 ? close < armStop : close > armStop
+        if armStale or armVoid
+            strategy.cancel_all()
+            armState := false
+            if armStale
+                fArmExpired += 1.0
+            else
+                fArmVoided += 1.0
+
+// =============================================================================
+// 22. POSITION MANAGEMENT
+// =============================================================================
+
+float tp1Level = na
+float tpMaxLevel = na
+float beLevel = na
+
+if posOpen and not flat
+    tp1Level   := posDir == 1 ? posEntry + i_partialR * posRisk : posEntry - i_partialR * posRisk
+    tpMaxLevel := posDir == 1 ? posEntry + i_maxR * posRisk : posEntry - i_maxR * posRisk
+    beLevel    := posDir == 1 ? posEntry + costPerOz : posEntry - costPerOz
+
+    float fav = posDir == 1 ? high - posEntry : posEntry - low
+    float adv = posDir == 1 ? posEntry - low : high - posEntry
+    posMFE := math.max(posMFE, fav)
+    posMAE := math.max(posMAE, adv)
+
+    string eid = posDir == 1 ? "CM-L" : "CM-S"
+
+    // v6's arbitrary "+0.25R within 3 bars or leave" rule. OFF by default.
+    // The EXITS panel exists so its replacement can be measured rather than
+    // guessed; nothing has been substituted in the meantime.
+    int barsObserved = bar_index - posBar + 1
+    bool noFollow = i_useFollow and not posBEdone and not posEarlyExit and barsObserved >= i_followBars and f_div(posMFE, posRisk) < i_followR
+
+    if noFollow
+        strategy.cancel("CM-TP1")
+        strategy.cancel("CM-RUN")
+        strategy.close(eid, comment = "no follow-through")
+        posEarlyExit := true
+        fEarlyExit += 1.0
+
+    if not posEarlyExit
+        // Breakeven needs a CLOSED bar beyond the partial target, never a wick.
+        if not posBEdone and (posDir == 1 ? close >= tp1Level : close <= tp1Level)
+            posBEdone := true
+            posExtreme := posDir == 1 ? high : low
+            structTrail := na
+
+        if posBEdone
+            posExtreme := posDir == 1 ? math.max(nz(posExtreme, high), high) : math.min(nz(posExtreme, low), low)
+            if posDir == 1 and hasPL and pivBar > posBar
+                structTrail := math.max(nz(structTrail, pivBarLow - i_trailBuf * atr), pivBarLow - i_trailBuf * atr)
+            if posDir == -1 and hasPH and pivBar > posBar
+                structTrail := math.min(nz(structTrail, pivBarHigh + i_trailBuf * atr), pivBarHigh + i_trailBuf * atr)
+            float atrTrail = posDir == 1 ? posExtreme - i_trailAtr * atr : posExtreme + i_trailAtr * atr
+            float wanted = posDir == 1 ? math.max(math.max(posStop, beLevel), math.max(nz(structTrail, posStop), atrTrail)) : math.min(math.min(posStop, beLevel), math.min(nz(structTrail, posStop), atrTrail))
+            wanted := posDir == 1 ? math.min(wanted, close - tick) : math.max(wanted, close + tick)
+            posStop := posDir == 1 ? math.max(posStop, wanted) : math.min(posStop, wanted)
+
+        float unitsLeft = math.abs(strategy.position_size)
+        if posPartUnits > 0.0 and unitsLeft < posUnits - posPartUnits * 0.5
+            posPartDone := true
+        if posPartUnits > 0.0 and not posPartDone
+            strategy.exit("CM-TP1", from_entry = eid, qty = posPartUnits, limit = tp1Level, stop = posStop, comment_profit = "partial", comment_loss = "SL")
+        float runUnits = math.max(posUnits - posPartUnits, 0.0)
+        if runUnits > 0.0
+            strategy.exit("CM-RUN", from_entry = eid, qty = runUnits, limit = tpMaxLevel, stop = posStop, comment_profit = "R ceiling", comment_loss = "SL/trail")
+
+// =============================================================================
+// 23. TRADE ACCOUNTING
+// =============================================================================
+
+var float gTrades  = 0.0
+var float gWins    = 0.0
+var float gLosses  = 0.0
+var float gSumR    = 0.0
+var float gWinR    = 0.0
+var float gLossR   = 0.0
+var float gGrossW  = 0.0
+var float gGrossL  = 0.0
+var float gNetUsd  = 0.0
+var float gSumHold = 0.0
+var float gSumMFE  = 0.0
+var float gSumMAE  = 0.0
+var float gMaxWinR = 0.0
+var float gMaxLossR = 0.0
+var float gMaxWinUsd = 0.0
+var float gMaxLossUsd = 0.0
+var float gConsecW = 0.0
+var float gConsecL = 0.0
+var float gMaxConsecW = 0.0
+var float gMaxConsecL = 0.0
+var float gEqR     = 0.0
+var float gPeakR   = 0.0
+var float gDDR     = 0.0
+
+var array<float> famTrades = array.new_float(N_FAM, 0.0)
+var array<float> famWins   = array.new_float(N_FAM, 0.0)
+var array<float> famSumR   = array.new_float(N_FAM, 0.0)
+var array<float> famGrossW = array.new_float(N_FAM, 0.0)
+var array<float> famGrossL = array.new_float(N_FAM, 0.0)
+var array<float> famScoreW = array.new_float(N_FAM, 0.0)
+var array<float> famScoreL = array.new_float(N_FAM, 0.0)
+var array<float> famEqR    = array.new_float(N_FAM, 0.0)
+var array<float> famPeakR  = array.new_float(N_FAM, 0.0)
+var array<float> famDDR    = array.new_float(N_FAM, 0.0)
+
+var array<float> bkTrades = array.new_float(N_SCORE, 0.0)
+var array<float> bkWins   = array.new_float(N_SCORE, 0.0)
+var array<float> bkSumR   = array.new_float(N_SCORE, 0.0)
+var array<float> bkGrossW = array.new_float(N_SCORE, 0.0)
+var array<float> bkGrossL = array.new_float(N_SCORE, 0.0)
+
+var array<float> seTrades = array.new_float(N_SESS, 0.0)
+var array<float> seWins   = array.new_float(N_SESS, 0.0)
+var array<float> seSumR   = array.new_float(N_SESS, 0.0)
+var array<float> seGrossW = array.new_float(N_SESS, 0.0)
+var array<float> seGrossL = array.new_float(N_SESS, 0.0)
+
+var array<float> tiTrades = array.new_float(N_TIER, 0.0)
+var array<float> tiWins   = array.new_float(N_TIER, 0.0)
+var array<float> tiSumR   = array.new_float(N_TIER, 0.0)
+var array<float> tiGrossW = array.new_float(N_TIER, 0.0)
+var array<float> tiGrossL = array.new_float(N_TIER, 0.0)
+
+// Distributions. Medians are read off these; a running median is not something
+// Pine can do honestly without keeping every trade in memory.
+var array<float> rHist   = array.new_float(N_RHIST, 0.0)
+var array<float> hHist   = array.new_float(N_HHIST, 0.0)
+var array<float> mfeHist = array.new_float(N_EHIST, 0.0)
+var array<float> maeHist = array.new_float(N_EHIST, 0.0)
+
+if posOpen and flat
+    didClose := true
+    fTrades += 1.0
+    float pnl = strategy.netprofit - pnlAnchor
+    float riskD = posRisk * posUnits
+    float rMult = f_div(pnl, riskD)
+    float mfeR = f_div(posMFE, posRisk)
+    float maeR = f_div(posMAE, posRisk)
+    float hold = bar_index - posBar
+    bool isWin = pnl > 0.0
+    int bk = f_scoreBucket(nz(posScore, 0.0))
+
+    dayRealised += pnl
+    lastExitBar := bar_index
+    pivotsAtExit := pivotCount
+
+    gTrades += 1.0
+    gSumR += rMult
+    gNetUsd += pnl
+    gSumHold += hold
+    gSumMFE += mfeR
+    gSumMAE += maeR
+    if isWin
+        gWins += 1.0
+        gWinR += rMult
+        gGrossW += pnl
+        gConsecW += 1.0
+        gConsecL := 0.0
+        gMaxConsecW := math.max(gMaxConsecW, gConsecW)
+        gMaxWinR := math.max(gMaxWinR, rMult)
+        gMaxWinUsd := math.max(gMaxWinUsd, pnl)
+    else
+        gLosses += 1.0
+        gLossR += math.abs(rMult)
+        gGrossL += math.abs(pnl)
+        gConsecL += 1.0
+        gConsecW := 0.0
+        gMaxConsecL := math.max(gMaxConsecL, gConsecL)
+        gMaxLossR := math.min(gMaxLossR, rMult)
+        gMaxLossUsd := math.min(gMaxLossUsd, pnl)
+    gEqR += rMult
+    gPeakR := math.max(gPeakR, gEqR)
+    gDDR := math.max(gDDR, gPeakR - gEqR)
+
+    f_bump(famTrades, posFam, 1.0)
+    f_bump(famSumR, posFam, rMult)
+    if isWin
+        f_bump(famWins, posFam, 1.0)
+        f_bump(famGrossW, posFam, pnl)
+        f_bump(famScoreW, posFam, nz(posScore, 0.0))
+    else
+        f_bump(famGrossL, posFam, math.abs(pnl))
+        f_bump(famScoreL, posFam, nz(posScore, 0.0))
+    f_bump(famEqR, posFam, rMult)
+    array.set(famPeakR, posFam, math.max(array.get(famPeakR, posFam), array.get(famEqR, posFam)))
+    array.set(famDDR, posFam, math.max(array.get(famDDR, posFam), array.get(famPeakR, posFam) - array.get(famEqR, posFam)))
+
+    f_bump(bkTrades, bk, 1.0)
+    f_bump(bkSumR, bk, rMult)
+    if isWin
+        f_bump(bkWins, bk, 1.0)
+        f_bump(bkGrossW, bk, pnl)
+    else
+        f_bump(bkGrossL, bk, math.abs(pnl))
+
+    f_bump(seTrades, posSess, 1.0)
+    f_bump(seSumR, posSess, rMult)
+    if isWin
+        f_bump(seWins, posSess, 1.0)
+        f_bump(seGrossW, posSess, pnl)
+    else
+        f_bump(seGrossL, posSess, math.abs(pnl))
+
+    f_bump(tiTrades, posTier, 1.0)
+    f_bump(tiSumR, posTier, rMult)
+    if isWin
+        f_bump(tiWins, posTier, 1.0)
+        f_bump(tiGrossW, posTier, pnl)
+    else
+        f_bump(tiGrossL, posTier, math.abs(pnl))
+
+    // R histogram: bucket 0 is everything below -3R, bucket 27 everything above
+    // +10R, buckets 1..26 are 0.5R wide starting at -3R.
+    int rSlot = rMult < -3.0 ? 0 : rMult >= 10.0 ? N_RHIST - 1 : int(math.floor((rMult + 3.0) / 0.5)) + 1
+    f_bump(rHist, math.max(0, math.min(N_RHIST - 1, rSlot)), 1.0)
+    int hSlot = math.max(0, math.min(N_HHIST - 1, int(math.floor(hold / 5.0))))
+    f_bump(hHist, hSlot, 1.0)
+    int mfeSlot = math.max(0, math.min(N_EHIST - 1, int(math.floor(mfeR / 0.25))))
+    f_bump(mfeHist, mfeSlot, 1.0)
+    int maeSlot = math.max(0, math.min(N_EHIST - 1, int(math.floor(maeR / 0.25))))
+    f_bump(maeHist, maeSlot, 1.0)
+
+    if i_logTrade
+        log.info("CMv7,{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12}", str.format_time(time, "yyyy-MM-dd HH:mm", i_tz), posDir == 1 ? "LONG" : "SHORT", f_famName(posFam), f_tierName(posTier), f_fmt(nz(posScore, 0.0), 1), f_sessName(posSess), f_fmt(posEntry, 2), f_fmt(posRisk, 2), f_fmt(posLots, 2), f_fmt(rMult, 3), f_fmt(mfeR, 3), f_fmt(maeR, 3), f_fmt(hold, 0))
+
+    posOpen := false
+
+lastClosed := strategy.closedtrades
+
+// The final day never sees a `newDay` bar, so without this the last day is
+// silently dropped from every frequency statistic.
+if barstate.islast and tfOK and dayIndex > 0
+    bool countedLast = f_closeDay(dayTrades, dayBars, i_minDayBars, dayHist)
+    if countedLast
+        normalDays += 1.0
+        normalTrades += dayTrades * 1.0
+    else
+        shortDays += 1.0
+
+// =============================================================================
+// 24. VISUALISATION — off by default
+// =============================================================================
+// At the intended frequency a ten-year run produces thousands of trades and
+// Pine keeps only the last 500 labels, so a drawn chart is both misleading and
+// slow. This exists for short visual inspections, not for the research run.
+
+if i_draw
+    if didFill
+        label.new(bar_index, posEntry, f_famName(posFam) + "\n" + f_tierName(posTier) + " " + f_fmt(nz(posScore, 0.0), 1) + "\n" + f_fmt(posLots, 2) + " lot", xloc = xloc.bar_index, style = label.style_label_left, color = posDir == 1 ? color.new(color.teal, 10) : color.new(color.maroon, 10), textcolor = color.white, size = size.tiny)
+    if didClose
+        label.new(bar_index, close, "exit", xloc = xloc.bar_index, style = label.style_label_left, color = color.new(color.gray, 30), textcolor = color.white, size = size.tiny)
+    if eligCount > 0 and bestFam < 0
+        label.new(bar_index, low, "candidate\nnot taken", xloc = xloc.bar_index, yloc = yloc.belowbar, style = label.style_label_up, color = color.new(color.orange, 55), textcolor = color.white, size = size.tiny)
+
+bool showLevels = i_draw and posOpen and not flat
+plot(showLevels ? posEntry : na, title = "Entry", color = color.new(color.navy, 0), style = plot.style_linebr, linewidth = 1)
+plot(showLevels ? posStop : na, title = "Stop", color = color.new(color.red, 0), style = plot.style_linebr, linewidth = 2)
+plot(showLevels ? tp1Level : na, title = "Partial target", color = color.new(color.green, 0), style = plot.style_linebr, linewidth = 1)
+plot(i_draw and vwapReady ? vwap : na, title = "VWAP", color = color.new(color.orange, 40), linewidth = 1)
+
+// =============================================================================
+// 25. DERIVED STATISTICS
+// =============================================================================
+
+f_tailShare(array<float> hist, float thr, float stepSize) =>
+    float total = 0.0
+    float tail = 0.0
+    if array.size(hist) > 0
+        for i = 0 to array.size(hist) - 1
+            float c = array.get(hist, i)
+            total += c
+            if i * stepSize >= thr - 0.000001
+                tail += c
+    f_pct(tail, total)
+
+f_pf(float grossW, float grossL) =>
+    grossL <= 0.0 ? na : grossW / grossL
+
+float avgPerDay = f_avg(normalTrades, normalDays)
+float medPerDay = f_medCount(dayHist)
+float zeroDayPct = f_pct(f_get(dayHist, 0), normalDays)
+float medR = f_medHist(rHist, -3.5, 0.5)
+float medHold = f_medHist(hHist, 0.0, 5.0)
+float medMFE = f_medHist(mfeHist, 0.0, 0.25)
+float medMAE = f_medHist(maeHist, 0.0, 0.25)
+float expR = f_avg(gSumR, gTrades)
+float pfAll = f_pf(gGrossW, gGrossL)
+float winPct = f_pct(gWins, gTrades)
+float netPct = strategy.initial_capital > 0.0 ? strategy.netprofit / strategy.initial_capital * 100.0 : 0.0
+
+float candTotal = 0.0
+if array.size(candByScore) > 0
+    for i = 0 to array.size(candByScore) - 1
+        candTotal += array.get(candByScore, i)
+
+string diag = not tfOK ? TF_ERROR : not htfReady ? "WARMING UP — HIGHER-TIMEFRAME HISTORY" : not atrReady ? "WARMING UP — ATR" : posOpen ? "POSITION OPEN" : armState ? "ARMED — WAITING FOR THE TRIGGER" : dayCapHit ? "STOOD DOWN — DAILY TRADE CAP" : dayLossHit ? "STOOD DOWN — DAILY LOSS CUTOFF" : not coolOK or not pivOK ? "STOOD DOWN — WAITING FOR AN INDEPENDENT SETUP" : atrShock ? "NO TRADE — VOLATILITY SHOCK" : eligCount > 0 ? "ELIGIBLE CANDIDATE THIS BAR" : "NO QUALIFYING CANDIDATE"
+
+// =============================================================================
+// 26. DASHBOARDS
+// =============================================================================
+
+color C_HEAD = color.new(color.black, 15)
+color C_SUB  = color.new(color.black, 35)
+color C_BODY = color.new(color.black, 55)
+color C_TEXT = color.white
+color C_GOOD = color.new(color.teal, 45)
+color C_BAD  = color.new(color.maroon, 35)
+
+// ---- 26.1 live state --------------------------------------------------------
+if barstate.islast and i_tblState
+    var table tSt = table.new(position.top_right, 2, 12, border_width = 1)
+    table.cell(tSt, 0, 0, "CYBER MCGIVER v7", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.small)
+    table.cell(tSt, 1, 0, tfName + " · " + i_dirMode, bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.small)
+    table.cell(tSt, 0, 1, "Timeframe", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 1, tfOK ? "OK" : TF_ERROR, bgcolor = tfOK ? C_BODY : color.new(color.red, 10), text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 0, 2, "Diagnostic", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 2, diag, bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 0, 3, "Regime (1D/4H/1H blend)", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 3, modeName + " · signed " + f_fmt(regimeSigned, 2) + " · long q " + f_fmt(qHtfLong, 2), bgcolor = marketMode == 1 ? C_GOOD : marketMode == -1 ? C_BAD : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 0, 4, "Session · quality", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 4, sessionName + " · " + f_fmt(qSess, 2) + (i_sessVeto ? " · HARD FILTER ON" : ""), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 0, 5, "Volatility ATR / ref", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 5, f_fmt(atrRel, 2) + (atrShock ? " · SHOCK VETO" : ""), bgcolor = atrShock ? C_BAD : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 0, 6, "DXY confluence (long)", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 6, dxyOK ? f_fmt(qDxyLong, 2) + " · " + f_fmt(dxyNorm, 2) + " ATR" : "unavailable · scored " + f_fmt(i_neutralQ, 2), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 0, 7, "Today · trades / cap", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 7, str.tostring(dayTrades) + " / " + str.tostring(i_maxPerDay) + " · " + str.tostring(dayBars) + " bars", bgcolor = dayCapHit ? C_BAD : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 0, 8, "Today · P&L vs cutoff", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 8, f_fmt(f_pct(dayRealised, nz(dayEquity0, strategy.equity)), 2) + "% · budget left $" + f_fmt(dayBudgetUsd, 0), bgcolor = dayLossHit ? C_BAD : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 0, 9, "Open position", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 9, posOpen and not flat ? (posDir == 1 ? "LONG " : "SHORT ") + f_fmt(posLots, 2) + " lot · " + f_famName(posFam) + " · " + f_tierName(posTier) : "flat", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 0, 10, "Modelled cost / lot RT", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 10, "$" + f_fmt(costPerLotRT, 2) + (costMismatch ? " · TESTER MISMATCH: set slippage " + f_fmt(impliedTicks, 0) + " ticks, commission " + f_fmt(impliedCommOz, 3) : " · tester matches"), bgcolor = costMismatch ? color.new(color.red, 10) : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 0, 11, "Symbol sanity", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSt, 1, 11, pointValueSuspect ? "CHECK SYMBOL · point value " + f_fmt(syminfo.pointvalue, 4) + ", sizing assumes 1.0" : "point value 1.0 as assumed", bgcolor = pointValueSuspect ? color.new(color.red, 10) : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+
+// ---- 26.2 daily frequency ---------------------------------------------------
+if barstate.islast and i_tblFreq
+    var table tFq = table.new(position.top_center, 2, 14, border_width = 1)
+    table.cell(tFq, 0, 0, "DAILY FREQUENCY", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.small)
+    table.cell(tFq, 1, 0, "target 1.3–1.8 / day", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.small)
+    array<string> fqName = array.from("normal trading days", "short / holiday days excluded", "total trades", "trades on normal days", "average trades / day", "median trades / day", "days with 0 trades", "days with 1 trade", "days with 2 trades", "days with 3 trades", "days with more than 3", "% of days with no trade", "verdict")
+    bool onTarget = avgPerDay >= 1.3 and avgPerDay <= 1.8
+    bool tooQuiet = zeroDayPct > 20.0
+    array<string> fqVal = array.from(f_fmt(normalDays, 0), f_fmt(shortDays, 0), f_fmt(gTrades, 0), f_fmt(normalTrades, 0), f_fmt(avgPerDay, 2), f_fmt(medPerDay, 0), f_fmt(f_get(dayHist, 0), 0), f_fmt(f_get(dayHist, 1), 0), f_fmt(f_get(dayHist, 2), 0), f_fmt(f_get(dayHist, 3), 0), f_fmt(f_get(dayHist, 4), 0), f_fmt(zeroDayPct, 1) + "%", onTarget and not tooQuiet ? "ON TARGET" : avgPerDay < 1.3 ? "TOO RESTRICTIVE — lower the score floor" : avgPerDay > 1.8 ? "TOO LOOSE — raise the score floor" : "check zero-trade days")
+    for r = 0 to 12
+        bool flagRow = r == 11 and tooQuiet
+        bool verdictRow = r == 12
+        table.cell(tFq, 0, r + 1, array.get(fqName, r), bgcolor = verdictRow ? C_SUB : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tFq, 1, r + 1, array.get(fqVal, r), bgcolor = verdictRow ? (onTarget and not tooQuiet ? C_GOOD : C_BAD) : flagRow ? C_BAD : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+
+// ---- 26.3 decision funnel ---------------------------------------------------
+if barstate.islast and i_tblFun
+    var table tFu = table.new(position.bottom_right, 3, 30, border_width = 1)
+    table.cell(tFu, 0, 0, "DECISION FUNNEL", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tFu, 1, 0, "count", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tFu, 2, 0, "of previous", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    float rawAll = f_get(fRaw, 0) + f_get(fRaw, 1) + f_get(fRaw, 2) + f_get(fRaw, 3)
+    float candAll = f_get(fCand, 0) + f_get(fCand, 1) + f_get(fCand, 2) + f_get(fCand, 3)
+    float passAll = f_get(fPass, 0) + f_get(fPass, 1) + f_get(fPass, 2) + f_get(fPass, 3)
+    array<string> fuName = array.from("bars processed", "— stage 1 · raw opportunities —", "raw structural events (all families)", "— stage 2 · candidates —", "trigger fired (candidates)", "bars with more than one candidate", "— stage 3 · score —", "cleared the score floor", "rejected below the score floor", "— stage 4 · mandatory risk gates —", "blocked · regime floor", "blocked · trigger closed too weak", "blocked · volatility shock", "blocked · session filter", "rejected · stop invalid", "rejected · stop wider than max ATR", "rejected · stop tighter than min ATR", "rejected · not enough reward room", "rejected · anchor already traded", "— stage 5 · availability —", "blocked · position or order already live", "blocked · daily trade cap", "blocked · daily loss cutoff", "blocked · independence cooldown", "— stage 6 · execution —", "orders armed", "orders filled", "· of those, filled and exited in one bar", "trades completed")
+    array<float> fuVal = array.from(fBars, 0.0, rawAll, 0.0, candAll, fMultiBar, 0.0, passAll, fScoreFail, 0.0, fBlockRegime, fBlockMom, fBlockShock, fBlockSess, fStopBad, fStopWide, fStopTight, fRoomShort, fBlockAnchor, 0.0, fBlockOpen, fBlockCap, fBlockLoss, fBlockCool, 0.0, fArmed, fFilled, fSameBar, fTrades)
+    array<float> fuBase = array.from(0.0, 0.0, 0.0, 0.0, rawAll, candAll, 0.0, candAll, candAll, 0.0, passAll, passAll, passAll, passAll, passAll, passAll, passAll, passAll, passAll, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, passAll, fArmed, fFilled, fFilled)
+    for r = 0 to 28
+        bool header = str.startswith(array.get(fuName, r), "—")
+        float base = array.get(fuBase, r)
+        table.cell(tFu, 0, r + 1, array.get(fuName, r), bgcolor = header ? C_SUB : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tFu, 1, r + 1, header ? "" : f_fmt(array.get(fuVal, r), 0), bgcolor = header ? C_SUB : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tFu, 2, r + 1, header or base <= 0.0 ? "" : f_fmt(f_pct(array.get(fuVal, r), base), 1) + "%", bgcolor = header ? C_SUB : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+
+// ---- 26.4 score buckets and threshold calibration ---------------------------
+// The CANDIDATES column counts every candidate the engine produced, whether or
+// not it was traded, so the effect of moving the score floor can be read off
+// this table instead of guessed at. "cand/day at or above" is the frequency the
+// engine would offer if the floor were set at the bottom of that bucket — the
+// number to compare against the 1.3–1.8 target before touching anything else.
+if barstate.islast and i_tblScore
+    var table tSc = table.new(position.bottom_center, 7, 10, border_width = 1)
+    array<string> scHead = array.from("SCORE BUCKET", "candidates", "cand/day ≥", "trades", "win %", "expectancy R", "profit factor")
+    for c = 0 to 6
+        table.cell(tSc, c, 0, array.get(scHead, c), bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    float cumAbove = 0.0
+    for r = 0 to 7
+        int b = 7 - r
+        cumAbove += array.get(candByScore, b)
+        float n = f_get(bkTrades, b)
+        float w = f_get(bkWins, b)
+        color rowBg = b == 0 ? C_SUB : C_BODY
+        table.cell(tSc, 0, r + 1, f_scoreBucketName(b), bgcolor = rowBg, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSc, 1, r + 1, f_fmt(array.get(candByScore, b), 0), bgcolor = rowBg, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSc, 2, r + 1, normalDays > 0.0 ? f_fmt(cumAbove / normalDays, 2) : "—", bgcolor = rowBg, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSc, 3, r + 1, f_fmt(n, 0), bgcolor = rowBg, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSc, 4, r + 1, n > 0.0 ? f_fmt(f_pct(w, n), 1) + "%" : "—", bgcolor = rowBg, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSc, 5, r + 1, n > 0.0 ? f_fmt(f_avg(f_get(bkSumR, b), n), 3) : "—", bgcolor = n > 0.0 ? (f_avg(f_get(bkSumR, b), n) > 0.0 ? C_GOOD : C_BAD) : rowBg, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tSc, 6, r + 1, na(f_pf(f_get(bkGrossW, b), f_get(bkGrossL, b))) ? "—" : f_fmt(f_pf(f_get(bkGrossW, b), f_get(bkGrossL, b)), 2), bgcolor = rowBg, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSc, 0, 9, "candidates total " + f_fmt(candTotal, 0) + " · floor " + f_fmt(i_thrBP, 0) + " · A " + f_fmt(i_thrA, 0) + " · A+ " + f_fmt(i_thrAP, 0), bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+    for c = 1 to 6
+        table.cell(tSc, c, 9, "", bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+
+// ---- 26.5 setup family analytics --------------------------------------------
+if barstate.islast and i_tblFam
+    var table tFa = table.new(position.middle_center, 11, 6, border_width = 1)
+    array<string> faHead = array.from("SETUP FAMILY", "raw", "cand", "≥floor", "trades", "win %", "PF", "exp R", "maxDD R", "avg score W", "avg score L")
+    for c = 0 to 10
+        table.cell(tFa, c, 0, array.get(faHead, c), bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    for r = 0 to 3
+        float n = f_get(famTrades, r)
+        float w = f_get(famWins, r)
+        float l = n - w
+        float e = f_avg(f_get(famSumR, r), n)
+        array<string> vals = array.from(f_famName(r), f_fmt(f_get(fRaw, r), 0), f_fmt(f_get(fCand, r), 0), f_fmt(f_get(fPass, r), 0), f_fmt(n, 0), n > 0.0 ? f_fmt(f_pct(w, n), 1) + "%" : "—", na(f_pf(f_get(famGrossW, r), f_get(famGrossL, r))) ? "—" : f_fmt(f_pf(f_get(famGrossW, r), f_get(famGrossL, r)), 2), n > 0.0 ? f_fmt(e, 3) : "—", f_fmt(f_get(famDDR, r), 2), w > 0.0 ? f_fmt(f_avg(f_get(famScoreW, r), w), 1) : "—", l > 0.0 ? f_fmt(f_avg(f_get(famScoreL, r), l), 1) : "—")
+        for c = 0 to 10
+            table.cell(tFa, c, r + 1, array.get(vals, c), bgcolor = c == 7 and n > 0.0 ? (e > 0.0 ? C_GOOD : C_BAD) : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tFa, 0, 5, "avg score of winners vs losers is the family-level test of whether the score model means anything", bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+    for c = 1 to 10
+        table.cell(tFa, c, 5, "", bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+
+// ---- 26.6 performance --------------------------------------------------------
+if barstate.islast and i_tblPerf
+    var table tPe = table.new(position.bottom_left, 2, 23, border_width = 1)
+    table.cell(tPe, 0, 0, "PERFORMANCE", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.small)
+    table.cell(tPe, 1, 0, i_dirMode, bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.small)
+    array<string> peName = array.from("trades", "wins", "losses", "win rate", "profit factor", "net P&L", "net P&L %", "max drawdown (tester)", "max drawdown (R)", "average R / trade", "median R / trade", "average winner (R)", "average loser (R)", "largest winner (R)", "largest winner ($)", "largest loser (R)", "largest loser ($)", "average bars held", "median bars held", "max consecutive wins", "max consecutive losses", "expectancy ($ / trade)")
+    array<string> peVal = array.from(f_fmt(gTrades, 0), f_fmt(gWins, 0), f_fmt(gLosses, 0), gTrades > 0.0 ? f_fmt(winPct, 1) + "%" : "—", na(pfAll) ? "—" : f_fmt(pfAll, 3), "$" + f_fmt(gNetUsd, 0), f_fmt(netPct, 2) + "%", f_fmt(strategy.max_drawdown_percent, 2) + "%", f_fmt(gDDR, 2), gTrades > 0.0 ? f_fmt(expR, 3) : "—", gTrades > 0.0 ? f_fmt(medR, 2) : "—", gWins > 0.0 ? f_fmt(f_avg(gWinR, gWins), 2) : "—", gLosses > 0.0 ? f_fmt(-f_avg(gLossR, gLosses), 2) : "—", f_fmt(gMaxWinR, 2), "$" + f_fmt(gMaxWinUsd, 0), f_fmt(gMaxLossR, 2), "$" + f_fmt(gMaxLossUsd, 0), gTrades > 0.0 ? f_fmt(f_avg(gSumHold, gTrades), 1) : "—", gTrades > 0.0 ? f_fmt(medHold, 0) : "—", f_fmt(gMaxConsecW, 0), f_fmt(gMaxConsecL, 0), gTrades > 0.0 ? "$" + f_fmt(f_div(gNetUsd, gTrades), 2) : "—")
+    for r = 0 to 21
+        bool key = r == 4 or r == 9
+        table.cell(tPe, 0, r + 1, array.get(peName, r), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tPe, 1, r + 1, array.get(peVal, r), bgcolor = key and gTrades > 0.0 ? (expR > 0.0 ? C_GOOD : C_BAD) : C_BODY, text_color = C_TEXT, text_size = size.tiny)
+
+// ---- 26.7 exits · MFE and MAE distribution -----------------------------------
+// This panel is the reason the v6 follow-through rule was switched off rather
+// than replaced. Read the survival curve, then choose a rule; do not invent one.
+if barstate.islast and i_tblExit
+    var table tEx = table.new(position.middle_left, 3, 15, border_width = 1)
+    table.cell(tEx, 0, 0, "EXIT RESEARCH", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 1, 0, "MFE", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 2, 0, "MAE", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    array<string> exName = array.from("median (R)", "average (R)", "share ≥ 0.25R", "share ≥ 0.50R", "share ≥ 0.75R", "share ≥ 1.00R", "share ≥ 1.20R", "share ≥ 1.50R", "share ≥ 2.00R", "share ≥ 3.00R", "share ≥ 5.00R")
+    array<float> exThr = array.from(0.0, 0.0, 0.25, 0.50, 0.75, 1.00, 1.20, 1.50, 2.00, 3.00, 5.00)
+    for r = 0 to 10
+        string mfeCell = r == 0 ? f_fmt(medMFE, 2) : r == 1 ? f_fmt(f_avg(gSumMFE, gTrades), 2) : f_fmt(f_tailShare(mfeHist, array.get(exThr, r), 0.25), 1) + "%"
+        string maeCell = r == 0 ? f_fmt(medMAE, 2) : r == 1 ? f_fmt(f_avg(gSumMAE, gTrades), 2) : f_fmt(f_tailShare(maeHist, array.get(exThr, r), 0.25), 1) + "%"
+        table.cell(tEx, 0, r + 1, array.get(exName, r), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tEx, 1, r + 1, gTrades > 0.0 ? mfeCell : "—", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+        table.cell(tEx, 2, r + 1, gTrades > 0.0 ? maeCell : "—", bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 0, 12, "follow-through rule", bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 1, 12, i_useFollow ? "ON · ≥" + f_fmt(i_followR, 2) + "R by bar " + str.tostring(i_followBars) : "OFF (v6 rule retired)", bgcolor = i_useFollow ? C_BAD : C_GOOD, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 2, 12, "exits " + f_fmt(fEarlyExit, 0), bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 0, 13, "partial / trail / ceiling", bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 1, 13, f_fmt(i_partialR, 2) + "R · " + f_fmt(i_partialP, 0) + "%", bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 2, 13, f_fmt(i_trailAtr, 1) + " ATR · " + f_fmt(i_maxR, 0) + "R", bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 0, 14, "armed but never filled", bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 1, 14, "expired " + f_fmt(fArmExpired, 0), bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tEx, 2, 14, "voided " + f_fmt(fArmVoided, 0), bgcolor = C_SUB, text_color = C_TEXT, text_size = size.tiny)
+
+// ---- 26.8 session breakdown ---------------------------------------------------
+if barstate.islast and i_tblSess
+    var table tSe = table.new(position.top_left, 6, 10, border_width = 1)
+    array<string> seHead = array.from("SESSION", "trades", "share", "win %", "exp R", "PF")
+    for c = 0 to 5
+        table.cell(tSe, c, 0, array.get(seHead, c), bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    for r = 0 to 4
+        float n = f_get(seTrades, r)
+        float e = f_avg(f_get(seSumR, r), n)
+        array<string> vals = array.from(f_sessName(r), f_fmt(n, 0), f_fmt(f_pct(n, gTrades), 1) + "%", n > 0.0 ? f_fmt(f_pct(f_get(seWins, r), n), 1) + "%" : "—", n > 0.0 ? f_fmt(e, 3) : "—", na(f_pf(f_get(seGrossW, r), f_get(seGrossL, r))) ? "—" : f_fmt(f_pf(f_get(seGrossW, r), f_get(seGrossL, r)), 2))
+        for c = 0 to 5
+            table.cell(tSe, c, r + 1, array.get(vals, c), bgcolor = C_BODY, text_color = C_TEXT, text_size = size.tiny)
+    table.cell(tSe, 0, 6, "QUALITY TIER", bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    for c = 1 to 5
+        table.cell(tSe, c, 6, array.get(seHead, c), bgcolor = C_HEAD, text_color = C_TEXT, text_size = size.tiny)
+    for r = 1 to 3
+        int t = 4 - r
+        float n = f_get(tiTrades, t)
+        float e = f_avg(f_get(tiSumR, t), n)
+        array<string> vals = array.from(f_tierName(t) + " · risk " + f_fmt(t == TIER_AP ? i_riskAP : t == TIER_A ? i_riskA : i_riskBP, 2) + "%", f_fmt(n, 0), f_fmt(f_pct(n, gTrades), 1) + "%", n > 0.0 ? f_fmt(f_pct(f_get(tiWins, t), n), 1) + "%" : "—", n > 0.0 ? f_fmt(e, 3) : "—", na(f_pf(f_get(tiGrossW, t), f_get(tiGrossL, t))) ? "—" : f_fmt(f_pf(f_get(tiGrossW, t), f_get(tiGrossL, t)), 2))
+        for c = 0 to 5
+            table.cell(tSe, c, r + 6, array.get(vals, c), bgcolor = c == 4 and n > 0.0 ? (e > 0.0 ? C_GOOD : C_BAD) : C_BODY, text_color = C_TEXT, text_size = size.tiny)

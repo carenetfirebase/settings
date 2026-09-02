@@ -16,3 +16,9 @@ build/
 *.log
 .DS_Store
 pgdata/
+
+# Phase 0 run artefacts. The committed example under
+# strategies/hermicane/examples/ is the only output worth versioning.
+strategies/hermicane/out/
+strategies/hermicane/examples/synthetic/panel.csv
+strategies/hermicane/examples/synthetic/panel.parquet

@@ -1,0 +1,1538 @@
+//@version=6
+// =============================================================================
+// AURUM-NY PRIME v2.0
+// XAUUSD FTMO NY-Open Quantitative Confluence Research Engine
+// -----------------------------------------------------------------------------
+// LONG ONLY. One position at a time. No pyramiding. Non-repainting by
+// construction: every decision uses only information that existed at the
+// decision timestamp.
+//
+// This script is a RESEARCH ENGINE, not a promise. It implements the setup
+// definition deterministically and exports every trade so that the statistics
+// Pine cannot compute honestly — bootstrapped expectancy, block-bootstrap Monte
+// Carlo, FTMO pass paths, ablation tables, parameter-stability surfaces — are
+// computed externally by validation/aurum_validate.py.
+//
+// What this script deliberately does NOT do:
+//   * It does not claim a realtime spread filter. Pine has no bid/ask, so the
+//     spread gate here is a MODELLED cost, labelled as such (S27).
+//   * It does not claim request.economic() is an economic-event calendar. News
+//     blackouts come from user-supplied timestamps, and the dashboard states
+//     how many were supplied (S42).
+//   * It does not compute bootstrap confidence intervals. Those are external.
+//     The Wilson interval IS computed here because it is a closed form and
+//     nothing is lost by evaluating it in Pine (S63).
+//
+// Section numbers in comments (S1..S90) map to docs/01_mathematical_spec.md.
+// =============================================================================
+
+strategy(
+     title                   = "AURUM-NY PRIME v2.0",
+     shorttitle              = "AURUM-NY",
+     overlay                 = true,
+     initial_capital         = 100000,
+     currency                = currency.USD,
+     default_qty_type        = strategy.fixed,
+     default_qty_value       = 1,
+     pyramiding              = 0,
+     calc_on_every_tick      = false,
+     calc_on_order_fills     = false,
+     process_orders_on_close = false,
+     close_entries_rule      = "ANY",
+     commission_type         = strategy.commission.cash_per_contract,
+     commission_value        = 0.0,
+     slippage                = 0,
+     max_labels_count        = 500,
+     max_lines_count         = 500,
+     max_boxes_count         = 100,
+     max_bars_back           = 1000)
+
+// Commission and slippage are declaration-time constants in Pine and therefore
+// CANNOT be wired to inputs. Set them in Strategy Properties before drawing any
+// conclusion from a backtest: docs/05_execution_audit.md gives the numbers to
+// use. The internal cost model below feeds position sizing and stop buffers; it
+// does not replace tester costs, and it is not a substitute for them.
+
+// =============================================================================
+// 0. CONSTANTS
+// =============================================================================
+string TZ = "America/New_York"
+
+string G_MODE  = "1 · Mode"
+string G_SYM   = "2 · Confirmation markets"
+string G_TIME  = "3 · Sessions (America/New_York)"
+string G_HTF   = "4 · Higher-timeframe gold regime"
+string G_ORB   = "5 · NY opening range"
+string G_VWAP  = "6 · Anchored VWAP"
+string G_PIV   = "7 · Pivots · trendline · third touch"
+string G_REJ   = "8 · Rejection candle · microstructure"
+string G_INTER = "9 · Intermarket"
+string G_EXEC  = "10 · Volatility · execution quality"
+string G_RISK  = "11 · Risk · FTMO"
+string G_EXIT  = "12 · Targets · exits"
+string G_SCORE = "13 · Confluence score"
+string G_NEWS  = "14 · News blackout"
+string G_ABL   = "15 · Ablation switches"
+string G_UI    = "16 · Dashboard · logging"
+
+// State-machine labels (S57)
+string ST_IDLE    = "IDLE"
+string ST_HTF     = "HTF_BULL"
+string ST_ASIA    = "ASIA_COMPLETE"
+string ST_LONDON  = "LONDON_CONFIRMED"
+string ST_OR      = "NY_OR_DEFINED"
+string ST_BREAK   = "ORB_BREAK"
+string ST_ACCEPT  = "ORB_ACCEPTED"
+string ST_PIVOTS  = "PIVOTS_VALID"
+string ST_TL      = "TRENDLINE_VALID"
+string ST_WAIT3   = "WAIT_TOUCH_3"
+string ST_TOUCH3  = "TOUCH_3"
+string ST_REJECT  = "REJECTION"
+string ST_MACRO   = "MACRO_CONFIRM"
+string ST_ARMED   = "ARMED"
+string ST_ENTRY   = "ENTRY"
+string ST_OPEN    = "POSITION_OPEN"
+string ST_BE      = "BREAKEVEN_ELIGIBLE"
+string ST_TP1     = "TP1"
+string ST_TP2     = "TP2"
+string ST_RUNNER  = "RUNNER"
+string ST_CLOSED  = "CLOSED"
+string ST_INVALID = "INVALIDATED"
+
+// =============================================================================
+// 1. INPUTS
+// =============================================================================
+
+// ---- 1.1 Mode (S5, S23, S35, S46) -------------------------------------------
+i_evalMode   = input.string("FTMO 2-Step", "Evaluation mode", options = ["FTMO 2-Step", "FTMO 1-Step", "Research Only"], group = G_MODE)
+i_phase      = input.string("Phase 1", "Evaluation phase (2-step)", options = ["Phase 1", "Verification"], group = G_MODE)
+i_entryMode  = input.string("Conservative", "Entry mode (S35)", options = ["Conservative", "Moderate"], group = G_MODE, tooltip = "Conservative: max(H3, micro pivot high) + 1 tick. Moderate: H3 + 1 tick. Compare both out-of-sample.")
+i_stopModel  = input.string("A · Touch #3", "Stop model (S46)", options = ["A · Touch #3", "B · Pivot #2"], group = G_MODE, tooltip = "Test A and B independently. Do NOT let an optimiser pick whichever wins on final out-of-sample data.")
+i_volMode    = input.string("Broker volume", "XAU volume mode (S23)", options = ["Broker volume", "Tick volume", "GC confirmation", "Price-only VWAP", "Disable volume-strength filter"], group = G_MODE, tooltip = "XAUUSD volume is not centralised transaction volume. The mode used is recorded in every exported trade row.")
+
+// ---- 1.2 Confirmation markets (S4) ------------------------------------------
+i_symGC      = input.symbol("COMEX:GC1!",  "COMEX gold futures",      group = G_SYM)
+i_symDXY     = input.symbol("TVC:DXY",     "US dollar index",         group = G_SYM)
+i_symVIX     = input.symbol("CBOE:VIX",    "VIX",                     group = G_SYM)
+i_symRY      = input.symbol("FRED:DFII10", "10y real-yield proxy",    group = G_SYM, tooltip = "FRED:DFII10 is the 10-year TIPS yield. Point it at any reliable real-yield series your feed carries.")
+i_symUST     = input.symbol("TVC:US10Y",   "10y nominal-yield proxy", group = G_SYM)
+i_useRY      = input.bool(true,  "Use real-yield proxy",    group = G_SYM)
+i_useUST     = input.bool(false, "Use nominal-yield proxy", group = G_SYM, tooltip = "Off by default: nominal and real yields are highly correlated, and double-counting them is untested (S39).")
+
+// ---- 1.3 Sessions (S9, S10, S11, S14, S17) ----------------------------------
+i_asiaStart  = input.string("20:00", "Asia session start (ET)",     group = G_TIME)
+i_asiaEnd    = input.string("02:00", "Asia session end (ET)",       group = G_TIME)
+i_lonStart   = input.string("02:00", "London session start (ET)",   group = G_TIME)
+i_lonEnd     = input.string("08:20", "London session end (ET)",     group = G_TIME)
+i_orStart    = input.string("08:20", "NY opening range start (ET)", group = G_TIME)
+i_orEnd      = input.string("08:35", "NY opening range end (ET)",   group = G_TIME)
+i_tradeStart = input.string("08:35", "First entry allowed (ET)",    group = G_TIME)
+i_tradeEnd   = input.string("11:30", "Last entry allowed (ET)",     group = G_TIME)
+i_flatTime   = input.string("12:00", "Flatten all positions (ET)",  group = G_TIME)
+i_runnerLate = input.bool(false, "Runner mode: allow runner past flatten time", group = G_TIME, tooltip = "Research switch (S9). Off = hard flat at the flatten time.")
+i_runnerEnd  = input.string("16:00", "Runner hard flatten (ET)",    group = G_TIME)
+i_maxSweep   = input.float(0.50, "Maximum Asia-low sweep depth (× ATR15)", minval = 0.05, step = 0.05, group = G_TIME)
+i_sweepBars  = input.int(3, "Reclaim must complete within N bars", minval = 1, maxval = 12, group = G_TIME)
+i_dayReset   = input.string("00:00", "Daily risk accounting resets (ET)", group = G_TIME, tooltip = "FTMO resets the daily loss limit on its own server clock. Set this to that time expressed in ET.")
+
+// ---- 1.4 HTF regime (S16) ----------------------------------------------------
+i_tf4h       = input.timeframe("240", "HTF regime timeframe A", group = G_HTF)
+i_tf1h       = input.timeframe("60",  "HTF regime timeframe B", group = G_HTF)
+i_ema4h      = input.int(50, "EMA length, timeframe A", minval = 5, group = G_HTF)
+i_ema1hFast  = input.int(20, "Fast EMA, timeframe B",   minval = 3, group = G_HTF)
+i_ema1hSlow  = input.int(50, "Slow EMA, timeframe B",   minval = 5, group = G_HTF)
+i_emaSlopeLB = input.int(3,  "EMA slope lookback (completed HTF bars)", minval = 1, maxval = 20, group = G_HTF)
+
+// ---- 1.5 ORB (S18-S21) -------------------------------------------------------
+i_orbBufATR  = input.float(0.05, "ORB breakout buffer (× ATR)",  minval = 0.0,  step = 0.01, group = G_ORB)
+i_orbRetTol  = input.float(0.10, "ORB retest tolerance (× ATR)", minval = 0.01, step = 0.01, group = G_ORB)
+i_orbHoldTol = input.float(0.10, "Momentum-acceptance low tolerance (× ATR)", minval = 0.0, step = 0.01, group = G_ORB)
+i_orbFailN   = input.int(2, "Invalidate after N consecutive closes below ORH", minval = 1, maxval = 5, group = G_ORB)
+
+// ---- 1.6 VWAP (S22, S25) -----------------------------------------------------
+i_vwapSlopeLB = input.int(3, "VWAP slope lookback (bars)", minval = 1, maxval = 20, group = G_VWAP)
+i_vwapExtMax  = input.float(1.25, "Maximum VWAP extension (× ATR)", minval = 0.25, step = 0.05, group = G_VWAP, tooltip = "Do not chase. Research 1.00 / 1.25 / 1.50.")
+i_vwapExtGood = input.float(0.75, "VWAP extension scored as 'not extended' (× ATR)", minval = 0.1, step = 0.05, group = G_VWAP)
+
+// ---- 1.7 Pivots / trendline / third touch (S28-S32) --------------------------
+i_pivLeft    = input.int(3, "Pivot left bars",  minval = 1, maxval = 20, group = G_PIV)
+i_pivRight   = input.int(3, "Pivot right bars", minval = 1, maxval = 20, group = G_PIV)
+i_pivAnchor  = input.string("London open", "Pivot memory resets at", options = ["London open", "NY OR anchor", "ET day open"], group = G_PIV)
+i_minRiseATR = input.float(0.10, "Minimum P2−P1 rise (× ATR)", minval = 0.0, step = 0.01, group = G_PIV)
+i_minSpace   = input.int(4,  "Minimum pivot spacing (bars)", minval = 1, group = G_PIV)
+i_maxSpace   = input.int(36, "Maximum pivot spacing (bars)", minval = 2, group = G_PIV)
+i_slopeMaxN  = input.float(0.25, "Maximum normalised trendline slope (ATR per bar)", minval = 0.01, step = 0.01, group = G_PIV)
+i_touchTol   = input.float(0.12, "Third-touch tolerance (× ATR)", minval = 0.01, step = 0.01, group = G_PIV)
+i_strictStru = input.bool(false, "Require strict structure (HH2 > HH1)", group = G_PIV, tooltip = "S29 strict mode. Off = standard mode (HL2 > HL1); strict structure adds score either way.")
+
+// ---- 1.8 Rejection candle / microstructure (S33, S34) ------------------------
+i_minBR      = input.float(0.35, "Minimum body ratio",            minval = 0.0, maxval = 1.0, step = 0.05, group = G_REJ)
+i_minCLV     = input.float(0.70, "Minimum close-location value",  minval = 0.0, maxval = 1.0, step = 0.05, group = G_REJ)
+i_minLWR     = input.float(0.15, "Preferred lower-wick ratio",    minval = 0.0, maxval = 1.0, step = 0.05, group = G_REJ)
+i_orderLife  = input.int(2, "Pending order lifetime (bars)", minval = 1, maxval = 10, group = G_REJ)
+i_mphLeft    = input.int(1, "Micro pivot left bars",  minval = 1, maxval = 10, group = G_REJ)
+i_mphRight   = input.int(1, "Micro pivot right bars", minval = 1, maxval = 10, group = G_REJ)
+
+// ---- 1.9 Intermarket (S24, S36-S40) ------------------------------------------
+i_dxyMinScore = input.int(2, "Minimum DXY intraday score (of 3)", minval = 0, maxval = 3, group = G_INTER)
+i_rocLen      = input.int(30, "Intraday ROC length (bars)", minval = 5, group = G_INTER)
+i_gcMinCount  = input.int(2, "Minimum GC confirmation count", minval = 0, maxval = 4, group = G_INTER)
+i_gcVolReq    = input.bool(false, "Require GC volume expansion", group = G_INTER, tooltip = "Off until ablation proves it adds value (S24).")
+i_corrLen     = input.int(60, "Rolling correlation length (days)", minval = 20, maxval = 250, group = G_INTER)
+i_corrStrong  = input.float(-0.20, "Gold/DXY correlation considered normal (≤)", step = 0.05, group = G_INTER)
+i_ryLookback  = input.int(5, "Real-yield momentum lookback (days)", minval = 1, maxval = 60, group = G_INTER)
+i_vixLookback = input.int(5, "VIX momentum lookback (days)", minval = 1, maxval = 60, group = G_INTER)
+
+// ---- 1.10 Volatility / execution (S26, S27, S76) -----------------------------
+i_atrLen     = input.int(14, "ATR length (chart timeframe)", minval = 2, group = G_EXEC)
+i_atrMedLen  = input.int(50, "ATR median length", minval = 10, group = G_EXEC)
+i_atrShockMx = input.float(1.75, "Maximum ATR shock ratio", minval = 1.0, step = 0.05, group = G_EXEC, tooltip = "Research 1.50 / 1.75 / 2.00.")
+i_spreadUSD  = input.float(0.30, "Modelled spread (price units)", minval = 0.0, step = 0.01, group = G_EXEC, tooltip = "MODELLED, not observed. Pine has no bid/ask (S27).")
+i_slipUSD    = input.float(0.10, "Modelled adverse slippage per side (price units)", minval = 0.0, step = 0.01, group = G_EXEC)
+i_commUnit   = input.float(0.07, "Commission per unit, round turn (USD)", minval = 0.0, step = 0.001, group = G_EXEC, tooltip = "USD 7 per 100 oz round turn = 0.07 per ounce.")
+i_maxSprATR  = input.float(0.20, "Maximum spread / ATR", minval = 0.0, step = 0.01, group = G_EXEC)
+i_staleBars  = input.int(12, "Feed considered stale after N unchanged bars", minval = 2, group = G_EXEC)
+
+// ---- 1.11 Risk / FTMO (S6, S7, S8, S47, S51, S52, S76) -----------------------
+i_acctSize    = input.float(100000, "FTMO account size (USD)", minval = 1000, group = G_RISK)
+i_riskStd     = input.float(0.50, "Standard risk (% of equity)", minval = 0.01, step = 0.05, group = G_RISK)
+i_riskAbsMax  = input.float(1.00, "Absolute maximum risk (% of equity)", minval = 0.01, step = 0.05, group = G_RISK)
+i_riskHardCap = input.float(1000, "Hard risk cap (USD)", minval = 1, group = G_RISK)
+i_dailyStop   = input.float(1.50, "Internal daily loss stop (%)", minval = 0.1, step = 0.1, group = G_RISK)
+i_ftmoDaily   = input.float(5.00, "FTMO maximum daily loss (%)", minval = 0.1, step = 0.5, group = G_RISK)
+i_ftmoMax     = input.float(10.00, "FTMO maximum total loss (%)", minval = 0.1, step = 0.5, group = G_RISK)
+i_ftmoTgt1    = input.float(10.00, "Phase 1 target (%)", minval = 0.1, step = 0.5, group = G_RISK)
+i_ftmoTgt2    = input.float(5.00,  "Verification target (%)", minval = 0.1, step = 0.5, group = G_RISK)
+i_minDays     = input.int(4, "Minimum trading days", minval = 0, group = G_RISK)
+i_sc1         = input.float(0.40, "Risk % when gain 5–8%",  minval = 0.0, step = 0.05, group = G_RISK)
+i_sc2         = input.float(0.25, "Risk % when gain 8–9%",  minval = 0.0, step = 0.05, group = G_RISK)
+i_sc3         = input.float(0.15, "Risk % when gain 9–10%", minval = 0.0, step = 0.05, group = G_RISK)
+i_usdPerPt    = input.float(1.0, "USD per 1.00 price move, per unit", minval = 0.000001, step = 0.1, group = G_RISK, tooltip = "XAUUSD is quoted per ounce: 1 unit = 1 oz = USD 1 per USD 1 move. VERIFY against your broker before deployment (S47).")
+i_unitStep    = input.float(1.0, "Unit step (lot step × contract size)", minval = 0.000001, step = 0.1, group = G_RISK, tooltip = "0.01 lot × 100 oz = 1 oz.")
+i_unitMin     = input.float(1.0, "Minimum units", minval = 0.000001, step = 0.1, group = G_RISK)
+i_ozPerLot    = input.float(100, "Units per lot (display only)", minval = 0.000001, group = G_RISK)
+i_maxTrades   = input.int(1, "Maximum trades per day", minval = 1, maxval = 3, group = G_RISK)
+i_secondMinS  = input.float(90, "Second trade minimum score", minval = 0, maxval = 100, group = G_RISK)
+i_secondRisk  = input.float(0.25, "Second trade maximum risk (%)", minval = 0.0, step = 0.05, group = G_RISK)
+i_stopOnWin   = input.bool(true, "Stop for the day after a net-positive TP1 trade (S52)", group = G_RISK)
+i_ddKill      = input.float(0.0, "Kill switch: strategy drawdown (% of account, 0 = off)", minval = 0.0, step = 0.5, group = G_RISK, tooltip = "Set to the validated 95th-percentile drawdown from the external Monte Carlo (S76).")
+
+// ---- 1.12 Exits (S48-S50) ----------------------------------------------------
+i_tp1R       = input.float(1.5, "TP1 (R)", minval = 0.1, step = 0.1, group = G_EXIT)
+i_tp2R       = input.float(3.0, "TP2 (R)", minval = 0.1, step = 0.1, group = G_EXIT)
+i_runMaxR    = input.float(7.0, "Runner maximum (R)", minval = 0.1, step = 0.5, group = G_EXIT)
+i_tp1Pct     = input.float(50, "TP1 size (%)", minval = 0, maxval = 100, step = 5, group = G_EXIT)
+i_tp2Pct     = input.float(25, "TP2 size (%)", minval = 0, maxval = 100, step = 5, group = G_EXIT)
+i_beTrigR    = input.float(1.0, "Breakeven trigger (R, on candle CLOSE)", minval = 0.1, step = 0.25, group = G_EXIT, tooltip = "Research 0.75 / 1.00 / 1.25. Wicks do not count (S49).")
+i_trailATR   = input.float(2.0, "Runner ATR trail (× ATR)", minval = 0.25, step = 0.25, group = G_EXIT)
+i_trailStruB = input.float(0.10, "Runner structural trail buffer (× ATR)", minval = 0.0, step = 0.01, group = G_EXIT)
+i_stopBufATR = input.float(0.10, "Structural stop buffer (× ATR)", minval = 0.0, step = 0.01, group = G_EXIT)
+i_minStopATR = input.float(0.20, "Minimum stop distance (× ATR)", minval = 0.01, step = 0.05, group = G_EXIT)
+i_maxStopATR = input.float(1.25, "Maximum stop distance (× ATR)", minval = 0.1, step = 0.05, group = G_EXIT)
+i_minRoomR   = input.float(1.5, "Minimum resistance clearance (R)", minval = 0.5, step = 0.1, group = G_EXIT)
+
+// ---- 1.13 Score (S53, S54) ---------------------------------------------------
+i_wHTF     = input.float(10, "Weight · HTF gold regime",           minval = 0, group = G_SCORE)
+i_wSess    = input.float(12, "Weight · Asia/London structure",     minval = 0, group = G_SCORE)
+i_wORB     = input.float(12, "Weight · ORB breakout + acceptance", minval = 0, group = G_SCORE)
+i_wVWAP    = input.float(10, "Weight · VWAP position + slope",     minval = 0, group = G_SCORE)
+i_wDXY     = input.float(14, "Weight · DXY",                       minval = 0, group = G_SCORE)
+i_wGC      = input.float(8,  "Weight · COMEX GC",                  minval = 0, group = G_SCORE)
+i_wRates   = input.float(8,  "Weight · real yields / rates",       minval = 0, group = G_SCORE)
+i_wVIX     = input.float(4,  "Weight · VIX",                       minval = 0, group = G_SCORE)
+i_wPivot   = input.float(8,  "Weight · confirmed pivot structure", minval = 0, group = G_SCORE)
+i_wTouch   = input.float(7,  "Weight · third trendline touch",     minval = 0, group = G_SCORE)
+i_wRej     = input.float(7,  "Weight · rejection + microstructure",minval = 0, group = G_SCORE)
+i_scoreMin = input.float(80, "Confluence threshold", minval = 0, maxval = 100, step = 1, group = G_SCORE, tooltip = "Research 75 / 80 / 85 / 90. A higher score does not automatically mean higher expectancy — measure it.")
+
+// ---- 1.14 News (S41, S42) ----------------------------------------------------
+i_newsPre    = input.int(15, "Ordinary blackout: minutes before", minval = 0, group = G_NEWS)
+i_newsPost   = input.int(15, "Ordinary blackout: minutes after",  minval = 0, group = G_NEWS)
+i_fomcPost   = input.int(30, "FOMC blackout: minutes after",      minval = 0, group = G_NEWS)
+i_newsList   = input.text_area("", "High-impact events (ET), YYYY-MM-DD HH:MM, comma or newline separated", group = G_NEWS, tooltip = "CPI / core CPI / PCE / NFP / GDP / wage data. Supplied MANUALLY: Pine has no economic-event calendar (S42).")
+i_fomcList   = input.text_area("", "FOMC events (ET), YYYY-MM-DD HH:MM", group = G_NEWS)
+i_dailyList  = input.text_area("", "Recurring daily blackout times (ET), HH:MM", group = G_NEWS, tooltip = "Example: 08:30, 10:00. Applies to every day. Blunt, but honest, and it is stated in the export.")
+i_blockToday = input.bool(false, "Manual override: block all new trading", group = G_NEWS)
+
+// ---- 1.15 Ablation (S71) -----------------------------------------------------
+i_ablPreset = input.string("J · Full AURUM-NY PRIME", "Ablation preset", options = ["A · ORB only", "B · + VWAP", "C · + Asia/London", "D · + pivots", "E · + third touch", "F · + DXY", "G · + GC", "H · + rates", "I · + VIX", "J · Full AURUM-NY PRIME", "Custom"], group = G_ABL)
+i_cHTF      = input.bool(true, "Custom · HTF regime",  group = G_ABL)
+i_cSess     = input.bool(true, "Custom · Asia/London", group = G_ABL)
+i_cVWAP     = input.bool(true, "Custom · VWAP",        group = G_ABL)
+i_cPivot    = input.bool(true, "Custom · pivots",      group = G_ABL)
+i_cTouch    = input.bool(true, "Custom · third touch", group = G_ABL)
+i_cDXY      = input.bool(true, "Custom · DXY",         group = G_ABL)
+i_cGC       = input.bool(true, "Custom · GC",          group = G_ABL)
+i_cRates    = input.bool(true, "Custom · rates",       group = G_ABL)
+i_cVIX      = input.bool(true, "Custom · VIX",         group = G_ABL)
+
+// ---- 1.16 UI (S59, S60, S61) -------------------------------------------------
+i_showDash   = input.bool(true, "Show dashboard",                  group = G_UI)
+i_showStats  = input.bool(true, "Show target vs verified panel",   group = G_UI)
+i_debug      = input.bool(true, "Show no-trade reason",            group = G_UI)
+i_drawLevels = input.bool(true, "Draw levels and trendline",       group = G_UI)
+i_logTrades  = input.bool(true, "Log trade CSV to Pine Logs on the last historical bar", group = G_UI)
+i_alertRows  = input.bool(true, "Emit CSV alert on every closed position", group = G_UI)
+
+// =============================================================================
+// 2. HELPERS
+// Pine forbids a function from assigning to a global, so everything that has to
+// mutate strategy state is written inline further down. These are pure.
+// =============================================================================
+
+// Minutes-of-day from "HH:MM". Compared against wall-clock ET produced by
+// hour()/minute() with an explicit timezone, so DST is handled by the platform
+// rather than by a hard-coded offset (S9).
+f_hm(s) =>
+    p = str.split(str.replace_all(s, " ", ""), ":")
+    h = array.size(p) > 0 ? nz(str.tonumber(array.get(p, 0)), 0.0) : 0.0
+    m = array.size(p) > 1 ? nz(str.tonumber(array.get(p, 1)), 0.0) : 0.0
+    int(math.round(h)) * 60 + int(math.round(m))
+
+f_trim(s) =>
+    r = s
+    while str.length(r) > 0 and str.startswith(r, " ")
+        r := str.substring(r, 1)
+    while str.length(r) > 0 and str.endswith(r, " ")
+        r := str.substring(r, 0, str.length(r) - 1)
+    r
+
+// Membership in a wall-clock window that may wrap past midnight.
+f_inWin(m, a, b) =>
+    a <= b ? (m >= a and m < b) : (m >= a or m < b)
+
+// "YYYY-MM-DD HH:MM" list -> array of UNIX ms. Commas and newlines both split.
+f_parseStamps(src) =>
+    out = array.new<int>()
+    clean = str.replace_all(str.replace_all(src, "\n", ","), "\r", ",")
+    if str.length(f_trim(str.replace_all(clean, ",", ""))) > 0
+        parts = str.split(clean, ",")
+        for raw in parts
+            s = f_trim(raw)
+            if str.length(s) >= 10
+                dt = str.split(str.replace_all(s, " ", "T"), "T")
+                dp = str.split(array.get(dt, 0), "-")
+                hh = 0
+                mm = 0
+                if array.size(dt) > 1
+                    tp = str.split(array.get(dt, 1), ":")
+                    hh := array.size(tp) > 0 ? int(math.round(nz(str.tonumber(array.get(tp, 0)), 0.0))) : 0
+                    mm := array.size(tp) > 1 ? int(math.round(nz(str.tonumber(array.get(tp, 1)), 0.0))) : 0
+                if array.size(dp) == 3
+                    y  = int(math.round(nz(str.tonumber(array.get(dp, 0)), 0.0)))
+                    mo = int(math.round(nz(str.tonumber(array.get(dp, 1)), 0.0)))
+                    d  = int(math.round(nz(str.tonumber(array.get(dp, 2)), 0.0)))
+                    if y > 1970 and mo >= 1 and mo <= 12 and d >= 1 and d <= 31
+                        array.push(out, timestamp(TZ, y, mo, d, hh, mm))
+    out
+
+// "HH:MM" list -> array of minutes-of-day.
+f_parseMinutes(src) =>
+    out = array.new<int>()
+    clean = str.replace_all(str.replace_all(src, "\n", ","), "\r", ",")
+    if str.length(f_trim(str.replace_all(clean, ",", ""))) > 0
+        parts = str.split(clean, ",")
+        for raw in parts
+            s = f_trim(raw)
+            if str.contains(s, ":")
+                array.push(out, f_hm(s))
+    out
+
+f_inBlackout(stamps, preMin, postMin, tOpen, tClose) =>
+    hit = false
+    if array.size(stamps) > 0
+        for k = 0 to array.size(stamps) - 1
+            ts = array.get(stamps, k)
+            if tClose > ts - preMin * 60000 and tOpen < ts + postMin * 60000
+                hit := true
+    hit
+
+// Pearson correlation of log returns held in two aligned close arrays (S37).
+f_corrLogRet(a, b, n) =>
+    float res = na
+    sz = math.min(array.size(a), array.size(b))
+    if sz >= n + 1 and n > 2
+        sx = 0.0
+        sy = 0.0
+        sxx = 0.0
+        syy = 0.0
+        sxy = 0.0
+        cnt = 0
+        for k = sz - n to sz - 1
+            pa0 = array.get(a, k - 1)
+            pa1 = array.get(a, k)
+            pb0 = array.get(b, k - 1)
+            pb1 = array.get(b, k)
+            if pa0 > 0 and pa1 > 0 and pb0 > 0 and pb1 > 0
+                x = math.log(pa1 / pa0)
+                y = math.log(pb1 / pb0)
+                sx  += x
+                sy  += y
+                sxx += x * x
+                syy += y * y
+                sxy += x * y
+                cnt += 1
+        if cnt > 2
+            cov = sxy - sx * sy / cnt
+            vx  = sxx - sx * sx / cnt
+            vy  = syy - sy * sy / cnt
+            res := vx > 0 and vy > 0 ? cov / math.sqrt(vx * vy) : na
+    res
+
+f_logMom(a, n) =>
+    float res = na
+    sz = array.size(a)
+    if sz >= n + 1
+        p0 = array.get(a, sz - 1 - n)
+        p1 = array.get(a, sz - 1)
+        res := p0 > 0 and p1 > 0 ? math.log(p1 / p0) : na
+    res
+
+f_diffN(a, n) =>
+    float res = na
+    sz = array.size(a)
+    if sz >= n + 1
+        res := array.get(a, sz - 1) - array.get(a, sz - 1 - n)
+    res
+
+// Round DOWN to a step. Position size is never rounded up (S47).
+f_floorStep(v, step) =>
+    step <= 0 ? v : math.floor(v / step + 1e-9) * step
+
+// Wilson score interval (S63). Closed form, so nothing is lost by computing it
+// here; the bootstrap work stays external where it belongs.
+f_wilson(wins, n, z) =>
+    float lo = na
+    float hi = na
+    if n > 0
+        p = wins * 1.0 / n          // int / int is INTEGER division in Pine
+        d = 1.0 + z * z / n
+        c = p + z * z / (2 * n)
+        s = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+        lo := (c - s) / d
+        hi := (c + s) / d
+    [lo, hi]
+
+// Keep the smallest level that sits above a price (S44).
+f_minAbove(px, v, cur) =>
+    not na(v) and v > px ? (na(cur) ? v : math.min(cur, v)) : cur
+
+f_block(raw, rawMax, weight, enabled) =>
+    enabled and rawMax > 0 ? math.min(raw / rawMax, 1.0) * weight : 0.0
+
+f_num(v, fmt) => na(v) ? "n/a" : str.tostring(v, fmt)
+f_pct(v) => na(v) ? "n/a" : str.tostring(v * 100, "#.0") + "%"
+f_state(ok, yes, no) => ok ? yes : no
+f_bit(b) => b ? "1" : "0"
+
+f_row(t, r, k, v, c) =>
+    table.cell(t, 0, r, k, text_size = size.tiny, text_color = color.silver, text_halign = text.align_left, bgcolor = color.new(color.black, 20))
+    table.cell(t, 1, r, v, text_size = size.tiny, text_color = c, text_halign = text.align_right, bgcolor = color.new(color.black, 20))
+
+f_srow(t, r, k, tgt, act, c) =>
+    table.cell(t, 0, r, k, text_size = size.tiny, text_color = color.silver, text_halign = text.align_left, bgcolor = color.new(color.black, 20))
+    table.cell(t, 1, r, tgt, text_size = size.tiny, text_color = color.new(color.silver, 30), text_halign = text.align_right, bgcolor = color.new(color.black, 20))
+    table.cell(t, 2, r, act, text_size = size.tiny, text_color = c, text_halign = text.align_right, bgcolor = color.new(color.black, 20))
+
+// =============================================================================
+// 3. ABLATION RESOLUTION (S71)
+// =============================================================================
+// A component switched OFF has its mandatory gate bypassed AND its weight
+// removed from BOTH the numerator and the denominator of the score. Leaving the
+// denominator at 100 while some components can never score would silently move
+// the threshold, which is exactly the sort of accident that manufactures
+// results. The ORB engine is the baseline and is never ablated away.
+pset     = i_ablPreset
+isCustom = pset == "Custom"
+useHTF   = isCustom ? i_cHTF   : true
+useSess  = isCustom ? i_cSess  : not (pset == "A · ORB only" or pset == "B · + VWAP")
+useVWAP  = isCustom ? i_cVWAP  : pset != "A · ORB only"
+usePivot = isCustom ? i_cPivot : not (pset == "A · ORB only" or pset == "B · + VWAP" or pset == "C · + Asia/London")
+useTouch = isCustom ? i_cTouch : not (pset == "A · ORB only" or pset == "B · + VWAP" or pset == "C · + Asia/London" or pset == "D · + pivots")
+useDXY   = isCustom ? i_cDXY   : (pset == "F · + DXY" or pset == "G · + GC" or pset == "H · + rates" or pset == "I · + VIX" or pset == "J · Full AURUM-NY PRIME")
+useGC    = isCustom ? i_cGC    : (pset == "G · + GC" or pset == "H · + rates" or pset == "I · + VIX" or pset == "J · Full AURUM-NY PRIME")
+useRates = isCustom ? i_cRates : (pset == "H · + rates" or pset == "I · + VIX" or pset == "J · Full AURUM-NY PRIME")
+useVIX   = isCustom ? i_cVIX   : (pset == "I · + VIX" or pset == "J · Full AURUM-NY PRIME")
+
+// =============================================================================
+// 4. TIME BASE (S9)
+// =============================================================================
+etMin  = hour(time, TZ) * 60 + minute(time, TZ)
+etDate = year(time, TZ) * 10000 + month(time, TZ) * 100 + dayofmonth(time, TZ)
+etDow  = dayofweek(time, TZ)
+newDay = etDate != nz(etDate[1], 0)
+isWeekday = etDow != dayofweek.saturday and etDow != dayofweek.sunday
+
+mAsiaS  = f_hm(i_asiaStart)
+mAsiaE  = f_hm(i_asiaEnd)
+mLonS   = f_hm(i_lonStart)
+mLonE   = f_hm(i_lonEnd)
+mOrS    = f_hm(i_orStart)
+mOrE    = f_hm(i_orEnd)
+mTrdS   = f_hm(i_tradeStart)
+mTrdE   = f_hm(i_tradeEnd)
+mFlat   = f_hm(i_flatTime)
+mRunEnd = f_hm(i_runnerEnd)
+mReset  = f_hm(i_dayReset)
+
+inAsia   = f_inWin(etMin, mAsiaS, mAsiaE)
+inLon    = f_inWin(etMin, mLonS,  mLonE)
+inOR     = f_inWin(etMin, mOrS,   mOrE)
+inTrade  = f_inWin(etMin, mTrdS,  mTrdE) and isWeekday
+pastFlat = i_runnerLate ? etMin >= mRunEnd : etMin >= mFlat
+inNYDay  = etMin >= mOrS and etMin < (i_runnerLate ? mRunEnd : mFlat)
+crossedReset = etMin >= mReset and not (nz(etMin[1], 0) >= mReset)
+riskDayBoundary = mReset == 0 ? newDay : crossedReset
+
+// =============================================================================
+// 5. CORE PRICE MEASURES
+// =============================================================================
+atr      = ta.atr(i_atrLen)
+atrMed   = ta.median(atr, i_atrMedLen)
+atrShock = atrMed > 0 ? atr / atrMed : na
+tick     = syminfo.mintick
+rng      = high - low
+bodyRat  = rng > 0 ? math.abs(close - open) / rng : 0.0
+clv      = rng > 0 ? (close - low) / rng : 0.0
+lwr      = rng > 0 ? (math.min(open, close) - low) / rng : 0.0
+
+// =============================================================================
+// 6. HIGHER-TIMEFRAME GOLD REGIME (S16, S78)
+// =============================================================================
+// Every HTF request uses lookahead_off AND an inner [1] offset. lookahead_off
+// alone still exposes the developing HTF bar on the most recent chart bars; the
+// inner offset guarantees that only COMPLETED HTF candles are ever read. Nothing
+// here is stateful inside the request, so nothing can carry hidden context
+// across symbols.
+f_htfA() =>
+    e = ta.ema(close, i_ema4h)
+    [close[1], e[1], e[1 + i_emaSlopeLB]]
+
+f_htfB() =>
+    ef = ta.ema(close, i_ema1hFast)
+    es = ta.ema(close, i_ema1hSlow)
+    [close[1], ef[1], es[1]]
+
+[c4, ema4, ema4Prev]     = request.security(syminfo.tickerid, i_tf4h, f_htfA(), lookahead = barmerge.lookahead_off)
+[c1, ema1f, ema1s]       = request.security(syminfo.tickerid, i_tf1h, f_htfB(), lookahead = barmerge.lookahead_off)
+ph1hRaw = request.security(syminfo.tickerid, i_tf1h, ta.pivothigh(high, i_pivLeft, i_pivRight)[1], lookahead = barmerge.lookahead_off)
+ph15Raw = request.security(syminfo.tickerid, "15",   ta.pivothigh(high, i_pivLeft, i_pivRight)[1], lookahead = barmerge.lookahead_off)
+atr15   = request.security(syminfo.tickerid, "15",   ta.atr(i_atrLen)[1], lookahead = barmerge.lookahead_off)
+
+// The raw requests are non-na only on the bar where a pivot confirmed; hold the
+// last confirmed value locally instead of holding state inside the request.
+var float ph1h = na
+var float ph15 = na
+if not na(ph1hRaw)
+    ph1h := ph1hRaw
+if not na(ph15Raw)
+    ph15 := ph15Raw
+
+bull4h = not na(c4) and not na(ema4) and not na(ema4Prev) and c4 > ema4 and ema4 > ema4Prev
+bull1h = not na(c1) and not na(ema1f) and not na(ema1s) and ema1f > ema1s and c1 > ema1f
+str1h  = not na(ph1h) and not na(c1) and c1 > ph1h
+goldBull = bull4h and bull1h
+goldBullGate = not useHTF or goldBull
+
+// =============================================================================
+// 7. SESSION ENGINE (S10, S11, S12)
+// =============================================================================
+// Session extremes accumulate forward and are FROZEN on the first bar after the
+// session ends. Nothing reads a session's range before that range exists.
+var float asiaHr = na
+var float asiaLr = na
+var float asiaCr = na
+var float asiaH = na
+var float asiaL = na
+var float asiaC = na
+var float asiaM = na
+var float asiaRange = na
+var bool  asiaReady = false
+
+if inAsia and not inAsia[1]
+    asiaHr := high
+    asiaLr := low
+    asiaCr := close
+else if inAsia
+    asiaHr := math.max(nz(asiaHr, high), high)
+    asiaLr := math.min(nz(asiaLr, low), low)
+    asiaCr := close
+
+if not inAsia and inAsia[1]
+    asiaH := asiaHr
+    asiaL := asiaLr
+    asiaC := asiaCr
+    asiaM := (asiaHr + asiaLr) / 2
+    asiaRange := asiaHr - asiaLr
+    asiaReady := true
+
+var float lonHr = na
+var float lonLr = na
+var float lonCr = na
+var float lonH = na
+var float lonL = na
+var float lonC = na
+var float lonM = na
+var float lonRange = na
+var bool  lonReady = false
+
+if inLon and not inLon[1]
+    lonHr := high
+    lonLr := low
+    lonCr := close
+else if inLon
+    lonHr := math.max(nz(lonHr, high), high)
+    lonLr := math.min(nz(lonLr, low), low)
+    lonCr := close
+
+if not inLon and inLon[1]
+    lonH := lonHr
+    lonL := lonLr
+    lonC := lonCr
+    lonM := (lonHr + lonLr) / 2
+    lonRange := lonHr - lonLr
+    lonReady := true
+
+// Previous day / week liquidity on ET calendar boundaries, so the levels do not
+// depend on which session the data feed happens to call a "day" (S12).
+var float dHi = na
+var float dLo = na
+var float dCl = na
+var float pdh = na
+var float pdl = na
+var float pdc = na
+var float dayOpen = na
+if newDay
+    pdh := dHi
+    pdl := dLo
+    pdc := dCl
+    dHi := high
+    dLo := low
+    dayOpen := open
+else
+    dHi := math.max(nz(dHi, high), high)
+    dLo := math.min(nz(dLo, low), low)
+dCl := close
+
+etWeek = weekofyear(time, TZ)
+var float wHi = na
+var float wLo = na
+var float pwh = na
+var float pwl = na
+if etWeek != nz(etWeek[1], -1)
+    pwh := wHi
+    pwl := wLo
+    wHi := high
+    wLo := low
+else
+    wHi := math.max(nz(wHi, high), high)
+    wLo := math.min(nz(wLo, low), low)
+
+// =============================================================================
+// 8. ASIA -> LONDON MODELS (S13, S14, S15)
+// =============================================================================
+contBull   = asiaReady and lonReady and lonH > asiaH and lonL > asiaL and lonC > lonM
+contStrong = contBull and lonC > asiaH
+
+var bool  sweepSeen = false
+var int   sweepBar = na
+var float sweepLow = na
+var bool  reclaimOK = false
+if newDay
+    sweepSeen := false
+    reclaimOK := false
+    sweepLow := na
+    sweepBar := na
+
+if inLon and asiaReady and not na(asiaL)
+    if low < asiaL
+        sweepSeen := true
+        sweepBar := bar_index
+        sweepLow := na(sweepLow) ? low : math.min(sweepLow, low)
+    if sweepSeen and not reclaimOK and close > asiaL and bar_index - nz(sweepBar, bar_index) <= i_sweepBars
+        reclaimOK := true
+
+sweepDepth  = sweepSeen and not na(asiaL) and not na(sweepLow) and not na(atr15) and atr15 > 0 ? (asiaL - sweepLow) / atr15 : na
+sweepBull   = sweepSeen and reclaimOK and not na(sweepDepth) and sweepDepth <= i_maxSweep and not na(asiaM) and close > asiaM
+sweepStrong = sweepBull and not na(asiaH) and close > asiaH
+
+sessionBull = contBull or sweepBull
+sessionGate = not useSess or sessionBull
+sessionType = contBull ? "SESSION_CONTINUATION" : sweepBull ? "SESSION_SWEEP_RECLAIM" : "NONE"
+
+// =============================================================================
+// 9. NY OPENING RANGE (S17-S21)
+// =============================================================================
+var float orHr = na
+var float orLr = na
+var float orh = na
+var float orl = na
+var float orw = na
+var bool  orReady = false
+if newDay
+    orReady := false
+    orh := na
+    orl := na
+    orw := na
+    orHr := na
+    orLr := na
+
+if inOR and not inOR[1]
+    orHr := high
+    orLr := low
+else if inOR
+    orHr := math.max(nz(orHr, high), high)
+    orLr := math.min(nz(orLr, low), low)
+
+// LOCKED on the first bar after the range window. It cannot change afterwards.
+if not inOR and inOR[1] and not na(orHr)
+    orh := orHr
+    orl := orLr
+    orw := orHr - orLr
+    orReady := true
+
+orbBuf   = i_orbBufATR * atr
+breakout = orReady and close > orh + orbBuf
+
+var bool orbBroke = false
+var int  orbBreakBar = na
+var bool orbAcceptMom = false
+var bool orbHoldTight = false
+var bool orbAcceptRetest = false
+var int  belowORHCount = 0
+var bool orbFailed = false
+if newDay
+    orbBroke := false
+    orbBreakBar := na
+    orbAcceptMom := false
+    orbHoldTight := false
+    orbAcceptRetest := false
+    belowORHCount := 0
+    orbFailed := false
+
+if orReady and not orbBroke and breakout
+    orbBroke := true
+    orbBreakBar := bar_index
+
+if orbBroke and not orbFailed and not na(orbBreakBar) and bar_index > orbBreakBar
+    // Model A · momentum acceptance: the candle after the breakout still closes
+    // above ORH. Holding above ORH − 0.10 ATR is preferred, not required (S19).
+    if bar_index == orbBreakBar + 1 and close > orh
+        orbAcceptMom := true
+        orbHoldTight := low >= orh - i_orbHoldTol * atr
+    // Model B · breakout -> retest -> hold (S20).
+    if math.abs(low - orh) <= i_orbRetTol * atr and close > orh and close > open
+        orbAcceptRetest := true
+    // Failure accounting (S21).
+    if close < orh
+        belowORHCount += 1
+    else
+        belowORHCount := 0
+    if belowORHCount >= i_orbFailN
+        orbFailed := true
+
+if orReady and not na(orl) and close < orl
+    orbFailed := true
+
+orbAccepted = orbBroke and (orbAcceptMom or orbAcceptRetest) and not orbFailed
+orbGate     = orbAccepted
+
+// =============================================================================
+// 10. ANCHORED VWAP (S22, S23, S25)
+// =============================================================================
+priceOnlyVWAP = i_volMode == "Price-only VWAP" or i_volMode == "GC confirmation"
+anchorNow = etMin >= mOrS
+
+var float vwapPV = 0.0
+var float vwapWV = 0.0
+var float vwap = na
+if anchorNow and not anchorNow[1]
+    vwapPV := 0.0
+    vwapWV := 0.0
+    vwap := na
+if anchorNow
+    w = priceOnlyVWAP or na(volume) or volume <= 0 ? 1.0 : volume
+    vwapPV := vwapPV + hlc3 * w
+    vwapWV := vwapWV + w
+    vwap := vwapWV > 0 ? vwapPV / vwapWV : na
+
+aboveVWAP  = not na(vwap) and close > vwap
+vwapSlope  = not na(vwap) and not na(vwap[i_vwapSlopeLB]) and atr > 0 ? (vwap - vwap[i_vwapSlopeLB]) / atr : na
+vwapRising = not na(vwapSlope) and vwapSlope > 0
+vwapExt    = not na(vwap) and atr > 0 ? (close - vwap) / atr : na
+vwapExtOK  = not na(vwapExt) and vwapExt > 0 and vwapExt <= i_vwapExtMax
+vwapGate   = not useVWAP or (aboveVWAP and vwapRising and vwapExtOK)
+volStrength = i_volMode == "Disable volume-strength filter" ? true : na(volume) or volume <= 0 ? true : volume > ta.sma(volume, 20)
+
+// =============================================================================
+// 11. INTERMARKET (S24, S36-S40)
+// =============================================================================
+// Only raw series are requested; every derived quantity (VWAP, ROC, EMA) is
+// computed on the chart, where bar alignment is one-to-one with the chart
+// timeframe and there is no hidden state inside a request.
+[dxC, dxTP] = request.security(i_symDXY, timeframe.period, [close, hlc3], lookahead = barmerge.lookahead_off, ignore_invalid_symbol = true)
+[gcC, gcTP, gcVol] = request.security(i_symGC, timeframe.period, [close, hlc3, volume], lookahead = barmerge.lookahead_off, ignore_invalid_symbol = true)
+
+// DXY index feeds carry no usable volume, so its anchored VWAP is price-only.
+var float dxPV = 0.0
+var float dxWV = 0.0
+var float dxV = na
+if anchorNow and not anchorNow[1]
+    dxPV := 0.0
+    dxWV := 0.0
+    dxV := na
+if anchorNow and not na(dxTP)
+    dxPV := dxPV + dxTP
+    dxWV := dxWV + 1.0
+    dxV := dxWV > 0 ? dxPV / dxWV : na
+
+var float gcPV = 0.0
+var float gcWV = 0.0
+var float gcV = na
+if anchorNow and not anchorNow[1]
+    gcPV := 0.0
+    gcWV := 0.0
+    gcV := na
+if anchorNow and not na(gcTP)
+    gw = na(gcVol) or gcVol <= 0 ? 1.0 : gcVol
+    gcPV := gcPV + gcTP * gw
+    gcWV := gcWV + gw
+    gcV := gcWV > 0 ? gcPV / gcWV : na
+
+dxRoc = ta.roc(nz(dxC, nz(dxC[1], 0.0)), i_rocLen)
+dxEf  = ta.ema(nz(dxC, nz(dxC[1], 0.0)), 20)
+dxEs  = ta.ema(nz(dxC, nz(dxC[1], 0.0)), 50)
+gcRoc = ta.roc(nz(gcC, nz(gcC[1], 0.0)), i_rocLen)
+gcVolSma = ta.sma(nz(gcVol, 0.0), 20)
+
+dxyD1 = not na(dxC) and not na(dxV) and dxC < dxV
+dxyD2 = not na(dxC) and not na(dxRoc) and dxRoc < 0
+dxyD3 = not na(dxC) and not na(dxEf) and not na(dxEs) and dxEf < dxEs
+dxyScore = (dxyD1 ? 1 : 0) + (dxyD2 ? 1 : 0) + (dxyD3 ? 1 : 0)
+
+gc1 = not na(gcC) and not na(gcV) and gcC > gcV
+gc2 = not na(gcV) and not na(gcV[i_vwapSlopeLB]) and gcV > gcV[i_vwapSlopeLB]
+gc3 = not na(gcC) and not na(gcRoc) and gcRoc > 0
+gc4 = not na(gcVol) and gcVol > 0 and gcVolSma > 0 and gcVol > gcVolSma
+gcCount = (gc1 ? 1 : 0) + (gc2 ? 1 : 0) + (gc3 ? 1 : 0) + (gc4 ? 1 : 0)
+gcConfirm = gcCount >= i_gcMinCount and (not i_gcVolReq or gc4)
+
+// ---- daily series for correlation and slow macro (S37, S38, S39) -------------
+dxyDaily = request.security(i_symDXY, "D", close[1], lookahead = barmerge.lookahead_off, ignore_invalid_symbol = true)
+vixDaily = request.security(i_symVIX, "D", close[1], lookahead = barmerge.lookahead_off, ignore_invalid_symbol = true)
+ryDaily  = i_useRY  ? request.security(i_symRY,  "D", close[1], lookahead = barmerge.lookahead_off, ignore_invalid_symbol = true) : na
+ustDaily = i_useUST ? request.security(i_symUST, "D", close[1], lookahead = barmerge.lookahead_off, ignore_invalid_symbol = true) : na
+
+var array<float> goldSer = array.new<float>()
+var array<float> dxySer  = array.new<float>()
+var array<float> vixSer  = array.new<float>()
+var array<float> rySer   = array.new<float>()
+var array<float> ustSer  = array.new<float>()
+maxSer = math.max(i_corrLen, math.max(i_ryLookback, i_vixLookback)) + 5
+
+if newDay and not na(pdc)
+    lastDxy = array.size(dxySer) > 0 ? array.get(dxySer, array.size(dxySer) - 1) : na
+    lastVix = array.size(vixSer) > 0 ? array.get(vixSer, array.size(vixSer) - 1) : na
+    lastRy  = array.size(rySer)  > 0 ? array.get(rySer,  array.size(rySer)  - 1) : na
+    lastUst = array.size(ustSer) > 0 ? array.get(ustSer, array.size(ustSer) - 1) : na
+    array.push(goldSer, pdc)
+    array.push(dxySer,  nz(dxyDaily, lastDxy))
+    array.push(vixSer,  nz(vixDaily, lastVix))
+    array.push(rySer,   nz(ryDaily,  lastRy))
+    array.push(ustSer,  nz(ustDaily, lastUst))
+    while array.size(goldSer) > maxSer
+        array.shift(goldSer)
+        array.shift(dxySer)
+        array.shift(vixSer)
+        array.shift(rySer)
+        array.shift(ustSer)
+
+corrGD = f_corrLogRet(goldSer, dxySer, i_corrLen)
+corrGV = f_corrLogRet(goldSer, vixSer, i_corrLen)
+vixMom = f_logMom(vixSer, i_vixLookback)
+vixSupport = na(corrGV) or na(vixMom) ? 0.0 : corrGV * vixMom
+ryMom  = f_diffN(rySer, i_ryLookback)
+ustMom = f_diffN(ustSer, i_ryLookback)
+
+// S37 · correlation-aware DXY. When the usual inverse relationship is absent,
+// the DXY reading earns less rather than being pretended intact.
+dxyCorrFactor = na(corrGD) ? 0.5 : corrGD <= i_corrStrong ? 1.0 : corrGD < 0.0 ? 0.5 : 0.25
+dxySupportive = dxyScore >= i_dxyMinScore
+dxyGate = not useDXY or dxySupportive
+gcGate  = not useGC or gcConfirm
+
+ratesSupport = i_useRY and not na(ryMom) and ryMom < 0
+ratesOppose  = i_useRY and not na(ryMom) and ryMom > 0
+ustSupport   = i_useUST and not na(ustMom) and ustMom < 0
+
+// ---- feed health (S76 kill switch) ------------------------------------------
+dxyChanged = not na(dxC) and dxC != nz(dxC[1], dxC)
+gcChanged  = not na(gcC) and gcC != nz(gcC[1], gcC)
+dxyStale = na(dxC) or nz(ta.barssince(dxyChanged), 9999) > i_staleBars
+gcStale  = na(gcC) or nz(ta.barssince(gcChanged),  9999) > i_staleBars
+feedsOK  = not (useDXY and dxyStale) and not (useGC and gcStale) and not na(close) and not na(atr)
+
+// =============================================================================
+// 12. PIVOTS, TRENDLINE, THIRD TOUCH (S28-S32)
+// =============================================================================
+pivLow  = ta.pivotlow(low, i_pivLeft, i_pivRight)
+pivHigh = ta.pivothigh(high, i_pivLeft, i_pivRight)
+mphRaw  = ta.pivothigh(high, i_mphLeft, i_mphRight)
+
+var float p1v = na
+var int   p1i = na
+var float p2v = na
+var int   p2i = na
+var float hh1 = na
+var float hh2 = na
+var float lastPHVal = na
+var int   lastPHIdx = na
+var float lastMPH = na
+
+pivResetMin = i_pivAnchor == "London open" ? mLonS : i_pivAnchor == "NY OR anchor" ? mOrS : 0
+pivReset = pivResetMin == 0 ? newDay : (etMin >= pivResetMin and not (nz(etMin[1], 0) >= pivResetMin))
+if pivReset
+    p1v := na
+    p1i := na
+    p2v := na
+    p2i := na
+    hh1 := na
+    hh2 := na
+    lastPHVal := na
+    lastPHIdx := na
+    lastMPH := na
+
+if not na(mphRaw)
+    lastMPH := mphRaw
+
+// Confirmed pivot highs. A high confirmed after P2 is HH2; when a new pivot low
+// arrives, the high that formed between the old P2 and the new low becomes HH1.
+if not na(pivHigh)
+    lastPHVal := pivHigh
+    lastPHIdx := bar_index - i_pivRight
+    if not na(p2i) and bar_index - i_pivRight > p2i
+        hh2 := pivHigh
+
+if not na(pivLow)
+    hh1 := not na(lastPHIdx) and not na(p2i) and lastPHIdx > p2i ? lastPHVal : na
+    p1v := p2v
+    p1i := p2i
+    p2v := pivLow
+    p2i := bar_index - i_pivRight
+    hh2 := na
+
+spacing   = not na(p1i) and not na(p2i) ? p2i - p1i : na
+rise      = not na(p1v) and not na(p2v) ? p2v - p1v : na
+slope     = not na(spacing) and spacing > 0 ? rise / spacing : na
+slopeNorm = not na(slope) and atr > 0 ? slope / atr : na
+
+pivotStruct  = not na(p1v) and not na(p2v) and not na(spacing) and p2v > p1v and rise >= i_minRiseATR * atr and spacing >= i_minSpace and spacing <= i_maxSpace
+strictStruct = pivotStruct and not na(hh1) and not na(hh2) and hh2 > hh1
+pivotGate    = not usePivot or (pivotStruct and (not i_strictStru or strictStruct))
+
+trendlineValid = pivotStruct and not na(slopeNorm) and slopeNorm > 0 and slopeNorm <= i_slopeMaxN
+tlValue = trendlineValid ? p2v + slope * (bar_index - p2i) : na
+tlGate  = not usePivot or trendlineValid
+
+// Third interaction. P1 is touch 1, P2 is touch 2, this is touch 3. It is a
+// CANDIDATE higher low (S32): no future pivot bars are needed to arm the setup,
+// because price must still prove the candidate by breaking the confirmation
+// level. Requiring bars-since-P2 > pivot right bars means P2 was already
+// confirmed when this bar printed.
+touchTol    = i_touchTol * atr
+barsAfterP2 = not na(p2i) ? bar_index - p2i : na
+touch3       = trendlineValid and not na(tlValue) and not na(barsAfterP2) and barsAfterP2 > i_pivRight and math.abs(low - tlValue) <= touchTol and close > tlValue
+touch3Strong = touch3 and not na(p2v) and low > p2v
+touchGate    = not useTouch or touch3
+touchDistATR = trendlineValid and not na(tlValue) and atr > 0 ? (low - tlValue) / atr : na
+
+// =============================================================================
+// 13. REJECTION AND CONFIRMATION LEVEL (S33, S34, S35)
+// =============================================================================
+rejBull   = close > open and bodyRat >= i_minBR and clv >= i_minCLV
+rejStrong = rejBull and lwr >= i_minLWR
+rejGate   = not useTouch or rejBull
+confLevel = i_entryMode == "Moderate" or na(lastMPH) ? high + tick : math.max(high, lastMPH) + tick
+
+// =============================================================================
+// 14. VOLATILITY, EXECUTION, NEWS (S26, S27, S41, S42)
+// =============================================================================
+volNormal = not na(atrShock) and atrShock <= i_atrShockMx
+spreadATR = atr > 0 ? i_spreadUSD / atr : na
+spreadOK  = not na(spreadATR) and spreadATR <= i_maxSprATR
+
+var array<int> newsTs  = f_parseStamps(i_newsList)
+var array<int> fomcTs  = f_parseStamps(i_fomcList)
+var array<int> dailyMs = f_parseMinutes(i_dailyList)
+
+newsHit = f_inBlackout(newsTs, i_newsPre, i_newsPost, time, time_close)
+fomcHit = f_inBlackout(fomcTs, i_newsPre, i_fomcPost, time, time_close)
+dailyHit = false
+if array.size(dailyMs) > 0
+    for k = 0 to array.size(dailyMs) - 1
+        dm = array.get(dailyMs, k)
+        if etMin >= dm - i_newsPre and etMin < dm + i_newsPost
+            dailyHit := true
+
+newsBlackout = newsHit or fomcHit or dailyHit or i_blockToday
+newsCount = array.size(newsTs) + array.size(fomcTs)
+newsSource = newsCount == 0 and array.size(dailyMs) == 0 ? "NONE SUPPLIED" : "MANUAL (" + str.tostring(newsCount) + " events, " + str.tostring(array.size(dailyMs)) + " daily)"
+
+// =============================================================================
+// 15. RISK BUDGET AND FTMO STATE (S6, S7, S8, S51, S52, S76)
+// =============================================================================
+acct      = i_acctSize
+equityNow = strategy.equity
+gainPct   = (equityNow - acct) / acct * 100.0
+
+riskPctSchedule = gainPct < 5 ? i_riskStd : gainPct < 8 ? i_sc1 : gainPct < 9 ? i_sc2 : i_sc3
+riskPct = math.min(riskPctSchedule, i_riskAbsMax)
+
+var float dayStartEquity = na
+var int   tradesToday = 0
+var bool  dayLocked = false
+var bool  lastTradeLost = false
+var bool  tookWinToday = false
+var int   tradingDays = 0
+var bool  countedToday = false
+var int   lastEntryP2i = na
+
+if riskDayBoundary or na(dayStartEquity)
+    dayStartEquity := equityNow
+    dayLocked := false
+if newDay
+    tradesToday := 0
+    tookWinToday := false
+    countedToday := false
+    lastTradeLost := false
+
+dayPnlPct = na(dayStartEquity) or dayStartEquity <= 0 ? 0.0 : (equityNow - dayStartEquity) / dayStartEquity * 100.0
+
+// The internal limit sits inside the firm limits. strategy.equity includes open
+// positions, so floating P/L counts against both, as it does at the firm (S66).
+internalDailyHit = dayPnlPct <= -i_dailyStop
+ftmoDailyHit     = dayPnlPct <= -i_ftmoDaily
+ftmoMaxHit       = equityNow <= acct * (1 - i_ftmoMax / 100.0)
+targetPct        = i_evalMode == "FTMO 2-Step" ? (i_phase == "Phase 1" ? i_ftmoTgt1 : i_ftmoTgt2) : i_evalMode == "FTMO 1-Step" ? i_ftmoTgt1 : 1.0e9
+targetHit        = equityNow >= acct * (1 + targetPct / 100.0)
+ddKillHit        = i_ddKill > 0 and strategy.max_drawdown >= acct * i_ddKill / 100.0
+
+if internalDailyHit or ftmoDailyHit
+    dayLocked := true
+
+hardStop = ftmoMaxHit or ddKillHit or not feedsOK or (i_evalMode != "Research Only" and targetHit)
+
+// Second-trade permission (S51). "Genuinely new" is defined deterministically: a
+// pivot low confirmed after the previous entry's pivot pair. Re-arming on the
+// same structure is a re-entry, not a new setup.
+newStructure = na(lastEntryP2i) or (not na(p2i) and p2i > lastEntryP2i)
+allowSecond  = tradesToday >= 1 and tradesToday < i_maxTrades and lastTradeLost and newStructure
+riskPctEff   = tradesToday == 0 ? riskPct : math.min(riskPct, i_secondRisk)
+scoreNeeded  = tradesToday == 0 ? i_scoreMin : math.max(i_scoreMin, i_secondMinS)
+tradeSlotOK  = tradesToday == 0 or allowSecond
+dayOK        = not dayLocked and not hardStop and not (i_stopOnWin and tookWinToday)
+
+// =============================================================================
+// 16. CONFLUENCE SCORE (S53, S54)
+// =============================================================================
+sHTF   = (bull4h ? 5.0 : 0.0) + (bull1h ? 4.0 : 0.0) + (str1h ? 1.0 : 0.0)
+sSess  = (sessionBull ? 8.0 : 0.0) + ((contStrong or sweepStrong) ? 2.0 : 0.0) + ((not na(asiaM) and close > asiaM) ? 2.0 : 0.0)
+sORB   = (orbBroke ? 4.0 : 0.0) + (orbAccepted ? 4.0 : 0.0) + (orbAcceptRetest ? 2.0 : 0.0) + (orbHoldTight ? 1.0 : 0.0) + (not orbFailed ? 1.0 : 0.0)
+sVWAP  = (aboveVWAP ? 5.0 : 0.0) + (vwapRising ? 3.0 : 0.0) + ((not na(vwapExt) and vwapExt > 0 and vwapExt <= i_vwapExtGood) ? 2.0 : 0.0)
+sDXY   = ((dxyD1 ? 5.0 : 0.0) + (dxyD2 ? 5.0 : 0.0) + (dxyD3 ? 4.0 : 0.0)) * dxyCorrFactor
+sGC    = gcCount * 2.0
+sRates = (ratesSupport ? 5.0 : 0.0) + (ustSupport ? 3.0 : 0.0)
+sVIX   = vixSupport > 0 ? 4.0 : vixSupport == 0 ? 2.0 : 0.0
+sPiv   = (pivotStruct ? 5.0 : 0.0) + (strictStruct ? 3.0 : 0.0)
+sTouch = (touch3 ? 4.0 : 0.0) + (touch3Strong ? 3.0 : 0.0)
+sRej   = (rejBull ? 4.0 : 0.0) + (rejStrong ? 1.0 : 0.0) + (volStrength ? 2.0 : 0.0)
+
+scoreRaw = f_block(sHTF, 10, i_wHTF, useHTF) + f_block(sSess, 12, i_wSess, useSess) + f_block(sORB, 12, i_wORB, true) + f_block(sVWAP, 10, i_wVWAP, useVWAP) + f_block(sDXY, 14, i_wDXY, useDXY) + f_block(sGC, 8, i_wGC, useGC) + f_block(sRates, 8, i_wRates, useRates) + f_block(sVIX, 4, i_wVIX, useVIX) + f_block(sPiv, 8, i_wPivot, usePivot) + f_block(sTouch, 7, i_wTouch, useTouch) + f_block(sRej, 7, i_wRej, useTouch)
+scoreMax = (useHTF ? i_wHTF : 0.0) + (useSess ? i_wSess : 0.0) + i_wORB + (useVWAP ? i_wVWAP : 0.0) + (useDXY ? i_wDXY : 0.0) + (useGC ? i_wGC : 0.0) + (useRates ? i_wRates : 0.0) + (useVIX ? i_wVIX : 0.0) + (usePivot ? i_wPivot : 0.0) + (useTouch ? i_wTouch : 0.0) + (useTouch ? i_wRej : 0.0)
+score = scoreMax > 0 ? scoreRaw / scoreMax * 100.0 : 0.0
+
+// =============================================================================
+// 17. TRADE CONSTRUCTION (S44, S45, S47, S48)
+// =============================================================================
+// The arm bar is the bar whose close satisfies every enabled gate. With the
+// third-touch engine on, that bar IS touch #3; for the ablation baselines it is
+// simply the first bar where the enabled gates line up. Either way the
+// structural reference is the arm bar's own low, so one stop rule covers every
+// configuration.
+stopBuffer = math.max(i_stopBufATR * atr, i_spreadUSD + i_slipUSD)
+slA = low - stopBuffer
+slB = not na(p2v) ? p2v - stopBuffer : na
+stopPx  = i_stopModel == "B · Pivot #2" and not na(slB) ? slB : slA
+entryPx = confLevel
+rDist   = entryPx - stopPx
+stopDistOK = not na(rDist) and rDist > 0 and rDist >= i_minStopATR * atr and rDist <= i_maxStopATR * atr
+
+float resLevel = na
+resLevel := f_minAbove(entryPx, asiaH, resLevel)
+resLevel := f_minAbove(entryPx, lonH,  resLevel)
+resLevel := f_minAbove(entryPx, pdh,   resLevel)
+resLevel := f_minAbove(entryPx, pwh,   resLevel)
+resLevel := f_minAbove(entryPx, ph15,  resLevel)
+resLevel := f_minAbove(entryPx, ph1h,  resLevel)
+
+room  = na(resLevel) ? na : resLevel - entryPx
+roomR = na(room) or na(rDist) or rDist <= 0 ? na : room / rDist
+// An empty liquidity map means "unmeasured", not "unlimited": clearance only
+// counts once the map itself has levels in it.
+mapPopulated = not na(asiaH) or not na(lonH) or not na(pdh) or not na(ph15) or not na(ph1h)
+roomOK = mapPopulated and (na(roomR) or roomR >= i_minRoomR)
+
+riskBudget  = math.min(equityNow * riskPctEff / 100.0, i_riskHardCap)
+costPerUnit = (i_spreadUSD + i_slipUSD) * i_usdPerPt + i_commUnit
+riskPerUnit = not na(rDist) and rDist > 0 ? rDist * i_usdPerPt + costPerUnit : na
+unitsRaw    = not na(riskPerUnit) and riskPerUnit > 0 ? riskBudget / riskPerUnit : na
+units       = na(unitsRaw) ? na : f_floorStep(unitsRaw, i_unitStep)
+sizeOK      = not na(units) and units >= i_unitMin and units * riskPerUnit <= riskBudget * 1.000001
+lotsDisp    = na(units) ? na : units / i_ozPerLot
+
+// Exit allocation rounds down to the unit step; the runner absorbs the
+// remainder so the three legs always sum to the position exactly.
+q1 = na(units) ? na : math.min(units, math.max(i_unitStep, f_floorStep(units * i_tp1Pct / 100.0, i_unitStep)))
+q2 = na(units) ? na : math.max(0.0, math.min(units - q1, f_floorStep(units * i_tp2Pct / 100.0, i_unitStep)))
+q3 = na(units) ? na : math.max(0.0, units - q1 - q2)
+
+tp1Px = na(rDist) ? na : entryPx + i_tp1R * rDist
+tp2Px = na(rDist) ? na : entryPx + i_tp2R * rDist
+tpRun = na(rDist) ? na : entryPx + i_runMaxR * rDist
+
+// =============================================================================
+// 18. MANDATORY CONDITIONS AND ARMING (S55, S82)
+// =============================================================================
+var bool pendingOrder = false
+var int  pendingBar = na
+
+technicalValid = goldBullGate and sessionGate and orbGate and vwapGate and pivotGate and tlGate and touchGate and rejGate
+intermarketOK  = dxyGate and gcGate
+executionOK    = volNormal and spreadOK and roomOK and stopDistOK and not newsBlackout
+riskValid      = sizeOK and dayOK and tradeSlotOK and not hardStop
+scoreOK        = score >= scoreNeeded
+windowOK       = inTrade and not pastFlat and isWeekday
+flat           = strategy.position_size == 0
+// Flat for the WHOLE bar, not merely flat by the close. Arming on the bar a
+// position exited would let the new trade's targets overwrite the closing
+// trade's exit state before it has been logged, and no real trader evaluates a
+// fresh setup on the bar their last one closed.
+flatAllBar     = flat and nz(strategy.position_size[1], 0) == 0
+armed = technicalValid and intermarketOK and executionOK and riskValid and scoreOK and windowOK and flatAllBar and not pendingOrder
+
+// A / A+ / A++ classification (S56)
+gradeAPP = score >= 90 and dxyScore == 3 and (ratesSupport or not useRates) and (gcConfirm or not useGC) and (contStrong or sweepStrong or not useSess) and rejStrong and not newsBlackout and volNormal and spreadOK and not na(roomR) and roomR >= 2.0
+gradeAP  = score >= 85 and (strictStruct or not usePivot) and (orbAcceptRetest or orbAcceptMom) and (gcConfirm or not useGC) and volNormal and not na(roomR) and roomR >= i_minRoomR
+grade    = gradeAPP ? "A++" : gradeAP ? "A+" : score >= i_scoreMin ? "A" : "-"
+
+// =============================================================================
+// 19. NO-TRADE DIAGNOSTICS (S59)
+// =============================================================================
+noTradeReason = not isWeekday ? "NO TRADE — WEEKEND" : not flat ? "IN POSITION" : pendingOrder ? "ORDER PENDING" : ftmoMaxHit ? "NO TRADE — FTMO MAX LOSS" : ddKillHit ? "NO TRADE — DRAWDOWN KILL SWITCH" : not feedsOK ? "NO TRADE — DATA FEED FAILURE" : (i_evalMode != "Research Only" and targetHit) ? "NO TRADE — TARGET REACHED" : dayLocked ? "NO TRADE — RISK LIMIT" : (i_stopOnWin and tookWinToday) ? "NO TRADE — MORNING COMPLETE" : not tradeSlotOK ? "NO TRADE — DAILY TRADE COUNT" : newsBlackout ? "NO TRADE — NEWS BLACKOUT" : not goldBullGate ? "NO TRADE — HTF NOT BULL" : not sessionGate ? "NO TRADE — LONDON STRUCTURE" : not orReady ? "NO TRADE — OR NOT DEFINED" : not orbGate ? "NO TRADE — ORB NOT ACCEPTED" : (useVWAP and not aboveVWAP) ? "NO TRADE — BELOW VWAP" : (useVWAP and not vwapRising) ? "NO TRADE — VWAP SLOPE" : (useVWAP and not vwapExtOK) ? "NO TRADE — EXTENDED FROM VWAP" : not dxyGate ? "NO TRADE — DXY" : not gcGate ? "NO TRADE — GC NOT CONFIRMING" : not pivotGate ? "NO TRADE — NO PIVOT STRUCTURE" : not tlGate ? "NO TRADE — TRENDLINE" : not touchGate ? "NO TRADE — THIRD TOUCH" : not rejGate ? "NO TRADE — WEAK REJECTION" : not volNormal ? "NO TRADE — ATR SHOCK" : not spreadOK ? "NO TRADE — SPREAD" : not stopDistOK ? "NO TRADE — STOP DISTANCE" : not roomOK ? "NO TRADE — RESISTANCE < " + str.tostring(i_minRoomR, "#.#") + "R" : not sizeOK ? "NO TRADE — INVALID POSITION SIZE" : not scoreOK ? "NO TRADE — SCORE " + str.tostring(score, "#") + "/" + str.tostring(scoreNeeded, "#") : not windowOK ? "NO TRADE — OUTSIDE WINDOW" : "ARMED"
+
+// =============================================================================
+// 20. ORDER PLACEMENT (S34, S58)
+// =============================================================================
+// Snapshot of everything the trade log needs, taken at ARM time, because the
+// fill happens later and the context that justified the trade is the context at
+// the moment the order was placed.
+var float aEntry = na
+var float aStop = na
+var float aR = na
+var float aTp1 = na
+var float aTp2 = na
+var float aRun = na
+var float aQ1 = na
+var float aQ2 = na
+var float aQ3 = na
+var float aUnits = na
+var float aScore = na
+var string aGrade = "-"
+var string aSess = "NONE"
+var string aOrb = "NONE"
+var float aTouchDist = na
+var float aBR = na
+var float aCLV = na
+var float aShock = na
+var float aRoomR = na
+var float aSlope = na
+var float aVwapExt = na
+var float aVwapSlope = na
+var int   aDxy = 0
+var int   aGc = 0
+var float aCorr = na
+var float aRy = na
+var float aVix = na
+var bool  aStrict = false
+var bool  aB4 = false
+var bool  aB1 = false
+var float aPdh = na
+var float aLonH = na
+
+placeOrder = armed and not na(units) and units > 0
+if placeOrder
+    aEntry := entryPx
+    aStop := stopPx
+    aR := rDist
+    aTp1 := tp1Px
+    aTp2 := tp2Px
+    aRun := tpRun
+    aQ1 := q1
+    aQ2 := q2
+    aQ3 := q3
+    aUnits := units
+    aScore := score
+    aGrade := grade
+    aSess := sessionType
+    aOrb := orbAcceptRetest ? "ORB_RETEST_ACCEPTANCE" : "ORB_MOMENTUM_ACCEPTANCE"
+    aTouchDist := touchDistATR
+    aBR := bodyRat
+    aCLV := clv
+    aShock := atrShock
+    aRoomR := roomR
+    aSlope := slopeNorm
+    aVwapExt := vwapExt
+    aVwapSlope := vwapSlope
+    aDxy := dxyScore
+    aGc := gcCount
+    aCorr := corrGD
+    aRy := ryMom
+    aVix := vixSupport
+    aStrict := strictStruct
+    aB4 := bull4h
+    aB1 := bull1h
+    aPdh := pdh
+    aLonH := lonH
+    pendingOrder := true
+    pendingBar := bar_index
+    lastEntryP2i := p2i
+    strategy.entry("AURUM", strategy.long, qty = units, stop = entryPx, comment = grade + " " + str.tostring(score, "#"))
+
+// Pending-order invalidation (S58). Checked while still flat, so a filled order
+// is never cancelled by mistake.
+pendingExpired = pendingOrder and flat and not na(pendingBar) and bar_index - pendingBar >= i_orderLife
+pendingBroken  = pendingOrder and flat and ((orReady and not na(orl) and close < orl) or (useVWAP and not na(vwap) and close < vwap) or (not na(aStop) and low <= aStop) or newsBlackout or not volNormal or dayLocked or hardStop or not windowOK)
+if pendingExpired or pendingBroken
+    strategy.cancel("AURUM")
+    pendingOrder := false
+    pendingBar := na
+
+// =============================================================================
+// 21. POSITION MANAGEMENT (S49, S50)
+// =============================================================================
+var float posEntry = na
+var float posStop = na
+var float posR = na
+var float posUnits = na
+var float posRiskUSD = na
+var float posMinLow = na
+var float posMaxHigh = na
+var float netAtEntry = na
+var int   posBar = na
+var int   posTime = na
+var bool  beDone = false
+var bool  tp1Done = false
+var bool  tp2Done = false
+var float lastConfHL = na
+if not na(pivLow)
+    lastConfHL := pivLow
+
+inPos = strategy.position_size > 0
+justEntered = inPos and nz(strategy.position_size[1], 0) == 0
+if justEntered
+    pendingOrder := false
+    pendingBar := na
+    posEntry := strategy.position_avg_price
+    posUnits := strategy.position_size
+    posR := posEntry - nz(aStop, posEntry - nz(aR, 1))
+    posRiskUSD := posUnits * (posR * i_usdPerPt + i_commUnit)
+    posMinLow := low
+    posMaxHigh := high
+    netAtEntry := strategy.netprofit
+    posBar := bar_index
+    posTime := time
+    beDone := false
+    tp1Done := false
+    tp2Done := false
+    tradesToday += 1
+    if not countedToday
+        tradingDays += 1
+        countedToday := true
+
+// A resting order belongs to a NEW trade. Without this reset it would inherit
+// the previous trade's exit state, and a TP1 that had already filled once would
+// suppress the new position's TP1 bracket entirely.
+if pendingOrder and not inPos
+    beDone := false
+    tp1Done := false
+    tp2Done := false
+
+if inPos
+    posMinLow := math.min(nz(posMinLow, low), low)
+    posMaxHigh := math.max(nz(posMaxHigh, high), high)
+    // Breakeven only on a COMPLETED close beyond the trigger; a wick does not
+    // count (S49).
+    if not beDone and not na(posEntry) and not na(posR) and posR > 0 and close >= posEntry + i_beTrigR * posR
+        beDone := true
+    if not na(posUnits) and not tp1Done and strategy.position_size <= posUnits - nz(aQ1, 0) + i_unitStep * 0.5
+        tp1Done := true
+    if not na(posUnits) and not tp2Done and strategy.position_size <= posUnits - nz(aQ1, 0) - nz(aQ2, 0) + i_unitStep * 0.5
+        tp2Done := true
+
+// TP1 and TP2 are also recognised from price. On an account small enough that
+// the whole position goes to TP1, the size-based test above can never fire —
+// the position closes in one fill — and "stop after a winning morning" (S52)
+// would silently never trigger.
+heldThisBar = inPos or nz(strategy.position_size[1], 0) > 0
+if heldThisBar and not tp1Done and not na(aTp1) and high >= aTp1
+    tp1Done := true
+if heldThisBar and not tp2Done and not na(aTp2) and high >= aTp2
+    tp2Done := true
+
+// Stop schedule. The stop never moves down (S50).
+bePx = not na(posEntry) ? posEntry + (i_spreadUSD + i_slipUSD) + i_commUnit / math.max(i_usdPerPt, 1e-9) : na
+if inPos
+    cand = nz(posStop, aStop)
+    if beDone and not na(bePx)
+        cand := math.max(nz(cand, bePx), bePx)
+    if tp1Done
+        structTrail = not na(lastConfHL) ? lastConfHL - i_trailStruB * atr : na
+        atrTrail    = not na(posMaxHigh) ? posMaxHigh - i_trailATR * atr : na
+        if not na(structTrail)
+            cand := math.max(nz(cand, structTrail), structTrail)
+        if not na(atrTrail)
+            cand := math.max(nz(cand, atrTrail), atrTrail)
+    if not na(cand)
+        posStop := math.max(nz(posStop, cand), cand)
+else
+    posStop := aStop
+
+// Brackets are submitted while the entry order is still working, so the
+// position is protected from the instant it fills rather than from the next
+// bar. Each leg carries its own stop at the same price, so a stop-out closes
+// the whole position. An exit id is NOT re-issued after it has filled, which
+// would open a second exit against the remainder.
+bracketLive = inPos or pendingOrder
+if bracketLive and not na(posStop)
+    if not tp1Done and nz(aQ1, 0) > 0
+        strategy.exit("TP1", from_entry = "AURUM", qty = aQ1, limit = aTp1, stop = posStop, comment_profit = "TP1", comment_loss = "SL")
+    if not tp2Done and nz(aQ2, 0) > 0
+        strategy.exit("TP2", from_entry = "AURUM", qty = aQ2, limit = aTp2, stop = posStop, comment_profit = "TP2", comment_loss = "SL")
+    if nz(aQ3, 0) > 0
+        strategy.exit("RUN", from_entry = "AURUM", qty = aQ3, limit = aRun, stop = posStop, comment_profit = "RUNNER", comment_loss = "SL")
+
+// Time stop (S9) and end-of-window cancellation.
+if inPos and pastFlat
+    strategy.close_all(comment = "TIME")
+if not inPos and pendingOrder and (pastFlat or not isWeekday)
+    strategy.cancel("AURUM")
+    pendingOrder := false
+    pendingBar := na
+
+// =============================================================================
+// 22. TRADE LOG (S61)
+// =============================================================================
+var array<string> logRows = array.new<string>()
+CSV_HEADER = "ts_entry,ts_exit,symbol,session_type,orb_model,entry,stop,init_R,units,lots,risk_usd,realized_R,score,grade,htf_4h,htf_1h,vwap_ext,vwap_slope,gc_count,dxy_score,corr_gold_dxy,ry_mom,vix_support,pivot_slope_norm,strict_struct,touch3_dist_atr,rej_br,rej_clv,atr_shock,modeled_spread,vol_mode,dist_pdh,dist_london_high,mae_R,mfe_R,exit_type,hold_bars,news_blackout,rule_violation,eval_mode,ablation,entry_mode,stop_model"
+
+// Incremental statistics (S62). Updated only when a position closes, so the
+// script stays O(1) per bar instead of re-summing the trade list every bar.
+var int   nTrades = 0
+var int   nWins = 0
+var float sumWinR = 0.0
+var float sumLossR = 0.0
+var float sumR = 0.0
+var int   sumHold = 0
+var int   curConsL = 0
+var int   curConsW = 0
+var int   maxConsL = 0
+var int   maxConsW = 0
+var float sumMaeR = 0.0
+var float sumMfeR = 0.0
+
+justClosed = strategy.position_size == 0 and nz(strategy.position_size[1], 0) > 0
+if justClosed and not na(posEntry) and not na(posR) and posR > 0 and not na(posRiskUSD) and posRiskUSD > 0
+    pnl   = strategy.netprofit - nz(netAtEntry, strategy.netprofit)
+    realR = pnl / posRiskUSD
+    maeR  = (posEntry - nz(posMinLow, posEntry)) / posR
+    mfeR  = (nz(posMaxHigh, posEntry) - posEntry) / posR
+    holdN = bar_index - nz(posBar, bar_index)
+    exitType = pastFlat ? "TIME" : realR > 0 ? (tp2Done ? "TP2/RUNNER" : tp1Done ? "TP1+TRAIL" : "TRAIL") : beDone ? "BE/TRAIL" : "SL"
+    row = str.format_time(nz(posTime, time), "yyyy-MM-dd HH:mm", TZ)
+    row := row + "," + str.format_time(time, "yyyy-MM-dd HH:mm", TZ)
+    row := row + "," + syminfo.ticker
+    row := row + "," + aSess
+    row := row + "," + aOrb
+    row := row + "," + str.tostring(posEntry, "#.##")
+    row := row + "," + f_num(aStop, "#.##")
+    row := row + "," + str.tostring(posR, "#.####")
+    row := row + "," + str.tostring(posUnits, "#.##")
+    row := row + "," + str.tostring(posUnits / i_ozPerLot, "#.####")
+    row := row + "," + str.tostring(posRiskUSD, "#.##")
+    row := row + "," + str.tostring(realR, "#.####")
+    row := row + "," + f_num(aScore, "#.#")
+    row := row + "," + aGrade
+    row := row + "," + f_bit(aB4)
+    row := row + "," + f_bit(aB1)
+    row := row + "," + f_num(aVwapExt, "#.####")
+    row := row + "," + f_num(aVwapSlope, "#.####")
+    row := row + "," + str.tostring(aGc)
+    row := row + "," + str.tostring(aDxy)
+    row := row + "," + f_num(aCorr, "#.####")
+    row := row + "," + f_num(aRy, "#.#####")
+    row := row + "," + f_num(aVix, "#.######")
+    row := row + "," + f_num(aSlope, "#.#####")
+    row := row + "," + f_bit(aStrict)
+    row := row + "," + f_num(aTouchDist, "#.####")
+    row := row + "," + f_num(aBR, "#.####")
+    row := row + "," + f_num(aCLV, "#.####")
+    row := row + "," + f_num(aShock, "#.####")
+    row := row + "," + str.tostring(i_spreadUSD, "#.##")
+    row := row + "," + i_volMode
+    row := row + "," + f_num(aPdh - posEntry, "#.##")
+    row := row + "," + f_num(aLonH - posEntry, "#.##")
+    row := row + "," + str.tostring(maeR, "#.####")
+    row := row + "," + str.tostring(mfeR, "#.####")
+    row := row + "," + exitType
+    row := row + "," + str.tostring(holdN)
+    row := row + "," + f_bit(newsBlackout)
+    row := row + ",0"
+    row := row + "," + i_evalMode
+    row := row + "," + i_ablPreset
+    row := row + "," + i_entryMode
+    row := row + "," + i_stopModel
+    array.push(logRows, row)
+
+    nTrades += 1
+    sumR += realR
+    sumHold += holdN
+    sumMaeR += maeR
+    sumMfeR += mfeR
+    if realR > 0
+        nWins += 1
+        sumWinR += realR
+        curConsW += 1
+        curConsL := 0
+    else
+        sumLossR += -realR
+        curConsL += 1
+        curConsW := 0
+    maxConsL := math.max(maxConsL, curConsL)
+    maxConsW := math.max(maxConsW, curConsW)
+    lastTradeLost := realR <= 0
+    if realR > 0 and tp1Done
+        tookWinToday := true
+    if i_alertRows
+        alert(row, alert.freq_once_per_bar)
+
+// Deferred CSV dump, ready for validation/aurum_validate.py.
+var bool exported = false
+if i_logTrades and barstate.islastconfirmedhistory and not exported
+    exported := true
+    log.info("AURUM-NY PRIME v2.0 trade export · " + str.tostring(array.size(logRows)) + " positions · " + i_ablPreset)
+    log.info(CSV_HEADER)
+    if array.size(logRows) > 0
+        for k = 0 to array.size(logRows) - 1
+            log.info(array.get(logRows, k))
+
+// =============================================================================
+// 23. IN-SCRIPT STATISTICS (S62, S63)
+// =============================================================================
+winRate      = nTrades > 0 ? nWins * 1.0 / nTrades : na
+avgWinR      = nWins > 0 ? sumWinR / nWins : na
+avgLossR     = nTrades - nWins > 0 ? sumLossR / (nTrades - nWins) : na
+expectancyR  = nTrades > 0 ? sumR / nTrades : na
+profitFactor = sumLossR > 0 ? sumWinR / sumLossR : na
+avgHold      = nTrades > 0 ? sumHold * 1.0 / nTrades : na
+avgMaeR      = nTrades > 0 ? sumMaeR / nTrades : na
+avgMfeR      = nTrades > 0 ? sumMfeR / nTrades : na
+[wLo, wHi]   = f_wilson(nWins, nTrades, 1.96)
+sampleLabel  = nTrades >= 200 ? "VALIDATED-SIZE" : nTrades >= 100 ? "ADEQUATE" : "PRELIMINARY"
+
+// =============================================================================
+// 24. STATE MACHINE (S57)
+// =============================================================================
+var string state = ST_IDLE
+var string invalidReason = ""
+state := inPos ? (tp2Done ? ST_RUNNER : tp1Done ? ST_TP1 : beDone ? ST_BE : ST_OPEN) : (pendingOrder or armed) ? ST_ARMED : not goldBullGate ? ST_IDLE : not asiaReady ? ST_HTF : not lonReady ? ST_ASIA : not sessionGate ? ST_LONDON : not orReady ? ST_OR : not orbBroke ? ST_OR : not orbAccepted ? ST_BREAK : not pivotGate ? ST_ACCEPT : not tlGate ? ST_PIVOTS : not touchGate ? ST_WAIT3 : not rejGate ? ST_TOUCH3 : not (intermarketOK and executionOK) ? ST_REJECT : not riskValid ? ST_MACRO : ST_TL
+if justEntered
+    state := ST_ENTRY
+if justClosed
+    state := ST_CLOSED
+if not inPos and (orbFailed or dayLocked or hardStop)
+    state := ST_INVALID
+    invalidReason := orbFailed ? "ORB FAILURE" : dayLocked ? "DAILY RISK LOCK" : "HARD STOP"
+
+// =============================================================================
+// 25. PLOTS (S60)
+// =============================================================================
+plot(i_drawLevels and inNYDay ? vwap : na, "NY anchored VWAP", color.new(color.orange, 0), 2, plot.style_linebr)
+plot(i_drawLevels and orReady and inNYDay ? orh : na, "ORH", color.new(color.teal, 0), 1, plot.style_linebr)
+plot(i_drawLevels and orReady and inNYDay ? orl : na, "ORL", color.new(color.teal, 40), 1, plot.style_linebr)
+plot(i_drawLevels ? pdh : na, "PDH", color.new(color.gray, 50), 1, plot.style_linebr)
+plot(i_drawLevels ? pdl : na, "PDL", color.new(color.gray, 50), 1, plot.style_linebr)
+plot(i_drawLevels ? asiaH : na, "Asia high", color.new(color.purple, 40), 1, plot.style_linebr)
+plot(i_drawLevels ? lonH : na, "London high", color.new(color.blue, 40), 1, plot.style_linebr)
+plot(i_drawLevels and trendlineValid and inNYDay ? tlValue : na, "Ascending support", color.new(color.lime, 0), 2, plot.style_linebr)
+plot(i_drawLevels and inPos ? posStop : na, "Active stop", color.new(color.red, 0), 1, plot.style_linebr)
+plotshape(i_drawLevels and touch3 and useTouch, "Touch #3", shape.triangleup, location.belowbar, color.new(color.lime, 0), size = size.tiny)
+plotshape(i_drawLevels and placeOrder, "Armed", shape.labelup, location.belowbar, color.new(color.green, 0), text = "ARM", textcolor = color.white, size = size.small)
+
+// =============================================================================
+// 26. DASHBOARD (S60, S87)
+// =============================================================================
+var table dash = table.new(position.top_right, 2, 27, border_width = 1, frame_width = 1)
+if i_showDash and barstate.islast
+    capOK = math.abs(strategy.initial_capital - i_acctSize) < 1.0
+    tfOK  = timeframe.period == "5"
+    table.cell(dash, 0, 0, "AURUM-NY PRIME v2.0", text_size = size.small, text_color = color.white, bgcolor = color.new(color.blue, 30))
+    table.cell(dash, 1, 0, tfOK ? "5m" : "⚠ " + timeframe.period, text_size = size.small, text_color = tfOK ? color.lime : color.orange, bgcolor = color.new(color.blue, 30))
+    f_row(dash, 1,  "Gold HTF",        f_state(goldBull, "Bull", "Invalid"), goldBull ? color.lime : color.red)
+    f_row(dash, 2,  "Asia/London",     sessionType == "NONE" ? "Invalid" : sessionType == "SESSION_CONTINUATION" ? "Continuation" : "Sweep/Reclaim", sessionBull ? color.lime : color.red)
+    f_row(dash, 3,  "ORB",             not orReady ? "Waiting" : orbFailed ? "Failed" : orbAccepted ? "Accepted" : orbBroke ? "Break" : "Waiting", orbAccepted ? color.lime : orbFailed ? color.red : color.silver)
+    f_row(dash, 4,  "XAU VWAP",        f_state(aboveVWAP, "Above", "Below"), aboveVWAP ? color.lime : color.red)
+    f_row(dash, 5,  "VWAP slope",      f_state(vwapRising, "Rising ", "Falling ") + f_num(vwapSlope, "#.##"), vwapRising ? color.lime : color.red)
+    f_row(dash, 6,  "VWAP extension",  f_num(vwapExt, "#.##") + " ATR", vwapExtOK ? color.lime : color.orange)
+    f_row(dash, 7,  "GC",              gcCount >= 3 ? "Strong (" + str.tostring(gcCount) + "/4)" : gcCount == 2 ? "Moderate (2/4)" : "Weak (" + str.tostring(gcCount) + "/4)", gcCount >= 3 ? color.lime : gcCount == 2 ? color.orange : color.red)
+    f_row(dash, 8,  "DXY",             dxyScore >= 2 ? "Supportive (" + str.tostring(dxyScore) + "/3)" : dxyScore == 1 ? "Neutral (1/3)" : "Opposing (0/3)", dxyScore >= 2 ? color.lime : dxyScore == 1 ? color.orange : color.red)
+    f_row(dash, 9,  "Gold/DXY corr",   f_num(corrGD, "#.##") + " · weight ×" + str.tostring(dxyCorrFactor, "#.##"), na(corrGD) or corrGD > i_corrStrong ? color.orange : color.lime)
+    f_row(dash, 10, "VIX",             na(vixSupport) or vixSupport == 0 ? "Neutral" : vixSupport > 0 ? "Supportive" : "Unsupportive", vixSupport > 0 ? color.lime : color.silver)
+    f_row(dash, 11, "Rates",           ratesSupport ? "Supportive" : ratesOppose ? "Opposing" : "Neutral", ratesSupport ? color.lime : ratesOppose ? color.red : color.silver)
+    f_row(dash, 12, "Pivot",           f_state(pivotStruct, strictStruct ? "Valid (strict)" : "Valid", "Invalid"), pivotStruct ? color.lime : color.red)
+    f_row(dash, 13, "Trendline",       f_state(trendlineValid, "Valid m=" + f_num(slopeNorm, "#.###"), "Invalid"), trendlineValid ? color.lime : color.red)
+    f_row(dash, 14, "Touch",           not pivotStruct ? "1" : touch3 ? "3" : "2", touch3 ? color.lime : color.silver)
+    f_row(dash, 15, "Rejection",       f_state(rejBull, rejStrong ? "Confirmed +wick" : "Confirmed", "Waiting"), rejBull ? color.lime : color.silver)
+    f_row(dash, 16, "Volatility",      f_state(volNormal, "Normal ", "SHOCK ") + f_num(atrShock, "#.##"), volNormal ? color.lime : color.red)
+    f_row(dash, 17, "Spread",          f_num(spreadATR, "#.###") + " ATR · MODELLED", spreadOK ? color.lime : color.red)
+    f_row(dash, 18, "News",            newsBlackout ? "BLACKOUT" : "Clear · " + newsSource, newsBlackout ? color.red : color.silver)
+    f_row(dash, 19, "Score",           str.tostring(score, "#") + " / 100 · need " + str.tostring(scoreNeeded, "#"), scoreOK ? color.lime : color.red)
+    f_row(dash, 20, "Grade",           grade, grade == "A++" ? color.aqua : grade == "A+" ? color.lime : grade == "A" ? color.orange : color.silver)
+    f_row(dash, 21, "State",           state + (state == ST_INVALID ? " · " + invalidReason : ""), state == ST_ARMED or state == ST_OPEN ? color.lime : color.silver)
+    f_row(dash, 22, "Planned risk",    "$" + f_num(riskBudget, "#") + " · " + f_num(riskPctEff, "#.##") + "%", color.silver)
+    f_row(dash, 23, "Lots · stop",     f_num(lotsDisp, "#.##") + " · " + f_num(stopPx, "#.##"), sizeOK ? color.lime : color.red)
+    f_row(dash, 24, "R distance",      f_num(rDist, "#.##") + (stopDistOK ? "" : " ✗"), stopDistOK ? color.lime : color.red)
+    f_row(dash, 25, "Resistance space", f_num(roomR, "#.##") + "R", roomOK ? color.lime : color.red)
+    f_row(dash, 26, "Day P/L · lock",  f_num(dayPnlPct, "#.##") + "% · " + (dayLocked ? "LOCKED" : "open") + (capOK ? "" : " ⚠capital"), dayLocked ? color.red : color.silver)
+
+var table stats = table.new(position.bottom_right, 3, 13, border_width = 1, frame_width = 1)
+if i_showStats and barstate.islast
+    table.cell(stats, 0, 0, "S87 · TARGET vs VERIFIED", text_size = size.tiny, text_color = color.white, bgcolor = color.new(color.blue, 30))
+    table.cell(stats, 1, 0, "TARGET", text_size = size.tiny, text_color = color.white, bgcolor = color.new(color.blue, 30))
+    table.cell(stats, 2, 0, "ACTUAL", text_size = size.tiny, text_color = color.white, bgcolor = color.new(color.blue, 30))
+    f_srow(stats, 1,  "Trades",         "≥100 OOS",  str.tostring(nTrades) + " · " + sampleLabel, nTrades >= 100 ? color.lime : color.orange)
+    f_srow(stats, 2,  "Win rate",       "70%",       f_pct(winRate), color.white)
+    f_srow(stats, 3,  "95% Wilson CI",  "—",         na(wLo) ? "n/a" : f_pct(wLo) + " – " + f_pct(wHi), color.silver)
+    f_srow(stats, 4,  "Expectancy",     "≥ +0.25R",  f_num(expectancyR, "#.###") + "R", nz(expectancyR, 0) > 0 ? color.lime : color.red)
+    f_srow(stats, 5,  "Profit factor",  "≥ 1.5",     f_num(profitFactor, "#.##"), nz(profitFactor, 0) >= 1.5 ? color.lime : color.orange)
+    f_srow(stats, 6,  "Avg win / loss", "1.5R / 1R", f_num(avgWinR, "#.##") + "R / " + f_num(avgLossR, "#.##") + "R", color.white)
+    f_srow(stats, 7,  "Avg MAE / MFE",  "—",         f_num(avgMaeR, "#.##") + "R / " + f_num(avgMfeR, "#.##") + "R", color.white)
+    f_srow(stats, 8,  "Max consec W/L", "—",         str.tostring(maxConsW) + " / " + str.tostring(maxConsL), color.white)
+    f_srow(stats, 9,  "Max drawdown",   "low",       "$" + str.tostring(strategy.max_drawdown, "#") + " · " + str.tostring(strategy.max_drawdown / acct * 100, "#.#") + "%", strategy.max_drawdown < acct * 0.05 ? color.lime : color.orange)
+    f_srow(stats, 10, "Trading days",   "≥ " + str.tostring(i_minDays), str.tostring(tradingDays), tradingDays >= i_minDays ? color.lime : color.orange)
+    f_srow(stats, 11, "Equity",         "+" + str.tostring(targetPct, "#") + "%", f_num(gainPct, "#.##") + "%", gainPct > 0 ? color.lime : color.red)
+    f_srow(stats, 12, "Bootstrap · MC", "external",  "aurum_validate.py", color.aqua)
+
+var label dbg = na
+if i_debug and barstate.islast
+    label.delete(dbg)
+    dbg := label.new(bar_index, low, noTradeReason, style = label.style_label_up, color = color.new(color.black, 20), textcolor = noTradeReason == "ARMED" ? color.lime : color.orange, size = size.small)

@@ -1,0 +1,615 @@
+// HERMICANE v2 — macro-release control rule for XAUUSD, 1-minute
+//
+// WHAT THIS IS, AND WHAT IT IS NOT
+//
+// This is NOT a calibrated strategy. Phase 0 — the research harness in
+// strategies/hermicane/phase0 — could not be run, because none of the required
+// data providers were reachable, so no calibrated_constants.json exists and not
+// one threshold below has been measured. Every numeric input that a filter would
+// consume is marked UNCALIBRATED, and every one of those filters ships DISABLED.
+//
+// What ships enabled is the CONTROL RULE, which needs no calibration because it
+// has no thresholds to calibrate:
+//
+//     enter at T+3 in the direction the 2Y implies, stop 1.0 ATR,
+//     target 2.0 ATR, time exit 120 minutes, on every release, unfiltered.
+//
+// That is deliberately the default. The control's result is the bar every filter
+// has to clear, and until it is measured no filter can be judged. Run it first
+// and write down the trade count and net profit. Then switch ONE filter on and
+// see whether it beats what you recorded. That is the ablation the research
+// harness cannot run here, done by hand, on data TradingView has and this
+// environment could not reach.
+//
+// Read strategies/hermicane/README.md before drawing conclusions from any of it.
+//
+// TWO ENTRY MODES, BOTH CAUSAL
+//
+//   CONTROL   enters at T+3 unconditionally. The baseline.
+//   BREAKOUT  v1's actual rule: wait for a retracement of the impulse that holds
+//             the pre-news level, then a break of structure, then enter.
+//
+// The mode matters for more than results. The pullback, origin-hold and breakout
+// conditions describe things that have not happened at T+3, so they CANNOT be
+// applied to a CONTROL entry — doing so picks trades using information that does
+// not exist when the order is placed. They are offered in BREAKOUT mode only,
+// where the entry physically waits for them, and the script refuses to start if
+// you ask for them in CONTROL mode.
+//
+// DIRECTION
+//
+// The handoff writes the rule as -sign(dY2) x sign(beta). Taken literally that
+// gives +sign(dY2) in a classic regime, which contradicts the handoff's own
+// control ("the direction implied by -sign(dY2)"). What is meant is the sign of
+// the regression's own prediction, so this script uses
+//
+//     expectedDir = sign(beta) x sign(dY2)
+//
+// which equals -sign(dY2) exactly when beta is negative, and so agrees with the
+// control. The two only diverge in an inverted regime, which is gated off by
+// default and must not be traded until Phase 0 shows inversion is tradable.
+//
+//@version=6
+
+strategy(
+     title                   = "HERMICANE v2 · macro-release control",
+     shorttitle              = "HERMICANE v2",
+     overlay                 = true,
+     pyramiding              = 0,
+     initial_capital         = 100000,
+     currency                = currency.USD,
+     default_qty_type        = strategy.fixed,
+     default_qty_value       = 1,
+     calc_on_every_tick      = false,
+     process_orders_on_close = true,
+     commission_type         = strategy.commission.cash_per_contract,
+     commission_value        = input.float(0.0, "Commission per contract ($)", minval = 0.0, group = "Costs"),
+     slippage                = input.int(100, "Slippage (ticks) — sweep 20 / 100 / 200 / 400", minval = 0, group = "Costs"),
+     max_bars_back           = 5000)
+
+// ===========================================================================
+// Inputs
+// ===========================================================================
+
+// --- data ------------------------------------------------------------------
+string G_DATA = "Data sources"
+string yieldSym = input.symbol("TVC:US02Y", "US 2Y yield", group = G_DATA, tooltip = "The direction signal. Without it there is no strategy. Intraday history for this symbol is short on many accounts; when it runs out the dashboard says NO DATA rather than silently rejecting every release.")
+string dxySym = input.symbol("TVC:DXY", "Dollar index", group = G_DATA, tooltip = "Used only by the macro-alignment filter, which is off by default.")
+
+// --- schedule --------------------------------------------------------------
+string G_EVENTS = "Event schedule"
+string eventMode = input.string("Calendar list", "Event source", options = ["Calendar list", "Every 08:30 ET weekday"], group = G_EVENTS, tooltip = "The calendar list is the honest option: paste the real release timestamps. The 08:30 sweep exists to smoke-test the plumbing — it fires on days with no release and its results mean nothing.")
+string eventList = input.text_area("2024-01-11T13:30\n2024-02-13T13:30\n2024-03-12T12:30\n2024-04-10T12:30\n2024-05-15T12:30\n2024-06-12T12:30", "Release timestamps, UTC, one per line", group = G_EVENTS, tooltip = "Format YYYY-MM-DDTHH:MM, UTC. Commas work as separators too. These six are CPI prints and are EXAMPLES — replace them with the real calendar for the window you are testing. Mind US daylight saving: 08:30 New York is 13:30 UTC in winter and 12:30 UTC in summer.")
+
+// --- beta regime -----------------------------------------------------------
+string G_BETA = "Beta regime gate (the v2 thesis)"
+int betaWindow = input.int(90, "Beta window (trading days)", minval = 30, maxval = 250, group = G_BETA, tooltip = "Regress gold's daily log return on the daily change in the 2Y over this window. The handoff asks for 60/90/120 side by side; 90 is the middle and is NOT a measured choice.")
+bool useBetaGate = input.bool(true, "Require a classic regime", group = G_BETA, tooltip = "Trade only while beta is negative and the fit is meaningful. This is the central claim of v2 and it is UNTESTED. Switch it off to measure what it costs.")
+float minR2 = input.float(0.10, "UNCALIBRATED · minimum R²", minval = 0.0, maxval = 1.0, step = 0.01, group = G_BETA, tooltip = "Below this, gold is being driven by something outside the model. The value must come from a threshold sweep; 0.10 is a placeholder and nothing more.")
+float minAbsT = input.float(2.0, "Minimum |t| on beta", minval = 0.0, step = 0.5, group = G_BETA, tooltip = "Two standard errors. A convention, not a calibrated constant.")
+
+// --- control rule ----------------------------------------------------------
+string G_CONTROL = "Control rule"
+string entryMode = input.string("CONTROL · enter at T+3", "Entry mode", options = ["CONTROL · enter at T+3", "BREAKOUT · wait for pullback and break"], group = G_CONTROL)
+int entryOffset = input.int(3, "Entry offset (minutes after release)", minval = 1, maxval = 30, group = G_CONTROL)
+float stopATR = input.float(1.0, "Stop (ATR)", minval = 0.1, step = 0.1, group = G_CONTROL)
+float targetATR = input.float(2.0, "Target (ATR)", minval = 0.1, step = 0.1, group = G_CONTROL)
+int timeExitMin = input.int(120, "Time exit (minutes)", minval = 5, group = G_CONTROL)
+
+// The single most consequential choice in the script, and the handoff does not
+// make it. Averaging more 1-minute bars never produces a news-scale risk unit,
+// so "1.0 ATR" off 1-minute data is a sub-dollar stop dropped into a release
+// that moves ten. Sweep this before trusting any other number here.
+string atrTF = input.timeframe("15", "STRUCTURAL · ATR timeframe", group = G_CONTROL, tooltip = "Not a calibrated constant. Sweep 5 / 15 / 60 / 240 / D and compare — the control's sign can change across that range.")
+int atrLen = input.int(14, "STRUCTURAL · ATR periods", minval = 2, group = G_CONTROL)
+
+// --- filters, all off ------------------------------------------------------
+string G_F1 = "Filters · knowable at T+3"
+bool fImpulse = input.bool(false, "Impulse band", group = G_F1)
+float impMin = input.float(0.50, "UNCALIBRATED · impulse min (ATR)", minval = 0.0, step = 0.05, group = G_F1)
+float impMax = input.float(2.25, "UNCALIBRATED · impulse max (ATR)", minval = 0.05, step = 0.05, group = G_F1)
+bool fAgrees = input.bool(false, "Gold's impulse agrees with the 2Y", group = G_F1, tooltip = "Always on in BREAKOUT mode, where the setup is by definition a continuation of the impulse.")
+bool fMacro = input.bool(false, "Macro alignment: 2Y and DXY both agree", group = G_F1, tooltip = "Gold, DXY and the 2Y reprice off the same headline in the same second, so this is not independent confirmation. It is offered so you can measure what it does, not because it should work.")
+bool fFive = input.bool(false, "5-minute confirmation", group = G_F1)
+bool fTrend = input.bool(false, "1H trend alignment", group = G_F1)
+
+string G_F2 = "Filters · BREAKOUT mode only"
+bool fPullback = input.bool(false, "Pullback band", group = G_F2, tooltip = "Describes what happens AFTER T+3, so it cannot filter a CONTROL entry without reading the future. Available in BREAKOUT mode only, where it is measured up to the breakout bar.")
+float pbMin = input.float(0.20, "UNCALIBRATED · pullback min", minval = 0.0, maxval = 1.0, step = 0.05, group = G_F2)
+float pbMax = input.float(0.60, "UNCALIBRATED · pullback max", minval = 0.0, maxval = 2.0, step = 0.05, group = G_F2)
+bool fOrigin = input.bool(false, "Pre-news level must hold", group = G_F2)
+int searchBars = input.int(30, "STRUCTURAL · pullback search (minutes)", minval = 5, maxval = 120, group = G_F2)
+int breakLookback = input.int(3, "STRUCTURAL · breakout lookback (bars)", minval = 2, maxval = 20, group = G_F2)
+
+// --- risk ------------------------------------------------------------------
+string G_RISK = "Risk and contract"
+float riskPct = input.float(0.5, "Risk per trade (% of equity)", minval = 0.01, maxval = 5.0, step = 0.05, group = G_RISK)
+float pointValue = input.float(1.0, "Point value ($ per 1.00 move, per unit)", minval = 0.0001, group = G_RISK, tooltip = "1.0 is right for OANDA-style XAUUSD units and WRONG for a 100oz COMEX contract, where it is 100. Get this wrong and every position size is off by two orders of magnitude.")
+
+// --- display ---------------------------------------------------------------
+string G_UI = "Display"
+bool showTable = input.bool(true, "Dashboard", group = G_UI)
+bool showMarkers = input.bool(true, "Release and entry markers", group = G_UI)
+bool logTrades = input.bool(true, "Write a CSV trade log to the Pine Logs pane", group = G_UI)
+
+// ===========================================================================
+// Guards
+// ===========================================================================
+
+bool modeBreakout = entryMode == "BREAKOUT · wait for pullback and break"
+
+// The 3-minute impulse window, the breakout lookback and every time exit below
+// are counted in 1-minute bars.
+if barstate.isfirst and timeframe.in_seconds() != 60
+    runtime.error("HERMICANE v2 requires a 1-minute chart.")
+
+if barstate.isfirst and impMin >= impMax
+    runtime.error("Impulse band is empty: min must be below max.")
+
+if barstate.isfirst and pbMin >= pbMax
+    runtime.error("Pullback band is empty: min must be below max.")
+
+// Refusing here rather than ignoring the setting. Silently dropping these in
+// CONTROL mode would leave a backtest quietly reading the future.
+if barstate.isfirst and not modeBreakout and (fPullback or fOrigin)
+    runtime.error("The pullback and origin-hold filters describe what happens AFTER T+3, so they cannot filter a CONTROL entry without reading the future. Switch to BREAKOUT mode, or switch them off.")
+
+bool usePullback = fPullback and modeBreakout
+bool useOrigin = fOrigin and modeBreakout
+bool useAgrees = fAgrees or modeBreakout
+
+// ===========================================================================
+// External series
+//
+// Every request.security is lookahead_off, and every one that crosses a
+// timeframe carries an inner [1] so it reads a bar that has already closed.
+// ===========================================================================
+
+float y2 = request.security(yieldSym, timeframe.period, close, lookahead = barmerge.lookahead_off)
+float dxy = request.security(dxySym, timeframe.period, close, lookahead = barmerge.lookahead_off)
+float atrHTF = request.security(syminfo.tickerid, atrTF, ta.atr(atrLen)[1], lookahead = barmerge.lookahead_off)
+
+// close[1] > open[1] INSIDE the call. Without the offset this returns the last
+// closed 5-minute bar in a backtest and the still-forming one in real time —
+// two different strategies wearing one name.
+int fiveDir = request.security(syminfo.tickerid, "5", close[1] > open[1] ? 1 : close[1] < open[1] ? -1 : 0, lookahead = barmerge.lookahead_off)
+
+float ema20H1 = request.security(syminfo.tickerid, "60", ta.ema(close, 20)[1], lookahead = barmerge.lookahead_off)
+float ema50H1 = request.security(syminfo.tickerid, "60", ta.ema(close, 50)[1], lookahead = barmerge.lookahead_off)
+int trend1H = na(ema20H1) or na(ema50H1) ? 0 : ema20H1 > ema50H1 ? 1 : -1
+
+// Daily legs for the beta estimator. The inner [1] means each value belongs to a
+// completed daily bar, so nothing here can see the day it is used on.
+float goldDailyRet = request.security(syminfo.tickerid, "D", math.log(close / close[1])[1], lookahead = barmerge.lookahead_off)
+float yieldDailyChg = request.security(yieldSym, "D", (close - close[1])[1], lookahead = barmerge.lookahead_off)
+
+// ta.* must be evaluated on EVERY bar to keep its internal state, so these are
+// computed globally and only read inside the breakout branch below.
+float priorHigh = ta.highest(high, breakLookback)[1]
+float priorLow = ta.lowest(low, breakLookback)[1]
+
+// ===========================================================================
+// The rolling beta regime estimator
+//
+// The one genuinely orthogonal input in the design. Gold, DXY and the 2Y inside
+// the event window are three looks at one headline; beta is estimated on daily
+// data from the window BEFORE the release and answers a different question —
+// is gold currently listening to rates at all?
+// ===========================================================================
+
+var array<float> betaX = array.new_float()
+var array<float> betaY = array.new_float()
+var int lastDayStamp = na
+
+int dayStamp = time("D")
+bool newDay = not na(dayStamp) and (na(lastDayStamp) or dayStamp != lastDayStamp)
+if newDay
+    lastDayStamp := dayStamp
+
+if newDay and not na(goldDailyRet) and not na(yieldDailyChg)
+    array.push(betaX, yieldDailyChg)
+    array.push(betaY, goldDailyRet)
+    if array.size(betaX) > betaWindow
+        array.shift(betaX)
+        array.shift(betaY)
+
+// Plain OLS of y on x. Returns na rather than a fallback number when the window
+// is short or the regressor never moved: a flat 2Y is not an observation of the
+// relationship and must not be scored as one.
+calcBeta(xs, ys) =>
+    int n = array.size(xs)
+    float slope = na
+    float rsq = na
+    float tstat = na
+    if n >= 20
+        float sx = 0.0
+        float sy = 0.0
+        for i = 0 to n - 1
+            sx += array.get(xs, i)
+            sy += array.get(ys, i)
+        float mx = sx / n
+        float my = sy / n
+        float sxx = 0.0
+        float syy = 0.0
+        float sxy = 0.0
+        for i = 0 to n - 1
+            float dx = array.get(xs, i) - mx
+            float dy = array.get(ys, i) - my
+            sxx += dx * dx
+            syy += dy * dy
+            sxy += dx * dy
+        if sxx > 0.0
+            slope := sxy / sxx
+            if syy > 0.0
+                rsq := (sxy * sxy) / (sxx * syy)
+            float rss = math.max(syy - slope * sxy, 0.0)
+            float sigma2 = rss / (n - 2)
+            float se = sigma2 > 0.0 ? math.sqrt(sigma2 / sxx) : 0.0
+            if se > 0.0
+                tstat := slope / se
+    [slope, rsq, tstat]
+
+var float betaVal = na
+var float betaR2 = na
+var float betaT = na
+
+// Recomputed once a day, not once a bar: ninety elements times two million bars
+// is not a thing TradingView will finish.
+if newDay
+    [bTmp, rTmp, tTmp] = calcBeta(betaX, betaY)
+    betaVal := bTmp
+    betaR2 := rTmp
+    betaT := tTmp
+
+bool betaKnown = not na(betaVal) and not na(betaR2) and not na(betaT)
+bool betaFits = betaKnown and betaR2 >= minR2 and math.abs(betaT) >= minAbsT
+bool regimeClassic = betaFits and betaVal < 0.0
+bool regimeInverted = betaFits and betaVal > 0.0
+string regimeState = not betaKnown ? "INSUFFICIENT" : regimeClassic ? "CLASSIC" : regimeInverted ? "INVERTED" : "DECOUPLED"
+
+// ===========================================================================
+// Event schedule
+// ===========================================================================
+
+var array<int> eventTimes = array.new_int()
+var int nextEvent = 0
+var int parseErrors = 0
+
+if barstate.isfirst and eventMode == "Calendar list"
+    string cleaned = str.replace_all(str.replace_all(str.replace_all(eventList, " ", ""), "\r", ""), ",", "\n")
+    array<string> lines = str.split(cleaned, "\n")
+    if array.size(lines) > 0
+        for i = 0 to array.size(lines) - 1
+            string raw = array.get(lines, i)
+            if str.length(raw) >= 16
+                float yy = str.tonumber(str.substring(raw, 0, 4))
+                float mo = str.tonumber(str.substring(raw, 5, 7))
+                float dd = str.tonumber(str.substring(raw, 8, 10))
+                float hh = str.tonumber(str.substring(raw, 11, 13))
+                float mi = str.tonumber(str.substring(raw, 14, 16))
+                if na(yy) or na(mo) or na(dd) or na(hh) or na(mi)
+                    parseErrors += 1
+                else
+                    array.push(eventTimes, timestamp("UTC", int(yy), int(mo), int(dd), int(hh), int(mi), 0))
+            else if str.length(raw) > 0
+                parseErrors += 1
+    if array.size(eventTimes) > 1
+        array.sort(eventTimes, order.ascending)
+
+int tfMs = timeframe.in_seconds() * 1000
+
+// v1 uses nz(time[1], 0) < eventTime, which is TRUE on the dataset's very first
+// bar — so an event older than the loaded history fires on bar 1 against a
+// garbage baseline. Both guards below exist for that.
+bool barIsSane = bar_index > 0 and not na(time[1])
+
+bool isEvent = false
+
+if barIsSane and eventMode == "Calendar list"
+    // The pointer only moves forward, so the whole schedule costs one pass over
+    // the chart rather than a scan per bar. The bounds check is a nested if
+    // rather than an `and`, because Pine does not guarantee short-circuit
+    // evaluation and array.get would run off the end.
+    bool scanning = true
+    while scanning
+        scanning := false
+        if nextEvent < array.size(eventTimes)
+            if array.get(eventTimes, nextEvent) < time
+                nextEvent += 1
+                scanning := true
+    if nextEvent < array.size(eventTimes)
+        int candidate = array.get(eventTimes, nextEvent)
+        if candidate >= time and candidate < time + tfMs
+            isEvent := true
+            nextEvent += 1
+
+if barIsSane and eventMode == "Every 08:30 ET weekday"
+    isEvent := not na(time(timeframe.period, "0830-0831", "America/New_York"))
+
+// ===========================================================================
+// Per-event state
+// ===========================================================================
+
+var int evtBar = na
+var float evtPreNews = na
+var float evtY0 = na
+var float evtDxy0 = na
+var bool evtLive = false
+var float impHigh = na
+var float impLow = na
+var int impDir = 0
+var float impExtreme = na
+var float impSpan = na
+var float impATRv = na
+var int evtDir = 0
+var float evtD2y = na
+var float evtDDxy = na
+var float retraceExt = na
+var bool originHeld = false
+var float pullbackFrac = na
+var bool pullbackOK = false
+var string lastOutcome = "waiting for the first release"
+
+var int nSeen = 0
+var int nNoData = 0
+var int nRegime = 0
+var int nFiltered = 0
+var int nTaken = 0
+
+if isEvent
+    evtBar := bar_index
+    evtPreNews := close[1]
+    evtY0 := y2
+    evtDxy0 := dxy
+    evtLive := true
+    impHigh := high
+    impLow := low
+    impDir := 0
+    evtDir := 0
+    evtD2y := na
+    evtDDxy := na
+    retraceExt := na
+    originHeld := false
+    pullbackFrac := na
+    pullbackOK := false
+    nSeen += 1
+
+int barsSince = na(evtBar) ? -1 : bar_index - evtBar
+
+// Impulse window: T+0 to T+2 inclusive, matching v1's three minutes.
+if evtLive and barsSince >= 0 and barsSince <= 2
+    impHigh := math.max(impHigh, high)
+    impLow := math.min(impLow, low)
+
+// ===========================================================================
+// Decision at T+entryOffset
+// ===========================================================================
+
+bool wantEntry = false
+bool decisionBar = evtLive and barsSince == entryOffset
+bool haveMacro = not na(y2) and not na(evtY0) and not na(atrHTF) and atrHTF > 0.0
+
+if decisionBar
+    if not haveMacro
+        // v1 lets a na macro series fail the gate silently, so a run with no
+        // intraday 2Y history looks exactly like a run that found no setups.
+        lastOutcome := na(atrHTF) or atrHTF <= 0.0 ? "NO DATA — ATR" : "NO DATA — 2Y"
+        nNoData += 1
+        evtLive := false
+    else
+        evtD2y := y2 - evtY0
+        evtDDxy := na(dxy) or na(evtDxy0) ? na : dxy - evtDxy0
+
+        float upExt = impHigh - evtPreNews
+        float dnExt = evtPreNews - impLow
+        impDir := upExt >= dnExt ? 1 : -1
+        impExtreme := impDir > 0 ? impHigh : impLow
+        impSpan := math.abs(impExtreme - evtPreNews)
+        impATRv := math.max(upExt, dnExt) / atrHTF
+
+        int sgnY = evtD2y > 0.0 ? 1 : evtD2y < 0.0 ? -1 : 0
+        int sgnB = na(betaVal) ? 0 : betaVal < 0.0 ? -1 : betaVal > 0.0 ? 1 : 0
+        evtDir := sgnB * sgnY
+
+        if sgnY == 0
+            lastOutcome := "NO SIGNAL — the 2Y did not move"
+            nFiltered += 1
+            evtLive := false
+        else if useBetaGate and not regimeClassic
+            lastOutcome := "REGIME — " + regimeState
+            nRegime += 1
+            evtLive := false
+        else if evtDir == 0
+            lastOutcome := "NO SIGNAL — beta undefined"
+            nRegime += 1
+            evtLive := false
+        else
+            bool ok = true
+            if fImpulse and (na(impATRv) or impATRv < impMin or impATRv > impMax)
+                ok := false
+                lastOutcome := "FILTER — impulse band"
+            if ok and useAgrees and impDir != evtDir
+                ok := false
+                lastOutcome := "FILTER — impulse disagrees with the 2Y"
+            if ok and fMacro
+                bool yieldAgrees = (evtD2y < 0.0) == (evtDir > 0)
+                bool dollarAgrees = na(evtDDxy) ? true : (evtDDxy < 0.0) == (evtDir > 0)
+                if not (yieldAgrees and dollarAgrees)
+                    ok := false
+                    lastOutcome := "FILTER — macro alignment"
+            if ok and fFive and fiveDir != evtDir
+                ok := false
+                lastOutcome := "FILTER — 5m confirmation"
+            if ok and fTrend and trend1H != evtDir
+                ok := false
+                lastOutcome := "FILTER — 1H trend"
+
+            if not ok
+                nFiltered += 1
+                evtLive := false
+            else if not modeBreakout
+                wantEntry := true
+            else
+                lastOutcome := "ARMED — waiting for the pullback and break"
+
+// ===========================================================================
+// BREAKOUT mode
+//
+// Every condition here reads bars that have already closed, and the entry
+// happens on the breakout bar itself, so nothing reads ahead of itself. The
+// retracement is measured as it deepens, which is why pullbackFrac at the
+// breakout bar is what the entry actually knew.
+// ===========================================================================
+
+if modeBreakout and evtLive and barsSince > entryOffset and barsSince <= entryOffset + searchBars
+    if na(retraceExt)
+        retraceExt := impDir > 0 ? low : high
+    else
+        retraceExt := impDir > 0 ? math.min(retraceExt, low) : math.max(retraceExt, high)
+
+    if impSpan > 0.0
+        pullbackFrac := math.abs(impExtreme - retraceExt) / impSpan
+    originHeld := impDir > 0 ? retraceExt > evtPreNews : retraceExt < evtPreNews
+
+    bool bandOK = not usePullback or (not na(pullbackFrac) and pullbackFrac >= pbMin and pullbackFrac <= pbMax)
+    bool holdOK = not useOrigin or originHeld
+    pullbackOK := bandOK and holdOK
+
+    if pullbackOK and barsSince > entryOffset + breakLookback
+        bool broke = impDir > 0 ? high > priorHigh : low < priorLow
+        if broke
+            wantEntry := true
+
+if modeBreakout and evtLive and barsSince > entryOffset + searchBars and not wantEntry
+    lastOutcome := "TIMEOUT — no qualifying break"
+    nFiltered += 1
+    evtLive := false
+
+// ===========================================================================
+// Entry
+//
+// The protective orders go in HERE, on the entry bar. Gating them on
+// strategy.position_size leaves the first bar naked, because under
+// process_orders_on_close the position only appears on the following bar.
+// ===========================================================================
+
+var float tradeEntry = na
+var float tradeStop = na
+var float tradeRisk = na
+var int tradeDir = 0
+var int tradeBar = na
+var float tradeMFE = 0.0
+var float tradeMAE = 0.0
+var float tradeBeta = na
+var float tradeR2 = na
+var float tradeImpulse = na
+var float tradePullback = na
+var float tradeD2y = na
+
+bool flat = strategy.position_size == 0
+
+if wantEntry and flat and not na(atrHTF) and atrHTF > 0.0 and evtDir != 0
+    float risk = stopATR * atrHTF
+    float entry = close
+    float stop = evtDir > 0 ? entry - risk : entry + risk
+    float target = evtDir > 0 ? entry + targetATR * risk : entry - targetATR * risk
+    float riskUsd = strategy.equity * riskPct / 100.0
+    float qty = risk > 0.0 ? riskUsd / (risk * pointValue) : 0.0
+
+    if qty > 0.0
+        if evtDir > 0
+            strategy.entry("LONG", strategy.long, qty = qty)
+        else
+            strategy.entry("SHORT", strategy.short, qty = qty)
+        strategy.exit("X", evtDir > 0 ? "LONG" : "SHORT", stop = stop, limit = target)
+
+        tradeEntry := entry
+        tradeStop := stop
+        tradeRisk := risk
+        tradeDir := evtDir
+        tradeBar := bar_index
+        tradeMFE := 0.0
+        tradeMAE := 0.0
+        tradeBeta := betaVal
+        tradeR2 := betaR2
+        tradeImpulse := impATRv
+        tradePullback := pullbackFrac
+        tradeD2y := evtD2y
+        lastOutcome := "TAKEN"
+        nTaken += 1
+    evtLive := false
+
+// ===========================================================================
+// Management. Stop and target are already live; this adds the time exit and
+// the excursion bookkeeping.
+// ===========================================================================
+
+if not na(tradeBar) and strategy.position_size != 0 and tradeRisk > 0.0
+    float best = tradeDir > 0 ? high - tradeEntry : tradeEntry - low
+    float worst = tradeDir > 0 ? low - tradeEntry : tradeEntry - high
+    tradeMFE := math.max(tradeMFE, best / tradeRisk)
+    tradeMAE := math.min(tradeMAE, worst / tradeRisk)
+    if bar_index - tradeBar >= timeExitMin
+        strategy.close_all(comment = "time")
+
+// ===========================================================================
+// Trade log, in the shape the Phase 0 harness reads back
+// ===========================================================================
+
+var bool headerWritten = false
+var int lastClosed = 0
+
+if logTrades and barstate.isfirst and not headerWritten
+    log.info("ts_entry,ts_exit,direction,entry,exit,risk,realized_R,mae_R,mfe_R,exit_id,beta,beta_r2,impulse_atr,pullback_frac,d2y")
+    headerWritten := true
+
+if logTrades and strategy.closedtrades > lastClosed
+    for k = lastClosed to strategy.closedtrades - 1
+        float entryPrice = strategy.closedtrades.entry_price(k)
+        float exitPrice = strategy.closedtrades.exit_price(k)
+        int dirSign = strategy.closedtrades.size(k) > 0 ? 1 : -1
+        float realized = na(tradeRisk) or tradeRisk <= 0.0 ? na : dirSign * (exitPrice - entryPrice) / tradeRisk
+        log.info(str.format_time(strategy.closedtrades.entry_time(k), "yyyy-MM-dd HH:mm", "UTC") + "," + str.format_time(strategy.closedtrades.exit_time(k), "yyyy-MM-dd HH:mm", "UTC") + "," + str.tostring(dirSign) + "," + str.tostring(entryPrice, "#.##") + "," + str.tostring(exitPrice, "#.##") + "," + str.tostring(tradeRisk, "#.####") + "," + str.tostring(realized, "#.####") + "," + str.tostring(tradeMAE, "#.####") + "," + str.tostring(tradeMFE, "#.####") + "," + strategy.closedtrades.exit_id(k) + "," + str.tostring(tradeBeta, "#.######") + "," + str.tostring(tradeR2, "#.####") + "," + str.tostring(tradeImpulse, "#.###") + "," + str.tostring(tradePullback, "#.###") + "," + str.tostring(tradeD2y, "#.####"))
+    lastClosed := strategy.closedtrades
+
+// ===========================================================================
+// Display
+//
+// Every cell sets its own text colour: the default is black, which is invisible
+// on a dark chart.
+// ===========================================================================
+
+color TXT = color.new(color.white, 0)
+color DIM = color.new(color.silver, 0)
+color WARN = color.new(color.orange, 0)
+color BAD = color.new(color.red, 0)
+color GOOD = color.new(color.lime, 0)
+color BG = color.new(color.black, 20)
+
+plotshape(showMarkers and isEvent, title = "Release", style = shape.triangleup, location = location.belowbar, color = color.new(color.orange, 0), size = size.tiny)
+plotshape(showMarkers and wantEntry, title = "Entry", style = shape.labelup, location = location.belowbar, color = color.new(color.teal, 0), size = size.tiny, text = "IN")
+
+var table dash = table.new(position.top_right, 2, 15, border_width = 1)
+
+writeRow(t, row, label, value, valueColor) =>
+    table.cell(t, 0, row, label, text_color = DIM, text_size = size.small, bgcolor = BG, text_halign = text.align_left)
+    table.cell(t, 1, row, value, text_color = valueColor, text_size = size.small, bgcolor = BG, text_halign = text.align_right)
+
+if showTable and barstate.islast
+    color regimeColor = regimeState == "CLASSIC" ? GOOD : regimeState == "INVERTED" ? BAD : WARN
+    writeRow(dash, 0, "HERMICANE v2", modeBreakout ? "BREAKOUT" : "CONTROL", TXT)
+    writeRow(dash, 1, "UNCALIBRATED", "no Phase 0 constants", WARN)
+    writeRow(dash, 2, "Beta regime", regimeState, regimeColor)
+    writeRow(dash, 3, "  beta / R² / t", str.tostring(betaVal, "#.#####") + " / " + str.tostring(betaR2, "#.##") + " / " + str.tostring(betaT, "#.#"), TXT)
+    writeRow(dash, 4, "  window / days held", str.tostring(betaWindow) + " / " + str.tostring(array.size(betaX)), array.size(betaX) < betaWindow ? WARN : TXT)
+    // The raw macro readings, so that NO DATA never looks like a rejection.
+    writeRow(dash, 5, "2Y last", na(y2) ? "NO DATA" : str.tostring(y2, "#.###"), na(y2) ? BAD : TXT)
+    writeRow(dash, 6, "DXY last", na(dxy) ? "NO DATA" : str.tostring(dxy, "#.###"), na(dxy) ? BAD : TXT)
+    writeRow(dash, 7, "ATR " + atrTF + " x" + str.tostring(atrLen), na(atrHTF) ? "NO DATA" : str.tostring(atrHTF, "#.###"), na(atrHTF) ? BAD : TXT)
+    writeRow(dash, 8, "Point value", str.tostring(pointValue, "#.##") + (pointValue == 1.0 ? "  (spot units)" : "  (check contract)"), WARN)
+    writeRow(dash, 9, "Releases seen", str.tostring(nSeen) + (parseErrors > 0 ? "  (" + str.tostring(parseErrors) + " unparsed)" : ""), parseErrors > 0 ? BAD : TXT)
+    writeRow(dash, 10, "  no data", str.tostring(nNoData), nNoData > 0 ? BAD : DIM)
+    writeRow(dash, 11, "  regime rejected", str.tostring(nRegime), DIM)
+    writeRow(dash, 12, "  filtered out", str.tostring(nFiltered), DIM)
+    writeRow(dash, 13, "  taken", str.tostring(nTaken) + (nTaken < 50 ? "  ⚠ under 50" : ""), nTaken < 50 ? WARN : GOOD)
+    writeRow(dash, 14, "Last release", lastOutcome, TXT)

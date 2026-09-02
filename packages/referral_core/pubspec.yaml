@@ -1,0 +1,14 @@
+name: referral_core
+description: >-
+  Pure-Dart domain core for Quick Referral: models, specialty templates, tooth
+  notation, dental vocabulary, structured extraction, identifier guardrail,
+  referral codes and ambiguity detection. No Flutter, no platform, no I/O.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.25.0

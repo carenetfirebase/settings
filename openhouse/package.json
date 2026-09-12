@@ -1,0 +1,25 @@
+{
+  "name": "openhouse",
+  "private": true,
+  "version": "0.1.0",
+  "description": "OPENHOUSE AI — grounded, zero-hallucination property answers for open houses.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test 'packages/*/test/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "eval": "node tooling/eval/run.ts",
+    "eval:json": "node tooling/eval/run.ts --json",
+    "db:seed": "node packages/db/seed.ts > packages/db/seed/001_fact_catalog.sql",
+    "db:test": "packages/db/test.sh",
+    "demo": "node tools/demo.ts",
+    "demo:agent": "node tools/demo.ts --agent",
+    "check": "npm run typecheck && npm test && npm run eval"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "typescript": "^7.0.0"
+  }
+}

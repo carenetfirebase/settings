@@ -1,0 +1,63 @@
+name: openhouse
+
+on:
+  push:
+    paths: ['openhouse/**', '.github/workflows/openhouse.yml']
+  pull_request:
+    paths: ['openhouse/**', '.github/workflows/openhouse.yml']
+
+defaults:
+  run:
+    working-directory: openhouse
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: openhouse/package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # The schema must migrate clean and every RLS policy must hold. A missing
+      # policy fails the build rather than shipping quietly (§2).
+      - name: Schema and RLS
+        run: npm run db:test
+        env:
+          PGHOST: localhost
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+
+      # The zero-hallucination claim, measured. Non-zero exit if it slips.
+      - name: Answer quality eval
+        run: npm run eval
+
+      - name: Catalog seed is in sync
+        run: |
+          npm run db:seed
+          git diff --exit-code packages/db/seed/001_fact_catalog.sql

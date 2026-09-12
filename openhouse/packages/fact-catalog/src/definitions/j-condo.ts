@@ -1,0 +1,85 @@
+import type { FactDefinition } from '../types.ts';
+import { CONDO, section } from './_helpers.ts';
+
+const d = section('J', 'condo');
+
+/**
+ * Section J — condominium and strata. Every fact here is condo-only, which is
+ * the clearest case for `applies_when`: a detached house scored against these
+ * would sit permanently at 70% coverage with no way to finish.
+ */
+const c = (
+  key: string, label: string, dataType: FactDefinition['dataType'],
+  weight: number, questions: string[], extra: Partial<FactDefinition> = {},
+): FactDefinition => d(key, label, dataType, weight, questions, { appliesWhen: CONDO, ...extra });
+
+export const condoFacts: FactDefinition[] = [
+  c('condo.corporation_name', 'Condo corporation name', 'text', 5,
+    ['what is the condo corporation', 'who is the condo corporation']),
+  c('condo.management_company', 'Management company', 'text', 6,
+    ['who manages the building', 'what management company is it']),
+  c('condo.fee_includes', 'What the condo fee includes', 'text', 10,
+    ['what do the condo fees include', 'is heat included in the fees',
+     'do the fees cover water']),
+  c('condo.fee_history', 'Condo fee increase history', 'text', 9,
+    ['have the fees gone up', 'what is the fee history']),
+  c('condo.reserve_fund_balance', 'Reserve fund balance', 'money', 9,
+    ['how much is in the reserve fund', 'what is the reserve fund at']),
+  c('condo.reserve_study_date', 'Reserve fund study date', 'date', 8,
+    ['when was the last reserve fund study']),
+  c('condo.reserve_study_findings', 'Reserve fund study findings', 'text', 9,
+    ['what did the reserve fund study say', 'is the reserve fund healthy']),
+  c('condo.special_assessment.history', 'Special assessment history', 'text', 10,
+    ['has there been a special assessment', 'were there any special levies'],
+    { isDisclosure: true }),
+  c('condo.special_assessment.pending', 'Pending special assessment', 'text', 10,
+    ['is there a special assessment coming', 'any upcoming assessments'],
+    { isDisclosure: true }),
+  c('condo.litigation', 'Litigation involving the corporation', 'text', 10,
+    ['is the condo in litigation', 'is the building suing anyone'],
+    { isDisclosure: true }),
+  c('condo.insurance.deductible', 'Condo insurance deductible', 'money', 8,
+    ['what is the building deductible', 'what is the condo insurance deductible']),
+  c('condo.bylaws.pets', 'Pet bylaws', 'text', 10,
+    ['can i have a dog', 'are pets allowed', 'what is the pet policy']),
+  c('condo.bylaws.rentals', 'Rental bylaws', 'text', 10,
+    ['can i rent it out', 'are rentals allowed', 'is there a rental cap']),
+  c('condo.bylaws.smoking', 'Smoking bylaws', 'text', 8,
+    ['is smoking allowed', 'is it a non smoking building']),
+  c('condo.bylaws.short_term_rental', 'Short-term rental bylaws', 'text', 8,
+    ['can i airbnb it', 'are short term rentals allowed']),
+  c('condo.bylaws.renovations', 'Renovation approval rules', 'text', 7,
+    ['can i renovate', 'do i need approval to change the floors']),
+  c('condo.bylaws.age_restriction', 'Age restriction', 'text', 7,
+    ['is there an age restriction', 'is this a seniors building'],
+    { helpText: 'State the registered restriction only. Never characterise ' +
+                'who lives in the building — that is a fair housing violation.' }),
+  c('condo.parking.stall_number', 'Parking stall', 'text', 8,
+    ['is there a parking stall', 'which stall is it']),
+  c('condo.parking.title_type', 'Parking title type', 'enum', 8,
+    ['is the parking titled or assigned', 'do i own the parking stall'],
+    { enumOptions: ['titled', 'assigned', 'exclusive_use', 'rented', 'none'] }),
+  c('condo.storage.locker', 'Storage locker', 'text', 7,
+    ['is there a storage locker', 'where is the locker']),
+  c('condo.amenities', 'Building amenities', 'text', 8,
+    ['what amenities are there', 'is there a gym', 'is there a pool in the building']),
+  c('condo.elevator', 'Elevator', 'boolean', 7,
+    ['is there an elevator', 'what floor is it on and is there an elevator']),
+  c('condo.unit_floor', 'Unit floor', 'number', 7,
+    ['what floor is the unit on']),
+  c('condo.balcony', 'Balcony or patio', 'text', 7,
+    ['is there a balcony', 'how big is the balcony']),
+  c('condo.building.year_built', 'Building year built', 'year', 8,
+    ['how old is the building', 'when was the building built']),
+  c('condo.building.major_projects', 'Recent and planned building projects', 'text', 9,
+    ['has the building done any major work', 'is there work planned on the building']),
+  c('condo.building.envelope_history', 'Building envelope history', 'text', 10,
+    ['has the building had envelope problems', 'was there a leaky building issue'],
+    { isDisclosure: true }),
+  c('condo.documents.available', 'Condo documents available', 'text', 9,
+    ['can i see the condo documents', 'are the condo docs available']),
+  c('condo.estoppel_date', 'Estoppel or status certificate date', 'date', 7,
+    ['is there a current estoppel certificate', 'when was the status certificate done']),
+  c('condo.move_in_rules', 'Move-in rules and fees', 'text', 6,
+    ['is there a move in fee', 'what are the move in rules']),
+];

@@ -1,0 +1,433 @@
+<title>Articulate Case Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* ---------------------------------------------------------------- tokens --
+   Ground is cool porcelain — unglazed zirconia under daylight-corrected light.
+   The accent is instrument petrol; the semantic reds and blues are borrowed
+   from articulating paper, which is the only red and blue a technician sees
+   all day. Every colour is declared here first so the un-stamped system theme
+   resolves as a complete set.                                               */
+:root {
+  --ground:       #F2F5F6;
+  --surface:      #FFFFFF;
+  --surface-sunk: #E7ECEE;
+  --ink:          #13181C;
+  --ink-2:        #48565F;
+  --ink-3:        #7C8B94;
+  --line:         #D7DFE3;
+  --line-strong:  #BCC8CE;
+  --accent:       #14507A;
+  --accent-ink:   #FFFFFF;
+  --accent-soft:  #E2ECF3;
+  --critical:     #A8322A;
+  --critical-soft:#F7E6E3;
+  --caution:      #8F5D11;
+  --caution-soft: #F8EEDC;
+  --clear:        #2C6A4C;
+  --clear-soft:   #E2F0E8;
+  --shadow:       0 1px 2px rgba(19, 24, 28, .05), 0 8px 24px rgba(19, 24, 28, .06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:       #0D1215;
+    --surface:      #151C21;
+    --surface-sunk: #101619;
+    --ink:          #E9EEF0;
+    --ink-2:        #A2B0B8;
+    --ink-3:        #6D7C85;
+    --line:         #242F36;
+    --line-strong:  #35434B;
+    --accent:       #74B6E2;
+    --accent-ink:   #0A1218;
+    --accent-soft:  #15303F;
+    --critical:     #E68A7F;
+    --critical-soft:#33201D;
+    --caution:      #D9A441;
+    --caution-soft: #2E2716;
+    --clear:        #74C29A;
+    --clear-soft:   #16281F;
+    --shadow:       0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:       #0D1215;
+  --surface:      #151C21;
+  --surface-sunk: #101619;
+  --ink:          #E9EEF0;
+  --ink-2:        #A2B0B8;
+  --ink-3:        #6D7C85;
+  --line:         #242F36;
+  --line-strong:  #35434B;
+  --accent:       #74B6E2;
+  --accent-ink:   #0A1218;
+  --accent-soft:  #15303F;
+  --critical:     #E68A7F;
+  --critical-soft:#33201D;
+  --caution:      #D9A441;
+  --caution-soft: #2E2716;
+  --clear:        #74C29A;
+  --clear-soft:   #16281F;
+  --shadow:       0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------ base --
+   Anything that must be exact is set in mono: case numbers, tooth numbers,
+   lots, shades, torque, tracking. The type is the rule — where "close" is the
+   same as "wrong", the glyphs line up and the digits are unambiguous.        */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+h1, h2, h3, h4 {
+  font-family: Archivo, ui-sans-serif, system-ui, sans-serif;
+  margin: 0;
+  text-wrap: balance;
+  letter-spacing: -.012em;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* --------------------------------------------------------------- topbar -- */
+.topbar {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding-block: 14px; padding-inline: 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+}
+.brand { display: flex; align-items: center; gap: 11px; margin-inline-end: auto; }
+.mark {
+  width: 30px; height: 30px; display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-ink);
+  font-family: Archivo, sans-serif; font-weight: 700; font-size: 17px;
+  border-radius: 7px;
+}
+.brand-name { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-name strong {
+  font-family: Archivo, sans-serif; font-weight: 700; font-size: 16px;
+  letter-spacing: -.02em;
+}
+.brand-sub { color: var(--ink-3); font-size: 12px; }
+
+.segmented {
+  display: flex; background: var(--surface-sunk); border-radius: 8px; padding: 3px;
+  border: 1px solid var(--line);
+}
+.seg {
+  border: 0; background: none; color: var(--ink-2);
+  padding: 6px 13px; border-radius: 6px; font-size: 13px; font-weight: 500;
+  transition: background .15s, color .15s;
+}
+.seg.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+
+.recall { display: flex; gap: 6px; }
+.recall-input {
+  width: 232px; max-width: 44vw;
+  padding: 7px 11px; border-radius: 7px;
+  border: 1px solid var(--line-strong); background: var(--surface);
+  font-size: 13px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+.recall-input::placeholder { color: var(--ink-3); font-family: "IBM Plex Sans", sans-serif; }
+.recall-go {
+  border: 1px solid var(--line-strong); background: var(--surface-sunk);
+  color: var(--ink); border-radius: 7px; padding: 7px 13px; font-size: 13px; font-weight: 500;
+}
+
+/* ---------------------------------------------------------------- board -- */
+.board {
+  display: grid; grid-template-columns: 296px minmax(0, 1fr);
+  gap: 20px; align-items: start;
+  padding-inline: 20px; padding-block: 20px 56px;
+  max-width: 1360px; margin: 0 auto;
+}
+@media (max-width: 940px) { .board { grid-template-columns: minmax(0, 1fr); } }
+
+/* ----------------------------------------------------------------- rail -- */
+.rail {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  overflow: hidden; position: sticky; top: 78px;
+}
+@media (max-width: 940px) { .rail { position: static; } }
+.rail-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 13px 15px; border-bottom: 1px solid var(--line);
+}
+.rail-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-2); }
+.rail-count { font-size: 12px; color: var(--ink-3); }
+.case-list { display: flex; flex-direction: column; max-height: 66vh; overflow-y: auto; }
+@media (max-width: 940px) { .case-list { max-height: none; } }
+
+.case-item {
+  display: flex; flex-direction: column; gap: 3px; text-align: left;
+  padding: 11px 14px 11px 16px; border: 0; background: none;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  transition: background .12s;
+}
+.case-item:hover { background: var(--surface-sunk); }
+.case-item.on { background: var(--accent-soft); border-left-color: var(--accent); }
+.case-item.tone-hold { border-left-color: var(--critical); }
+.case-item.tone-done { border-left-color: var(--line-strong); }
+.case-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.case-no { font-size: 15px; font-weight: 500; }
+.case-due { font-size: 12px; color: var(--ink-3); }
+.case-who { font-size: 12.5px; color: var(--ink-2); }
+.case-foot { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+.case-status { font-size: 11.5px; color: var(--ink-3); }
+
+/* ---------------------------------------------------------------- panes -- */
+.pane { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;
+}
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.panel-title { font-size: 15px; font-weight: 600; }
+.panel-sub { margin: -8px 0 0; font-size: 13px; color: var(--ink-2); max-width: 68ch; }
+.empty { margin: 0; font-size: 13.5px; color: var(--ink-3); }
+
+/* --------------------------------------------------------- case header -- */
+.case-header {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px 20px; display: grid; gap: 20px;
+  grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+}
+@media (max-width: 760px) { .case-header { grid-template-columns: minmax(0, 1fr); } }
+.identity { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.case-title { font-size: 30px; font-weight: 700; letter-spacing: -.025em; }
+.identity-meta { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.meta-item { display: flex; flex-direction: column; gap: 1px; }
+.meta-label {
+  font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--ink-3);
+}
+.meta-value { font-size: 14px; }
+.meta-value.muted { color: var(--ink-3); font-style: italic; }
+
+/* ------------------------------------------------------------ the arch --
+   Two rows of sixteen, Universal notation. Drawn rather than listed because a
+   tooth-number disagreement is what this product exists to catch, and two
+   teeth lit against each other says it faster than a sentence.              */
+.arch { display: flex; flex-direction: column; gap: 5px; }
+.arch-row { display: flex; gap: 3px; }
+.tooth {
+  width: 21px; height: 26px; display: grid; place-items: center;
+  font-family: "IBM Plex Mono", monospace; font-size: 9.5px;
+  color: var(--ink-3); background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: 4px 4px 6px 6px;
+}
+.arch-row:last-child .tooth { border-radius: 6px 6px 4px 4px; }
+.tooth.prescribed {
+  background: var(--accent); border-color: var(--accent);
+  color: var(--accent-ink); font-weight: 500;
+}
+.tooth.pontic {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent);
+  font-weight: 500;
+}
+.tooth.disputed {
+  background: var(--critical-soft); border-color: var(--critical);
+  color: var(--critical); font-weight: 500;
+}
+.arch-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 2px; }
+.key { font-size: 10.5px; color: var(--ink-3); display: flex; align-items: center; gap: 5px; }
+.key::before { content: ""; width: 9px; height: 9px; border-radius: 2px; background: var(--line-strong); }
+.key-disputed::before { background: var(--critical); }
+.key-prescribed::before { background: var(--accent); }
+.key-pontic::before { background: var(--accent-soft); border: 1px solid var(--accent); }
+.key-note::before { display: none; }
+
+/* --------------------------------------------------------------- meters -- */
+.meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .meters { grid-template-columns: minmax(0, 1fr); } }
+.meter {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 13px 15px; display: flex; flex-direction: column; gap: 7px;
+}
+.meter-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.meter-label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.meter-value { font-size: 19px; font-weight: 500; }
+.meter-track { height: 5px; background: var(--surface-sunk); border-radius: 3px; overflow: hidden; }
+.meter-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+.meter-fill.full { background: var(--clear); }
+.meter-fill.low  { background: var(--caution); }
+.meter-hint { font-size: 11.5px; color: var(--ink-3); }
+
+/* ---------------------------------------------------------------- chips -- */
+.chip {
+  display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .055em;
+  padding: 3px 7px; border-radius: 4px; white-space: nowrap;
+  background: var(--surface-sunk); color: var(--ink-2);
+}
+.chip-critical { background: var(--critical-soft); color: var(--critical); }
+.chip-caution  { background: var(--caution-soft);  color: var(--caution); }
+.chip-clear    { background: var(--clear-soft);    color: var(--clear); }
+.chip-quiet    { background: var(--surface-sunk);  color: var(--ink-3); text-transform: none; letter-spacing: .01em; font-weight: 500; }
+.chip-ghost    { background: none; color: var(--ink-3); border: 1px solid var(--line-strong); }
+.chip-path     { background: var(--accent-soft); color: var(--accent); }
+.chip-path.path-boundary_refusal { background: var(--caution-soft); color: var(--caution); }
+.chip-path.path-routed_to_technician { background: var(--surface-sunk); color: var(--ink-2); }
+
+/* ------------------------------------------------------------- conflict -- */
+.conflict {
+  border: 1px solid var(--critical); background: var(--critical-soft);
+  border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.conflict-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: 14px; }
+.conflict-note { margin: 0; font-size: 13px; color: var(--ink-2); }
+.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.option {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  padding: 12px 13px; display: flex; flex-direction: column; gap: 6px;
+}
+.option-value { font-size: 21px; font-weight: 500; }
+.option-source { font-size: 11.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+.option-snippet { font-size: 12px; color: var(--ink-2); font-style: italic; }
+
+.btn { border-radius: 7px; padding: 7px 13px; font-size: 13px; font-weight: 500; border: 1px solid transparent; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-ghost { background: none; color: var(--ink-2); border-color: var(--line-strong); }
+
+.blocker-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.blocker { border-left: 2px solid var(--line-strong); padding-left: 12px; }
+.blocker.phase-start { border-left-color: var(--critical); }
+.blocker-head { display: flex; align-items: center; gap: 8px; font-size: 14px; flex-wrap: wrap; }
+.blocker-detail { margin: 2px 0 0; font-size: 13px; color: var(--ink-2); max-width: 68ch; }
+
+.outbound { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+.outbound-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); }
+.outbound-line { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.outbound-q { font-size: 13.5px; color: var(--ink); max-width: 62ch; }
+.outbound-key { font-size: 11px; color: var(--ink-3); }
+
+/* ------------------------------------------------------------------ ask -- */
+.ask-form { display: flex; gap: 8px; }
+.ask-input {
+  flex: 1; min-width: 0; padding: 9px 13px; border-radius: 8px;
+  border: 1px solid var(--line-strong); background: var(--surface); font-size: 14px;
+}
+.ask-input::placeholder { color: var(--ink-3); }
+.suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
+.suggest {
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  color: var(--ink-2); border-radius: 999px; padding: 5px 11px; font-size: 12.5px;
+  transition: border-color .12s, color .12s;
+}
+.suggest:hover { border-color: var(--accent); color: var(--accent); }
+
+.exchange {
+  border-top: 1px solid var(--line); padding-top: 13px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.q { font-size: 13px; color: var(--ink-3); }
+.a { font-size: 15px; line-height: 1.55; max-width: 70ch; }
+.trace { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 2px; }
+.trace-item { font-size: 10.5px; color: var(--ink-3); }
+.trace-item.ok { color: var(--clear); font-weight: 500; }
+
+/* --------------------------------------------------------------- record -- */
+.record-section { display: flex; flex-direction: column; gap: 6px; }
+.record-section-title {
+  font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--ink-3);
+  border-bottom: 1px solid var(--line); padding-bottom: 5px;
+}
+.record-list {
+  margin: 0; display: grid; grid-template-columns: minmax(150px, 240px) minmax(0, 1fr);
+  gap: 4px 20px; align-items: baseline;
+}
+@media (max-width: 620px) { .record-list { grid-template-columns: minmax(0, 1fr); gap: 1px 0; } }
+.record-term { font-size: 13px; color: var(--ink-2); }
+.record-value { margin: 0; font-size: 13.5px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+@media (max-width: 620px) { .record-value { margin-bottom: 7px; } }
+.val.exact { font-weight: 500; }
+.unknown-mark { color: var(--ink-3); font-style: italic; }
+.shade-chip {
+  width: 17px; height: 17px; border-radius: 3px;
+  border: 1px solid var(--line-strong); flex: none;
+}
+.record-note { margin: 0; font-size: 12.5px; color: var(--ink-3); max-width: 68ch; }
+
+/* ------------------------------------------------------------------ dhr -- */
+.dhr-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dhr-count { font-size: 12px; color: var(--ink-3); }
+.materials { display: flex; flex-direction: column; gap: 7px; }
+.material {
+  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  background: var(--surface-sunk); border-radius: 8px; padding: 9px 12px;
+}
+.material-role { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); min-width: 74px; }
+.material-product { font-size: 13.5px; margin-inline-end: auto; }
+.lot-chip {
+  background: var(--surface); border: 1px solid var(--accent); color: var(--accent);
+  border-radius: 5px; padding: 3px 9px; font-size: 12.5px; font-weight: 500;
+  font-family: "IBM Plex Mono", monospace;
+}
+.material-expiry { font-size: 11.5px; color: var(--ink-3); }
+
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.step {
+  display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 14px;
+  padding: 7px 0; border-bottom: 1px solid var(--line);
+}
+.step:last-child { border-bottom: 0; }
+@media (max-width: 620px) { .step { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+.step-when { font-size: 11.5px; color: var(--ink-3); }
+.step-body { display: flex; flex-wrap: wrap; gap: 5px 11px; align-items: baseline; }
+.step-name { font-size: 13.5px; }
+.step-by { font-size: 12px; color: var(--ink-2); }
+.step-kit { font-size: 11px; color: var(--ink-3); }
+
+.missing summary { font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+.missing-list { margin: 7px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+.missing-item { font-size: 12.5px; color: var(--ink-3); }
+
+/* --------------------------------------------------------------- recall -- */
+.recall-result { border-color: var(--accent); }
+.hits { display: flex; flex-direction: column; gap: 6px; }
+.hit {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; text-align: left;
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  border-radius: 8px; padding: 9px 12px;
+}
+.hit:hover { border-color: var(--accent); }
+.hit-case { font-size: 14px; font-weight: 500; }
+.hit-where { font-size: 13px; color: var(--ink-2); margin-inline-end: auto; }
+.hit-patient { font-size: 12px; color: var(--ink-3); }
+.notify { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ---------------------------------------------------------------- notes -- */
+.footnote {
+  max-width: 1360px; margin: 0 auto; padding-inline: 20px; padding-block: 0 40px;
+  font-size: 12px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 6px 18px;
+}
+.footnote strong { color: var(--ink-2); font-weight: 600; }
+</style>
+
+<div id="app"></div>
+<p class="footnote">
+  <strong>Demo data.</strong>
+  <span>Fictional practices, fictional patients, fictional lots — nothing here is real patient information, and nothing real should be put into a page like this.</span>
+  <span>The Truth Engine, boundary layer and validator running above are the same code the test suite and the eval harness measure.</span>
+</p>
+<script src="articulate.js"></script>

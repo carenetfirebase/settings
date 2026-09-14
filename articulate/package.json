@@ -1,0 +1,25 @@
+{
+  "name": "articulate",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ARTICULATE — a grounded case desk for dental laboratories.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test 'packages/*/test/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "eval": "node tooling/eval/run.ts",
+    "eval:json": "node tooling/eval/run.ts --json",
+    "bench": "node tools/bench.ts",
+    "ask": "node tools/ask.ts",
+    "recall": "node tools/recall.ts",
+    "check": "npm run typecheck && npm test && npm run eval"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.0"
+  }
+}

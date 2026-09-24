@@ -57,6 +57,7 @@ from invest.api.schemas import (
     SnapshotsResponse,
     UniverseResponse,
 )
+from invest.api.web import mount_web
 from invest.db.models import DataConflict, Entity, ResearchSnapshot, Security
 
 DESCRIPTION = """
@@ -124,7 +125,8 @@ def _swagger_asset_dir() -> str | None:
     return None  # pragma: no cover
 
 
-def create_app() -> FastAPI:
+def create_app(web_dist: pathlib.Path | None = None) -> FastAPI:
+    """Build the app. `web_dist` overrides where the built site is served from."""
     swagger_dir = _swagger_asset_dir()
 
     app = FastAPI(
@@ -651,6 +653,7 @@ def create_app() -> FastAPI:
             counts[table] = session.scalar(select(func.count()).select_from(text(table))) or 0
         return {"tables": counts, "generated_at": datetime.now(UTC).isoformat()}
 
+    mount_web(app, web_dist)
     _allow_head(app)
     return app
 

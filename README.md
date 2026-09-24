@@ -1,11 +1,33 @@
 # invest
 
-Zero-cost, institutional-style investment research platform. Plain Python,
-free data sources only, deterministic math, point-in-time correctness.
+A personal research and trading terminal. Plain Python engines, deterministic
+math, point-in-time correctness, and a web front end over the same read-only
+API.
 
-**It is a command-line tool that runs on your own machine**, backed by a local
-PostgreSQL database. No web app, no phone app, no paid services, no LLM
-anywhere in the calculation path.
+**It runs on your own machine**, backed by a local PostgreSQL database: a
+command-line tool plus a web terminal at `http://127.0.0.1:8000/app/`. There is
+no LLM anywhere in the calculation path.
+
+![Command Center, end-state design mockup](docs/design/command-center.png)
+
+*The end-state design (illustrative data). What is built today and what comes
+next is in [docs/SITE_MAP.md](docs/SITE_MAP.md); which data may move a score,
+and why, is in [docs/ENGINE_INPUTS.md](docs/ENGINE_INPUTS.md).*
+
+## Direction
+
+The platform is growing from a zero-cost research tool into a trading
+terminal for one person (friends possibly later), on a **$150–300/month** data
+budget. Two documents govern that growth:
+
+- **[Engine inputs](docs/ENGINE_INPUTS.md).** Only data points that meet all
+  eight criteria (evidence, point-in-time, quality, timeliness, cost,
+  testability, correct role, licensing) can move a score. Everything else is
+  labelled context or cut. V1 adds Alpaca (real-time SIP data, paper and live
+  trading, $99/mo) and Norgate (survivorship-free history, ~$53/mo).
+- **[Site map](docs/SITE_MAP.md).** Every page, its purpose, its data, and
+  whether it is Live, V1 or V2. The site's navigation is built from the same
+  list, and a test keeps the two in step.
 
 ## Status
 
@@ -15,7 +37,8 @@ models, valuation, scoring and reporting, Form 4 insider parsing, firewalled
 political disclosures, FRED macro with a regime classifier, and a
 point-in-time backtesting engine.
 
-The read-only FastAPI local API from the spec's tech stack is also built.
+The read-only FastAPI local API from the spec's tech stack is also built,
+and the web terminal (`web/`) is served from it.
 
 ## Setup
 
@@ -43,7 +66,7 @@ gets is:
 |---|---|---|
 | End-of-day daily bars | Yes | Stooq, Alpha Vantage |
 | ~15-minute delayed intraday | Yes | Alpha Vantage |
-| Real-time consolidated quotes | **No** | exchange-licensed |
+| Real-time consolidated quotes | **No** (V1: Yes) | exchange-licensed; V1 adds Alpaca's SIP feed |
 
 Every intraday row carries `delay_seconds` in a NOT NULL column, and a CHECK
 constraint forces `is_delayed` to agree with it. You cannot store an
@@ -84,6 +107,25 @@ invest ingest political --file disclosures.csv   # firewalled, never a score inp
 invest disclosures AAPL     # congressional disclosures, research context only
 ```
 
+### The web terminal
+
+```bash
+npm --prefix web install
+npm --prefix web run build  # outputs web/dist
+invest serve                # then open http://127.0.0.1:8000/app/
+```
+
+`invest serve` serves the built site under `/app` alongside the API, so there
+is one process and one origin. While working on the front end, run
+`npm --prefix web run dev` instead of building: it serves the site at
+`http://127.0.0.1:5173/app/` with hot reload and forwards API calls to
+`invest serve`.
+
+The site reads everything through the same read-only endpoints below. Pages
+that are not built yet say so and show no numbers, because a placeholder chart
+would look like data. Served pages carry a Content-Security-Policy that
+restricts them to this origin, so nothing loads from third parties.
+
 ### The local API
 
 ```bash
@@ -103,7 +145,9 @@ rather than something a caller must remember to ask for.
 ## Testing
 
 ```bash
-pytest                      # 597 tests
+pytest                      # Python: engines, API, web serving
+npm --prefix web test       # site: formatting, API client, site-map sync
+npm --prefix web run typecheck
 ```
 
 Tests that need a database use `TEST_DATABASE_URL` (default
@@ -126,7 +170,15 @@ src/invest/
   ingest/             provider -> gate -> database, per domain
   engines/            quant, fundamentals, valuation, scoring, regime, backtest
   reports/            the rendered research report
-  api/                read-only local FastAPI app
+  api/                read-only local FastAPI app, and the /app site route
+web/                  the web terminal (React + TypeScript + Vite)
+  src/siteMap.ts      every page and its status; navigation is built from it
+  src/api/            typed client for the read-only API
+  src/pages/          one module per page
+docs/
+  ENGINE_INPUTS.md    which data may move a score, and the evidence for each
+  SITE_MAP.md         table of contents: every page, Live / V1 / V2
+  design/             end-state mockup (HTML source + rendered PNG)
 ```
 
 Data flows one way: **provider -> validation gate -> database -> repository ->
@@ -148,6 +200,12 @@ These are enforced by code and tests, not by convention:
   are new rows.
 - **No LLM in the math.** Every ratio, score, and valuation is deterministic
   Python with unit tests.
+- **Only 10/10 inputs are scored.** In the trading engine, a data point moves
+  a score only if it meets every criterion in
+  [docs/ENGINE_INPUTS.md](docs/ENGINE_INPUTS.md). Breadth, macro regime,
+  prediction markets and the like are shown as labelled context. The existing
+  Trade Setup score predates this rule (it uses RSI and MACD); it is labelled
+  legacy on the site and V1 rebuilds it.
 - **Scores are decomposable.** A total is never stored or displayed without its
   components and their weights.
 - **The political-trade firewall.** `political_trades` cannot contribute to any

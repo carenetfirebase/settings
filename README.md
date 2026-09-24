@@ -203,9 +203,14 @@ These are enforced by code and tests, not by convention:
 - **Only 10/10 inputs are scored.** In the trading engine, a data point moves
   a score only if it meets every criterion in
   [docs/ENGINE_INPUTS.md](docs/ENGINE_INPUTS.md). Breadth, macro regime,
-  prediction markets and the like are shown as labelled context. The existing
-  Trade Setup score predates this rule (it uses RSI and MACD); it is labelled
-  legacy on the site and V1 rebuilds it.
+  prediction markets and the like are shown as labelled context. A test fails
+  the build if the signal engine references anything off the list. The older
+  research-page Trade Setup score predates the rule (it uses RSI and MACD), is
+  labelled legacy, and never feeds a trade card.
+- **The ledger cannot be edited.** Every signal the engine finds, fired or
+  blocked, is appended with its full reasoning, and outcomes are appended as
+  they resolve. Database triggers reject UPDATE and DELETE, and backfilled
+  history is labelled so it can never pass for a live track record.
 - **Scores are decomposable.** A total is never stored or displayed without its
   components and their weights.
 - **The political-trade firewall.** `political_trades` cannot contribute to any

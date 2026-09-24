@@ -18,3 +18,12 @@ def test_settings_optional_provider_keys_default_to_none() -> None:
     assert settings.eia_api_key is None
     assert settings.bls_api_key is None
     assert settings.bea_api_key is None
+
+
+def test_blank_account_equity_means_unset(monkeypatch) -> None:
+    from invest.config import Settings
+
+    monkeypatch.setenv("ACCOUNT_EQUITY", "")
+    assert Settings().account_equity is None
+    monkeypatch.setenv("ACCOUNT_EQUITY", "25000")
+    assert Settings().account_equity == 25000.0

@@ -57,6 +57,7 @@ from invest.api.schemas import (
     SnapshotsResponse,
     UniverseResponse,
 )
+from invest.api.v1_routes import router as v1_router
 from invest.api.web import mount_web
 from invest.db.models import DataConflict, Entity, ResearchSnapshot, Security
 
@@ -192,6 +193,8 @@ def create_app(web_dist: pathlib.Path | None = None) -> FastAPI:
                 entity_id=entity.id,
                 security_id=security.id,
                 data_quality_flag=entity.data_quality_flag,
+                entity_type=entity.entity_type,
+                security_type=security.security_type,
             )
             for security, entity in rows
         ]
@@ -221,6 +224,8 @@ def create_app(web_dist: pathlib.Path | None = None) -> FastAPI:
             entity_id=resolved.entity_id,
             security_id=resolved.security_id,
             data_quality_flag=entity.data_quality_flag if entity else "ok",
+            entity_type=entity.entity_type if entity else "company",
+            security_type=security.security_type if security else "common_stock",
         )
 
     # ---------------------------------------------------------------- prices
@@ -653,6 +658,7 @@ def create_app(web_dist: pathlib.Path | None = None) -> FastAPI:
             counts[table] = session.scalar(select(func.count()).select_from(text(table))) or 0
         return {"tables": counts, "generated_at": datetime.now(UTC).isoformat()}
 
+    app.include_router(v1_router)
     mount_web(app, web_dist)
     _allow_head(app)
     return app

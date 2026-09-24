@@ -66,14 +66,17 @@ V2 about **$181–231** with options history. Both are inside the budget.
 
 ## Where the existing scores stand
 
-The research platform predates this list, so not everything already built
-complies yet:
+The V1 **signal score** (Scanner, Trade Cards, ledger) is built from this list
+and nothing else, and a test fails the build if its code even references an
+input that is not on it. See [SIGNAL_ENGINE.md](SIGNAL_ENGINE.md).
 
-- **Trade Setup score (built): does not comply yet.** It uses RSI, MACD and
-  52-week range position alongside trend, relative strength, volatility and
-  insider data. RSI, MACD and 52-week position are not on the list. V1
-  replaces this score with one built only from inputs 3–6 and 9, and the site
-  labels the current one as legacy until then.
+The research platform predates this list, so its older scores do not all
+comply:
+
+- **Trade Setup score (research page): does not comply.** It uses RSI, MACD
+  and 52-week range position, which are not on the list. It is shown only on
+  the Symbol Research page, labelled legacy, and never feeds a trade card. The
+  signal score replaces it for trading.
 - **Investment Quality score (built): a research view, not a trade input.**
   Only its F-score, profitability and Beneish parts feed the engine, as the
   quality veto (8). Its DCF and growth parts stay in the research report.

@@ -13,6 +13,9 @@ export const API_PREFIXES = [
   "/conflicts",
   "/regime",
   "/stats",
+  "/signals",
+  "/markets",
+  "/lab",
 ] as const;
 
 export const DEFAULT_API_ORIGIN = "http://127.0.0.1:8000";

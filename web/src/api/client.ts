@@ -93,4 +93,12 @@ export const paths = {
     withQuery(`/securities/${enc(ticker)}/insider`, query),
   disclosures: (ticker: string, query: { lookback?: number; as_of?: string } = {}) =>
     withQuery(`/securities/${enc(ticker)}/disclosures`, query),
+  gate: (asOf?: string) => withQuery("/signals/gate", { as_of: asOf }),
+  scan: (asOf?: string) => withQuery("/signals/scan", { as_of: asOf }),
+  sectors: (asOf?: string) => withQuery("/markets/sectors", { as_of: asOf }),
+  ledger: (query: { origin?: string; fired_only?: boolean; ticker?: string; limit?: number } = {}) =>
+    withQuery("/signals/ledger", query),
+  calibration: (query: { origin?: string; fired_only?: boolean } = {}) =>
+    withQuery("/lab/calibration", query),
+  attribution: (query: { origin?: string } = {}) => withQuery("/lab/attribution", query),
 };

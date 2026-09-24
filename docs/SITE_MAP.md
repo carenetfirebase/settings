@@ -37,7 +37,7 @@ never moves a score; the scored inputs are listed in
 | Page | Status | What it is for | Data |
 |---|---|---|---|
 | Overview | Live | Every tracked symbol, its sector and data-quality status | Security master, verified against EDGAR |
-| Sectors & Rotation | V1 | Relative strength (12-1 month) by sector. Scored | Survivorship-free bars (Norgate) |
+| Sectors & Rotation | Live | Relative strength (12-1 month) by sector. Scored | Sector fund bars (Stooq now; Norgate in V1.3) |
 | Breadth | V1 | Context: % above 50/200-day averages, advance/decline, new highs vs lows | Survivorship-free constituents (Norgate) |
 | Macro & Rates | Live | Context: curve, credit, VIX, unemployment, inflation | FRED / ALFRED with vintages |
 | Prediction Markets | V2 | Context: odds for FOMC, CPI, PCE, recession, with 24h change | Kalshi, Polymarket |
@@ -47,9 +47,9 @@ never moves a score; the scored inputs are listed in
 
 | Page | Status | What it is for | Data |
 |---|---|---|---|
-| Scanner | V1 | Every symbol through trend gate → relative strength → pullback entry, plus quality and event vetoes, with the reason it passes or fails | 10/10 inputs only |
-| Trade Cards | V1 | Entry, stop, target, size, evidence, contradictions, invalidation | Signal engine + risk model |
-| Signal Ledger | V1 | Every signal ever fired, with outcome in R and MFE/MAE | Append-only signal log |
+| Scanner | Live | Every symbol through trend gate → relative strength → pullback entry, plus quality and event vetoes, with the reason it passes or fails | 10/10 inputs only |
+| Trade Cards | Live | Entry, stop, target, size, gates and vetoes, the level that breaks the thesis. Paper orders from a card arrive in V1.2 | Signal engine + risk model |
+| Signal Ledger | Live | Every setup found, fired or blocked, with its outcome in R after costs and MFE/MAE. Live and backfill kept apart | Append-only ledger tables |
 
 ## 4. Research
 
@@ -74,8 +74,8 @@ never moves a score; the scored inputs are listed in
 | Page | Status | What it is for | Data |
 |---|---|---|---|
 | Backtests | V1 | Point-in-time backtests with costs, walk-forward splits, honest refusals | Existing engine, exposed via API |
-| Calibration | V1 | Hit rate and expectancy by score bucket: does 80 mean anything? | Ledger outcomes |
-| Layer Attribution | V1 | What each layer adds out of sample, corrected for rules tried | Ledger + walk-forward |
+| Calibration | Live | Mean R, win rate and +1R-before-−1R by score bucket: does a higher score earn more? | Ledger outcomes |
+| Layer Attribution | Live | What each gate and veto blocks versus what it lets through, with t-statistics against a t > 3 bar | Ledger |
 
 ## 7. System
 

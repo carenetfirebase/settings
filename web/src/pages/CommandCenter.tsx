@@ -1,10 +1,18 @@
 import { Link } from "react-router";
 
 import { paths } from "../api/client";
-import type { ConflictsResponse, RegimeResponse, SnapshotsResponse, UniverseResponse } from "../api/types";
+import type {
+  ConflictsResponse,
+  GateResponse,
+  RegimeResponse,
+  ScanResponse,
+  SnapshotsResponse,
+  UniverseResponse,
+} from "../api/types";
 import { useApi } from "../api/useApi";
 import { REGIME_TONE } from "../components/Layout";
 import { Kpi, PageHead, Panel } from "../components/Panel";
+import { CheckChip } from "../components/SignalBits";
 import { ApiView, Empty } from "../components/States";
 import { MISSING, direction, fmtDate, fmtNumber, fmtPct, humanize } from "../lib/format";
 import { ALL_PAGES, STATUS_LABEL } from "../siteMap";
@@ -14,6 +22,9 @@ export function CommandCenter() {
   const universe = useApi<UniverseResponse>(paths.universe());
   const conflicts = useApi<ConflictsResponse>(paths.conflicts({ limit: 1000 }));
   const snapshots = useApi<SnapshotsResponse>(paths.snapshots({ limit: 8 }));
+  const gate = useApi<GateResponse>(paths.gate());
+  const scan = useApi<ScanResponse>(paths.scan());
+  const cards = scan.data?.signals.filter((s) => s.fired) ?? [];
 
   const unverified = universe.data?.securities.filter((s) => s.data_quality_flag !== "ok").length;
   const open = conflicts.data?.conflicts.filter((c) => !c.resolved);
@@ -23,17 +34,47 @@ export function CommandCenter() {
   return (
     <>
       <PageHead crumb="Today" title="Command Center">
-        What is live now: the macro regime, your research universe and data health. Trade cards,
-        portfolio heat and positions appear here as V1 lands.
+        The trend gate, today's trade cards, the macro backdrop and data health. Portfolio heat and
+        positions arrive with paper trading in V1.2.
       </PageHead>
 
       <div className="grid kpis">
         <Kpi
           label="Trend gate"
-          hint="scored · V1"
-          planned
-          value="Not built yet"
-          foot="Needs survivorship-free index history"
+          hint="scored"
+          value={
+            gate.data ? (
+              gate.data.gate.passed === true ? (
+                <span className="up">▲ Open</span>
+              ) : gate.data.gate.passed === false ? (
+                <span className="down">▼ Closed</span>
+              ) : (
+                <span className="muted">? Unknown</span>
+              )
+            ) : gate.error ? MISSING : "…"
+          }
+          foot={
+            gate.data
+              ? gate.data.gate.passed === true
+                ? `Longs allowed · risk at ${fmtPct(gate.data.volatility.multiplier, 0)} of base`
+                : gate.data.gate.passed === false
+                  ? "No new longs"
+                  : gate.data.gate.detail
+              : gate.error?.message
+          }
+        />
+        <Kpi
+          label="Trade cards today"
+          value={scan.data ? cards.length : scan.error ? MISSING : "…"}
+          foot={
+            scan.data ? (
+              <Link to="/signals/cards">
+                {cards.length ? "Open the cards →" : "No setup passed every rule today"}
+              </Link>
+            ) : (
+              scan.error?.message
+            )
+          }
         />
         <Kpi
           label="Macro regime"
@@ -69,7 +110,7 @@ export function CommandCenter() {
         />
         <Kpi
           label="Portfolio heat"
-          hint="V1"
+          hint="V1.2"
           planned
           value="No broker yet"
           foot="Arrives with paper trading"
@@ -78,6 +119,57 @@ export function CommandCenter() {
 
       <div className="grid main-side">
         <div className="grid" style={{ alignContent: "start" }}>
+          <Panel title="Today's trade cards" subtitle={<Link to="/signals/scanner">Full scan →</Link>} bodyClassName="">
+            <ApiView state={scan} loadingLabel="Running the engine…">
+              {(data) =>
+                cards.length === 0 ? (
+                  <Empty title="No trade cards today">
+                    {data.gate.passed !== true
+                      ? "The trend gate is not open, so no new longs are allowed."
+                      : "Nothing in the universe is pulling back in an uptrend and passing every veto."}
+                  </Empty>
+                ) : (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Symbol</th>
+                          <th className="r">Score</th>
+                          <th className="r">Entry</th>
+                          <th className="r">Stop</th>
+                          <th className="r">Target</th>
+                          <th>Checks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cards.map((s) => (
+                          <tr key={s.ticker}>
+                            <td>
+                              <Link to="/signals/cards">{s.ticker}</Link>
+                            </td>
+                            <td className="r strong">{fmtNumber(s.final_score, 0)}</td>
+                            <td className="r">{fmtNumber(s.levels?.entry)}</td>
+                            <td className="r down">{fmtNumber(s.levels?.stop)}</td>
+                            <td className="r up">{fmtNumber(s.levels?.target)}</td>
+                            <td>
+                              <div className="chips">
+                                {s.checks
+                                  .filter((c) => c.name === "quality_veto" || c.name === "earnings_veto")
+                                  .map((c) => (
+                                    <CheckChip key={c.name} check={c} />
+                                  ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              }
+            </ApiView>
+          </Panel>
+
           <Panel title="Macro regime signals" subtitle="context · never moves a score">
             <ApiView state={regime}>
               {(data) =>
@@ -183,7 +275,7 @@ export function CommandCenter() {
             </ApiView>
           </Panel>
 
-          <Panel title="Arriving in V1" subtitle={`${upcoming.length} pages`}>
+          <Panel title="Still to build in V1" subtitle={`${upcoming.length} pages`}>
             <div className="table-wrap">
               <table>
                 <tbody>

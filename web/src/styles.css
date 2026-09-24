@@ -230,3 +230,24 @@ pre.report { margin: 0; padding: 14px; font: 12px/1.5 var(--mono); color: var(--
 @media (prefers-reduced-motion: reduce) {
   .sidebar { transition: none; }
 }
+
+/* ------------------------------------------------------------ signals */
+.trade-card { padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
+.tc-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.tc-title { font-size: 16px; font-weight: 650; display: flex; align-items: center; gap: 8px; }
+.tc-title a { text-decoration: none; }
+.tc-rule { font-size: 12px; color: var(--ink-2); border-left: 2px solid var(--down); padding-left: 9px; margin: 0; }
+.tc-rule strong { color: var(--ink-1); }
+.kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.kv div { background: var(--surface-2); border-radius: 7px; padding: 6px 9px; }
+.kv span { display: block; font-size: 10px; color: var(--ink-3); letter-spacing: 0.4px; }
+.kv b { font-size: 14px; font-weight: 600; }
+.grid.cards { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+.dbar { position: relative; display: inline-block; width: 120px; height: 8px; vertical-align: middle; }
+.dbar::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--baseline); }
+.dbar > i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.filters label { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+.verdict { font-weight: 600; }
+.chip-button { border: 0; background: transparent; padding: 0; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; color: var(--ink-2); font-size: 12.5px; }
+.chip-button:hover .chip { background: var(--surface-2); }

@@ -35,7 +35,7 @@ type Tab = (typeof TABS)[number];
 
 /** See docs/ENGINE_INPUTS.md, "Where the existing scores stand". */
 const LEGACY_SETUP_NOTE =
-  "Legacy score: it includes RSI, MACD and 52-week position, which are not 10/10 inputs. V1 rebuilds it from the engine's inputs only.";
+  "Legacy research score: it includes RSI, MACD and 52-week position, which are not 10/10 inputs, so it never feeds a trade card. The Scanner uses the V1 signal score instead.";
 
 /** Enough daily bars to draw a 200-day average across the visible range. */
 const PRICE_BARS = 650;

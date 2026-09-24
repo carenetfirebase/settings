@@ -627,6 +627,111 @@ class ResearchSnapshot(Base):
     )
 
 
+class SignalRecord(Base):
+    """One setup the signal engine found: the signal ledger.
+
+    Every candidate is recorded, fired or not (gate closed, vetoed), so the
+    Lab can test whether the gates and vetoes earn their place. `origin`
+    separates signals recorded on the day (`live`) from ones reconstructed
+    later from stored history (`backfill`), which carry survivorship bias and
+    are never presented as a track record. Append-only.
+    """
+
+    __tablename__ = "signals"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    security_id: Mapped[int] = mapped_column(
+        ForeignKey("securities.id", ondelete="RESTRICT"), nullable=False
+    )
+    as_of_date: Mapped[date] = mapped_column(Date, nullable=False)
+    model_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    setup: Mapped[str] = mapped_column(String(32), nullable=False)
+    direction: Mapped[str] = mapped_column(String(8), nullable=False, server_default="long")
+    origin: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    fired: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+    base_score: Mapped[float | None] = mapped_column(RATIO)
+    final_score: Mapped[float | None] = mapped_column(RATIO)
+    insider_bonus: Mapped[float | None] = mapped_column(RATIO)
+    coverage: Mapped[float | None] = mapped_column(RATIO)
+
+    entry: Mapped[float] = mapped_column(PRICE, nullable=False)
+    stop: Mapped[float] = mapped_column(PRICE, nullable=False)
+    target: Mapped[float] = mapped_column(PRICE, nullable=False)
+    atr: Mapped[float] = mapped_column(PRICE, nullable=False)
+    risk_fraction: Mapped[float | None] = mapped_column(RATIO)
+    vol_multiplier: Mapped[float | None] = mapped_column(RATIO)
+
+    #: The full signal: checks, components, reasons, sizing. Never stored
+    #: without its parts.
+    signal_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "security_id", "as_of_date", "model_version", "setup", name="uq_signals_one_per_day"
+        ),
+        CheckConstraint("origin IN ('live', 'backfill')", name="ck_signals_origin"),
+        CheckConstraint("direction IN ('long')", name="ck_signals_direction"),
+        CheckConstraint(
+            "status IN ('gate_closed', 'vetoed', 'card')", name="ck_signals_status"
+        ),
+        CheckConstraint("fired = (status = 'card')", name="ck_signals_fired_agrees"),
+        CheckConstraint("entry > stop AND target > entry AND stop > 0", name="ck_signals_levels"),
+        CheckConstraint(
+            "final_score IS NULL OR (final_score >= 0 AND final_score <= 100)",
+            name="ck_signals_score_range",
+        ),
+        Index("ix_signals_as_of", "as_of_date"),
+    )
+
+
+class SignalOutcome(Base):
+    """What happened after a signal, as of `evaluated_through`.
+
+    Append-only: re-evaluation adds a row, and the latest row per signal is
+    the current state. A final outcome is never re-written.
+    """
+
+    __tablename__ = "signal_outcomes"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    signal_id: Mapped[int] = mapped_column(
+        ForeignKey("signals.id", ondelete="RESTRICT"), nullable=False
+    )
+    evaluated_through: Mapped[date | None] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    trigger_date: Mapped[date | None] = mapped_column(Date)
+    entry_fill: Mapped[float | None] = mapped_column(PRICE)
+    exit_date: Mapped[date | None] = mapped_column(Date)
+    exit_fill: Mapped[float | None] = mapped_column(PRICE)
+    bars_held: Mapped[int | None] = mapped_column(Integer)
+    r_gross: Mapped[float | None] = mapped_column(RATIO)
+    cost_r: Mapped[float | None] = mapped_column(RATIO)
+    r_net: Mapped[float | None] = mapped_column(RATIO)
+    mfe_r: Mapped[float | None] = mapped_column(RATIO)
+    mae_r: Mapped[float | None] = mapped_column(RATIO)
+    first_touch: Mapped[str | None] = mapped_column(String(8))
+    cost_model_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'expired', 'open', 'target', 'stop', 'time')",
+            name="ck_outcomes_status",
+        ),
+        CheckConstraint(
+            "first_touch IS NULL OR first_touch IN ('up', 'down')", name="ck_outcomes_first_touch"
+        ),
+        Index("ix_outcomes_signal", "signal_id", "id"),
+    )
+
+
 class WorkflowJob(Base):
     __tablename__ = "workflow_jobs"
 
@@ -715,5 +820,7 @@ APPEND_ONLY_TABLES: frozenset[str] = frozenset(
         Fundamental.__tablename__,
         IntradayObservation.__tablename__,
         ResearchSnapshot.__tablename__,
+        SignalRecord.__tablename__,
+        SignalOutcome.__tablename__,
     }
 )

@@ -74,7 +74,9 @@ export function MarketsOverview() {
                             <td>{s.exchange ?? MISSING}</td>
                             <td className="num">{s.cik ?? MISSING}</td>
                             <td>
-                              {s.data_quality_flag === "ok" ? (
+                              {s.entity_type === "fund" ? (
+                                <span className="chip">Fund · no CIK needed</span>
+                              ) : s.data_quality_flag === "ok" ? (
                                 <span className="chip good">✓ verified</span>
                               ) : (
                                 <span className="chip warn">! {humanize(s.data_quality_flag)}</span>

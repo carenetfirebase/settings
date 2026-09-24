@@ -9,9 +9,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from invest import __version__
 from invest.db.models import Entity, Security
 from invest.db.session import get_engine, session_scope
-from invest.security_master import resolve, seed_universe
+from invest.security_master import resolve, seed_funds, seed_universe
 
-app = typer.Typer(help="Zero-cost, institutional-style investment research platform.")
+app = typer.Typer(help="Personal research and trading terminal: research, signals, and the Lab.")
 db_app = typer.Typer(help="Database utilities.")
 universe_app = typer.Typer(help="Security master / research universe.")
 ingest_app = typer.Typer(help="Data ingestion (provider -> validation gate -> database).")
@@ -47,7 +47,9 @@ def universe_seed() -> None:
     """
     with session_scope() as session:
         seeded = seed_universe(session)
+        funds = seed_funds(session)
     typer.echo(f"Seeded {len(seeded)} securities (CIKs flagged unverified_bootstrap).")
+    typer.echo(f"Seeded {len(funds)} funds (SPY benchmark + sector ETFs) for the signal engine.")
     typer.echo("Next: `invest universe verify` to confirm CIKs against SEC EDGAR.")
 
 
@@ -496,7 +498,9 @@ def bootstrap_cmd(
     announce("Seeding the security master")
     with session_scope() as session:
         seeded = seed_universe(session)
+        funds = seed_funds(session)
     typer.echo(f"    {len(seeded)} securities, CIKs flagged unverified_bootstrap")
+    typer.echo(f"    {len(funds)} funds (benchmark + sectors), no CIK needed")
 
     # ---- verify ------------------------------------------------------
     if skip_verify:
@@ -575,6 +579,8 @@ def bootstrap_cmd(
                 for ticker in targets:
                     try:
                         security = resolve(session, ticker)
+                        if security.cik is None:
+                            continue  # funds: no XBRL financials to fetch
                         result = ingest_fundamentals_for_security(session, edgar, security)
                         if result.ok:
                             facts += result.written
@@ -1036,3 +1042,200 @@ def db_stats() -> None:
 
 if __name__ == "__main__":
     app()
+
+
+# --------------------------------------------------------------------------
+# V1 signal engine
+# --------------------------------------------------------------------------
+
+signals_app = typer.Typer(help="The V1 signal engine: scan, record, evaluate, backfill, ledger.")
+app.add_typer(signals_app, name="signals")
+
+
+def _parse_date(value: str | None, label: str):
+    from datetime import date as _date
+
+    if value is None:
+        return None
+    try:
+        return _date.fromisoformat(value)
+    except ValueError as exc:
+        typer.echo(f"{label} must be an ISO date like 2026-09-24.", err=True)
+        raise typer.Exit(code=1) from exc
+
+
+def _print_scan(result, *, show_all: bool) -> None:
+    gate = result.gate
+    state = {True: "OPEN", False: "CLOSED", None: "UNKNOWN (treated as closed)"}[gate.passed]
+    typer.echo(f"Scan as of {result.as_of}   model {result.model_version}")
+    typer.echo(f"  trend gate   {state}: {gate.detail}")
+    typer.echo(f"  volatility   {result.volatility.detail}")
+    for warning in result.warnings:
+        typer.echo(f"  ! {warning}")
+
+    cards = result.cards
+    typer.echo(f"\n{len(cards)} trade card(s)")
+    for s in cards:
+        lv, sz = s.levels, s.sizing
+        typer.echo(
+            f"  {s.ticker:<6} score {s.final_score:5.1f}   entry {lv.entry:>9.2f}  "
+            f"stop {lv.stop:>9.2f}  target {lv.target:>9.2f}   {sz.detail}"
+        )
+        for reason in s.reasons:
+            typer.echo(f"         {reason}")
+
+    if show_all:
+        typer.echo("\nEvery symbol")
+        for s in sorted(result.signals, key=lambda x: (x.status.value, x.ticker)):
+            first = s.reasons[0] if s.reasons else ""
+            typer.echo(f"  {s.ticker:<6} {s.status.value:<18} {first}")
+    else:
+        counts = ", ".join(f"{k}={v}" for k, v in sorted(result.counts().items()))
+        typer.echo(f"\nAll symbols: {counts}   (--all for reasons)")
+
+
+@signals_app.command("scan")
+def signals_scan_cmd(
+    as_of: str | None = typer.Option(None, help="Point-in-time date (ISO). Default: today."),
+    show_all: bool = typer.Option(False, "--all", help="Show every symbol and why."),
+) -> None:
+    """Run the engine and print trade cards. Records nothing."""
+    from invest.config import get_settings
+    from invest.signal_runner import scan
+
+    cutoff = _parse_date(as_of, "--as-of")
+    with session_scope() as session:
+        result = scan(session, as_of=cutoff, equity=get_settings().account_equity)
+    _print_scan(result, show_all=show_all)
+
+
+@signals_app.command("record")
+def signals_record_cmd(
+    as_of: str | None = typer.Option(
+        None, help="Record for a past date (stored as 'backfill'). Default: today, 'live'."
+    ),
+) -> None:
+    """Scan and append every candidate, fired or blocked, to the ledger."""
+    from invest.config import get_settings
+    from invest.signal_runner import record_signals, scan
+
+    cutoff = _parse_date(as_of, "--as-of")
+    origin = "live" if cutoff is None else "backfill"
+    with session_scope() as session:
+        result = scan(session, as_of=cutoff, equity=get_settings().account_equity)
+        report = record_signals(session, result, origin=origin)
+    _print_scan(result, show_all=False)
+    typer.echo(
+        f"\nLedger: {report.written} recorded as '{origin}', "
+        f"{report.already_recorded} already there."
+    )
+
+
+@signals_app.command("evaluate")
+def signals_evaluate_cmd(
+    through: str | None = typer.Option(None, help="Only use bars up to this date (ISO)."),
+) -> None:
+    """Score every open signal against the bars that followed it."""
+    from invest.signal_runner import evaluate_ledger
+
+    cutoff = _parse_date(through, "--through")
+    with session_scope() as session:
+        report = evaluate_ledger(session, through=cutoff)
+    typer.echo(
+        f"Checked {report.checked} open signal(s); {report.appended} outcome(s) updated; "
+        f"{report.final} final."
+    )
+
+
+@signals_app.command("backfill")
+def signals_backfill_cmd(
+    start: str = typer.Option(..., help="First date (ISO)."),
+    end: str | None = typer.Option(None, help="Last date (ISO). Default: today."),
+    every: int = typer.Option(1, help="Scan every Nth trading day."),
+) -> None:
+    """Reconstruct past signals day by day, point-in-time, as 'backfill'.
+
+    Each day sees only what was public that day, but the universe is today's:
+    backfilled results carry survivorship bias and are labelled as such.
+    """
+    from datetime import date as _date
+
+    from invest.config import get_settings
+    from invest.signal_runner import backfill, evaluate_ledger
+
+    first = _parse_date(start, "--start")
+    last = _parse_date(end, "--end") or _date.today()
+    with session_scope() as session:
+        report = backfill(
+            session, start=first, end=last, equity=get_settings().account_equity, every=every
+        )
+        evaluated = evaluate_ledger(session)
+    typer.echo(
+        f"Scanned {report.days} day(s): {report.candidates} candidate(s), {report.fired} fired, "
+        f"{report.written} newly recorded as 'backfill'."
+    )
+    typer.echo(f"Outcomes: {evaluated.appended} updated, {evaluated.final} final.")
+    typer.echo(
+        "\nBackfilled signals are point-in-time but scanned over today's universe "
+        "(survivorship bias). They are evidence about the rules, not a track record."
+    )
+
+
+@signals_app.command("ledger")
+def signals_ledger_cmd(
+    limit: int = typer.Option(30, help="Rows to show."),
+    origin: str | None = typer.Option(None, help="live or backfill."),
+    fired_only: bool = typer.Option(False, help="Only signals that fired."),
+) -> None:
+    """Recorded signals and what happened after them."""
+    from invest.ledger import load_ledger
+
+    with session_scope() as session:
+        rows = load_ledger(session, origin=origin, fired_only=fired_only, limit=limit)
+    if not rows:
+        typer.echo("The ledger is empty. Run `invest signals record` or `invest signals backfill`.")
+        return
+    typer.echo(f"{'DATE':<11}{'TICKER':<7}{'ORIGIN':<9}{'STATUS':<12}{'SCORE':>6}  {'OUTCOME':<9}{'R':>7}")
+    for r in rows:
+        score = f"{r.final_score:.0f}" if r.final_score is not None else "-"
+        rr = f"{r.r_net:+.2f}" if r.r_net is not None else "-"
+        typer.echo(
+            f"{r.as_of_date!s:<11}{r.ticker:<7}{r.origin:<9}{r.status:<12}{score:>6}  "
+            f"{(r.outcome_status or 'unscored'):<9}{rr:>7}"
+        )
+
+
+@signals_app.command("lab")
+def signals_lab_cmd(
+    origin: str | None = typer.Option(None, help="live or backfill. Default: both, labelled."),
+) -> None:
+    """Calibration and attribution: is the score, and each gate, earning its place?"""
+    from invest.ledger import attribution, calibration, load_ledger
+
+    with session_scope() as session:
+        fired = load_ledger(session, origin=origin, fired_only=True)
+        everything = load_ledger(session, origin=origin)
+
+    def fmt(value, spec: str) -> str:
+        return format(value, spec) if value is not None else "-"
+
+    cal = calibration(fired, origin=origin, fired_only=True)
+    typer.echo(f"Calibration (fired signals, origin={origin or 'all'})")
+    typer.echo(f"  {'SCORE':<8}{'SIGNALS':>8}{'CLOSED':>8}{'MEAN R':>9}{'WIN':>7}")
+    for b in cal.buckets:
+        flag = "" if b.enough else "  (too few)"
+        typer.echo(
+            f"  {b.label:<8}{b.signals:>8}{b.closed:>8}{fmt(b.mean_r, '+.2f'):>9}"
+            f"{fmt(b.win_rate, '.0%'):>7}{flag}"
+        )
+    typer.echo(f"  {cal.note}")
+
+    attr = attribution(everything, origin=origin)
+    ref = attr.reference
+    typer.echo(f"\nAttribution vs '{ref.label}' (mean R {fmt(ref.mean_r, '+.2f')}, n={ref.closed})")
+    for g in attr.groups:
+        typer.echo(
+            f"  {g.label:<34} n={g.closed:<5} mean {fmt(g.mean_r, '+.2f'):>6}  "
+            f"diff {fmt(g.diff_vs_reference, '+.2f'):>6}  t {fmt(g.t_vs_reference, '+.1f'):>5}"
+        )
+    typer.echo(f"  {attr.note}")

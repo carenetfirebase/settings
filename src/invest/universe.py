@@ -54,6 +54,71 @@ SEED_UNIVERSE: tuple[SeedEntry, ...] = (
 )
 
 
+@dataclass(frozen=True)
+class FundSeed:
+    """An exchange-traded fund the signal engine reads.
+
+    Funds carry no CIK here: they are not operating companies, have no XBRL
+    financials, and are identified by ticker alone. The benchmark fund is the
+    trend-gate instrument; sector funds carry the stock sector they stand for,
+    spelled exactly as in `SEED_UNIVERSE`, so a stock can be matched to its
+    sector's relative strength.
+    """
+
+    ticker: str
+    name: str
+    exchange: str
+    #: "benchmark" (the S&P 500 proxy the trend gate reads) or "sector".
+    role: str
+    sector: str | None = None
+
+    @property
+    def stooq_symbol(self) -> str:
+        return f"{self.ticker.lower()}.us"
+
+
+#: The tradable S&P 500 proxy. The trend gate reads its month-end closes.
+BENCHMARK_FUND = "SPY"
+
+FUND_UNIVERSE: tuple[FundSeed, ...] = (
+    FundSeed("SPY", "SPDR S&P 500 ETF Trust", "NYSEARCA", "benchmark"),
+    FundSeed(
+        "XLK", "Technology Select Sector SPDR Fund", "NYSEARCA", "sector", "Information Technology"
+    ),
+    FundSeed(
+        "XLC",
+        "Communication Services Select Sector SPDR Fund",
+        "NYSEARCA",
+        "sector",
+        "Communication Services",
+    ),
+    FundSeed(
+        "XLY",
+        "Consumer Discretionary Select Sector SPDR Fund",
+        "NYSEARCA",
+        "sector",
+        "Consumer Discretionary",
+    ),
+    FundSeed(
+        "XLP", "Consumer Staples Select Sector SPDR Fund", "NYSEARCA", "sector", "Consumer Staples"
+    ),
+    FundSeed("XLE", "Energy Select Sector SPDR Fund", "NYSEARCA", "sector", "Energy"),
+    FundSeed("XLF", "Financial Select Sector SPDR Fund", "NYSEARCA", "sector", "Financials"),
+    FundSeed("XLV", "Health Care Select Sector SPDR Fund", "NYSEARCA", "sector", "Health Care"),
+    FundSeed("XLI", "Industrial Select Sector SPDR Fund", "NYSEARCA", "sector", "Industrials"),
+    FundSeed("XLB", "Materials Select Sector SPDR Fund", "NYSEARCA", "sector", "Materials"),
+    FundSeed("XLRE", "Real Estate Select Sector SPDR Fund", "NYSEARCA", "sector", "Real Estate"),
+    FundSeed("XLU", "Utilities Select Sector SPDR Fund", "NYSEARCA", "sector", "Utilities"),
+)
+
+#: Stock sector -> the sector fund that stands for it.
+SECTOR_FUND_BY_SECTOR: dict[str, str] = {
+    f.sector: f.ticker for f in FUND_UNIVERSE if f.role == "sector" and f.sector
+}
+
+SECTOR_FUND_TICKERS: tuple[str, ...] = tuple(f.ticker for f in FUND_UNIVERSE if f.role == "sector")
+
+
 #: The benchmark used for beta and relative strength. Stooq serves the S&P 500
 #: index as `^spx`; it is an index, not a tradable security.
 BENCHMARK_TICKER = "^SPX"

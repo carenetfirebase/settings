@@ -6,6 +6,7 @@ Values are read from the process environment, with an optional `.env` file
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,8 +30,21 @@ class Settings(BaseSettings):
     bls_api_key: str | None = None
     bea_api_key: str | None = None
 
+    # --- Trading ---
+    #: Account size used to turn a trade card's risk into a share count.
+    #: V1.2 reads it from the broker instead; until then it is set by hand.
+    account_equity: float | None = None
+
     # --- App ---
     log_level: str = "INFO"
+
+    @field_validator("account_equity", mode="before")
+    @classmethod
+    def _blank_equity_is_unset(cls, value: object) -> object:
+        """`.env.example` ships `ACCOUNT_EQUITY=`; blank means not set, not an error."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
 
 @lru_cache

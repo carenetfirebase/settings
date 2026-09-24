@@ -46,3 +46,19 @@ describe("site map", () => {
     }
   });
 });
+
+describe("live pages are really built", () => {
+  const app = readFileSync(resolve(here, "App.tsx"), "utf8");
+
+  it("every live page has a component in App.tsx", () => {
+    for (const page of ALL_PAGES.filter((p) => p.status === "live")) {
+      expect(app, `${page.id} is marked live but has no component`).toContain(`"${page.id}": <`);
+    }
+  });
+
+  it("no planned page has a component yet", () => {
+    for (const page of ALL_PAGES.filter((p) => p.status !== "live")) {
+      expect(app).not.toContain(`"${page.id}": <`);
+    }
+  });
+});

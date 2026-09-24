@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from invest.db.enums import DataQualityFlag, EntityType
 from invest.db.models import Entity, Security
-from invest.universe import SEED_UNIVERSE, SeedEntry
+from invest.universe import FUND_UNIVERSE, SEED_UNIVERSE, FundSeed, SeedEntry
 
 SEED_SOURCE = "seed_bootstrap"
 EDGAR_SOURCE = "sec_edgar"
@@ -221,6 +221,45 @@ def seed_entry(session: Session, entry: SeedEntry) -> ResolvedSecurity:
 def seed_universe(session: Session) -> list[ResolvedSecurity]:
     """Idempotent: re-running updates in place rather than duplicating."""
     return [seed_entry(session, entry) for entry in SEED_UNIVERSE]
+
+
+def seed_fund(session: Session, fund: FundSeed) -> ResolvedSecurity:
+    """Write one fund row.
+
+    Flagged `ok` because nothing awaits verification: the unverified flag is
+    about a seeded CIK, and funds are identified by ticker alone.
+    """
+    entity = upsert_entity(
+        session,
+        name=fund.name,
+        cik=None,
+        source=SEED_SOURCE,
+        sector=fund.sector,
+        entity_type=EntityType.FUND,
+    )
+    security = upsert_security(
+        session,
+        entity_id=entity.id,
+        ticker=fund.ticker,
+        exchange=fund.exchange,
+        stooq_symbol=fund.stooq_symbol,
+        security_type="etf",
+    )
+    return ResolvedSecurity(
+        security_id=security.id,
+        entity_id=entity.id,
+        ticker=security.ticker,
+        cik=None,
+        name=entity.name,
+        stooq_symbol=security.stooq_symbol,
+        currency=security.currency,
+        is_financial=False,
+    )
+
+
+def seed_funds(session: Session) -> list[ResolvedSecurity]:
+    """The benchmark and sector funds the signal engine reads. Idempotent."""
+    return [seed_fund(session, fund) for fund in FUND_UNIVERSE]
 
 
 # --------------------------------------------------------------------------

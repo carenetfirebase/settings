@@ -49,6 +49,9 @@ class SecuritySummary(BaseModel):
     entity_id: int
     security_id: int
     data_quality_flag: str
+    #: "company" or "fund". Funds carry no CIK and no financials.
+    entity_type: str = "company"
+    security_type: str = "common_stock"
 
 
 class UniverseResponse(BaseModel):

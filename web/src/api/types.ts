@@ -30,6 +30,9 @@ export interface SecuritySummary {
   entity_id: number;
   security_id: number;
   data_quality_flag: string;
+  /** "company" or "fund". Funds carry no CIK and no financials. */
+  entity_type: string;
+  security_type: string;
 }
 
 export interface UniverseResponse {
@@ -232,4 +235,180 @@ export interface RegimeResponse {
 export interface StatsResponse {
   tables: Record<string, number>;
   generated_at: string;
+}
+
+// ---------------------------------------------------------------- V1 signals
+
+/** A gate or veto. `passed` is null when it could not be evaluated. */
+export interface Check {
+  name: string;
+  passed: boolean | null;
+  detail: string;
+}
+
+export interface VolatilityInfo {
+  multiplier: number;
+  detail: string;
+  short_vol: number | null;
+  long_vol: number | null;
+}
+
+export interface Levels {
+  entry: number;
+  stop: number;
+  target: number;
+  atr: number;
+  risk_per_share: number;
+  target_r: number;
+  time_stop_days: number;
+  trigger_window_days: number;
+}
+
+export interface Sizing {
+  risk_fraction: number;
+  shares: number | null;
+  risk_dollars: number | null;
+  detail: string;
+}
+
+export type SignalStatus =
+  | "insufficient_data"
+  | "not_in_uptrend"
+  | "no_pullback"
+  | "invalid_levels"
+  | "gate_closed"
+  | "vetoed"
+  | "card";
+
+export interface Signal {
+  ticker: string;
+  name: string | null;
+  sector: string | null;
+  as_of: string;
+  status: SignalStatus;
+  fired: boolean;
+  is_candidate: boolean;
+  reasons: string[];
+  checks: Check[];
+  score: Score;
+  base_score: number | null;
+  insider_bonus: number;
+  insider_detail: string | null;
+  final_score: number | null;
+  levels: Levels | null;
+  sizing: Sizing | null;
+  close: number | null;
+  momentum_12_1: number | null;
+  model_version: string;
+}
+
+export interface SectorRow {
+  ticker: string;
+  sector: string | null;
+  momentum_12_1: number | null;
+  relative_12_1: number | null;
+  return_1m: number | null;
+  return_3m: number | null;
+  relative_1m: number | null;
+  relative_3m: number | null;
+  percentile: number | null;
+}
+
+export interface ScanResponse {
+  as_of: string;
+  model_version: string;
+  gate: Check;
+  volatility: VolatilityInfo;
+  equity: number | null;
+  warnings: string[];
+  counts: Partial<Record<SignalStatus, number>>;
+  sectors: SectorRow[];
+  signals: Signal[];
+}
+
+export interface GateResponse {
+  as_of: string;
+  model_version: string;
+  benchmark: string;
+  gate: Check;
+  volatility: VolatilityInfo;
+  warnings: string[];
+}
+
+export interface SectorsResponse {
+  as_of: string;
+  benchmark: string;
+  sectors: SectorRow[];
+  warnings: string[];
+}
+
+export interface LedgerEntry {
+  signal_id: number;
+  ticker: string;
+  as_of_date: string;
+  origin: "live" | "backfill";
+  status: "gate_closed" | "vetoed" | "card";
+  fired: boolean;
+  final_score: number | null;
+  insider_bonus: number;
+  entry: number;
+  stop: number;
+  target: number;
+  model_version: string;
+  checks: Check[];
+  reasons: string[];
+  outcome_status: "pending" | "expired" | "open" | "target" | "stop" | "time" | null;
+  evaluated_through: string | null;
+  trigger_date: string | null;
+  exit_date: string | null;
+  r_net: number | null;
+  r_gross: number | null;
+  mfe_r: number | null;
+  mae_r: number | null;
+  bars_held: number | null;
+  first_touch: "up" | "down" | null;
+  closed: boolean;
+  outcome_final: boolean;
+}
+
+export interface LedgerResponse {
+  count: number;
+  note: string;
+  entries: LedgerEntry[];
+}
+
+export interface GroupStats {
+  label: string;
+  signals: number;
+  triggered: number;
+  closed: number;
+  wins: number;
+  mean_r: number | null;
+  stderr_r: number | null;
+  win_rate: number | null;
+  first_up_rate: number | null;
+  mean_mfe: number | null;
+  mean_mae: number | null;
+  enough: boolean;
+  diff_vs_reference: number | null;
+  t_vs_reference: number | null;
+  notes: string[];
+}
+
+export interface CalibrationResponse {
+  origin: string | null;
+  fired_only: boolean;
+  buckets: GroupStats[];
+  overall: GroupStats;
+  monotonic: boolean | null;
+  note: string;
+  min_closed: number;
+}
+
+export interface AttributionResponse {
+  origin: string | null;
+  reference: GroupStats;
+  groups: GroupStats[];
+  t_stat_bar: number;
+  note: string;
 }

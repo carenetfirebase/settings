@@ -142,3 +142,57 @@ def test_seed_ciks_are_ten_digit_padded() -> None:
     for entry in SEED_UNIVERSE:
         assert len(entry.cik) == 10
         assert entry.cik.isdigit()
+
+
+# --------------------------------------------------------------------------
+# Funds: the benchmark and sector ETFs the signal engine reads
+# --------------------------------------------------------------------------
+
+
+def test_every_stock_sector_has_a_sector_fund() -> None:
+    """A stock whose sector has no fund would silently lose its sector score."""
+    from invest.universe import SECTOR_FUND_BY_SECTOR
+
+    missing = {e.sector for e in SEED_UNIVERSE} - set(SECTOR_FUND_BY_SECTOR)
+    assert not missing, f"no sector fund for: {sorted(missing)}"
+
+
+def test_exactly_one_benchmark_fund() -> None:
+    from invest.universe import BENCHMARK_FUND, FUND_UNIVERSE
+
+    benchmarks = [f.ticker for f in FUND_UNIVERSE if f.role == "benchmark"]
+    assert benchmarks == [BENCHMARK_FUND]
+
+
+def test_seed_funds_is_idempotent_and_typed_as_funds(db_session) -> None:
+    from invest.db.enums import EntityType
+    from invest.security_master import seed_funds
+    from invest.universe import FUND_UNIVERSE
+
+    first = seed_funds(db_session)
+    second = seed_funds(db_session)
+    db_session.commit()
+
+    assert len(first) == len(FUND_UNIVERSE)
+    assert {s.security_id for s in first} == {s.security_id for s in second}
+    for resolved in first:
+        entity = db_session.get(Entity, resolved.entity_id)
+        security = db_session.get(Security, resolved.security_id)
+        assert entity.entity_type == EntityType.FUND
+        assert entity.cik is None
+        assert security.security_type == "etf"
+        assert security.stooq_symbol == f"{resolved.ticker.lower()}.us"
+
+
+def test_funds_and_stocks_coexist(db_session) -> None:
+    from invest.security_master import seed_funds
+    from invest.universe import FUND_UNIVERSE
+
+    seed_universe(db_session)
+    seed_funds(db_session)
+    db_session.commit()
+    assert len(db_session.scalars(select(Security)).all()) == len(SEED_UNIVERSE) + len(
+        FUND_UNIVERSE
+    )
+    assert resolve(db_session, "SPY").cik is None
+    assert resolve(db_session, "AAPL").cik == by_ticker("AAPL").cik

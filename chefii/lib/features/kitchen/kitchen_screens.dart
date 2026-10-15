@@ -102,7 +102,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             ),
             const SizedBox(width: Space.xs),
             Expanded(
-              child: _StatTile(icon: Icons.add, value: '+', label: 'Add item', onTap: () => context.push('/kitchen/add')),
+              child: _StatTile(icon: Icons.add_circle_outline, value: 'Add', label: 'an item', onTap: () => context.push('/kitchen/add')),
             ),
           ]),
           const SizedBox(height: Space.m),
@@ -167,7 +167,7 @@ class _StatTile extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, size: 20, color: context.colors.primary),
           const SizedBox(height: Space.xs),
-          Text(value, style: context.text.headlineSmall),
+          Text(value, style: context.metric),
           Text(label, style: context.text.bodySmall),
         ]),
       );
@@ -763,8 +763,12 @@ class FreshnessCentreScreen extends ConsumerWidget {
                 Text(
                   '${l.quantity.format()} · ${() {
                     final d = l.daysLeft(today)!;
-                    final est = l.daysLeftIsEstimate ? 'estimated ' : '';
-                    return d < 0 ? '${est}date passed ${-d} day${d == -1 ? '' : 's'} ago' : d == 0 ? '${est}date is today' : '$d day${d == 1 ? '' : 's'} left ($est)';
+                    final est = l.daysLeftIsEstimate ? ' (estimate)' : '';
+                    return d < 0
+                        ? 'date passed ${-d} day${d == -1 ? '' : 's'} ago$est'
+                        : d == 0
+                            ? 'date is today$est'
+                            : '$d day${d == 1 ? '' : 's'} left$est';
                   }()}',
                   style: context.text.bodySmall,
                 ),
@@ -882,17 +886,17 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
             margin: const EdgeInsets.only(bottom: Space.xs),
             child: Padding(
               padding: const EdgeInsets.all(Space.m),
-              child: Row(children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(l.productName, style: context.text.titleMedium),
-                    const SizedBox(height: 4),
-                    InventoryStatusBadge(status: l.statusOn(today)),
-                    if (_counts[l.id] != null && _counts[l.id] != l.quantity)
-                      Text('was ${l.quantity.format()}', style: context.text.bodySmall),
-                  ]),
-                ),
-                QuantityStepper(value: _counts[l.id] ?? l.quantity, onChanged: (q) => setState(() => _counts[l.id] = q), label: l.productName),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Wrap(spacing: Space.xs, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                  Text(l.productName, style: context.text.titleMedium),
+                  InventoryStatusBadge(status: l.statusOn(today)),
+                ]),
+                const SizedBox(height: Space.xs),
+                Wrap(spacing: Space.s, runSpacing: Space.xs, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                  QuantityStepper(value: _counts[l.id] ?? l.quantity, onChanged: (q) => setState(() => _counts[l.id] = q), label: l.productName),
+                  if (_counts[l.id] != null && _counts[l.id] != l.quantity)
+                    Text('was ${l.quantity.format()}', style: context.text.bodySmall),
+                ]),
               ]),
             ),
           ),

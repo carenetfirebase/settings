@@ -170,9 +170,9 @@ class NutritionIntelligenceScreen extends ConsumerWidget {
           ListTile(contentPadding: EdgeInsets.zero, title: Text(n.label), subtitle: Text(trend(n)), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/nutrition/nutrient/${n.name}')),
         const SectionHeader('Variety this week'),
         Row(children: [
-          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('$variety', style: context.text.headlineMedium), Text('different meals', style: context.text.bodySmall)]))),
+          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('$variety', style: context.metric), Text('different meals', style: context.text.bodySmall)]))),
           const SizedBox(width: Space.xs),
-          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${plants.length}', style: context.text.headlineMedium), Text('plant foods in Chefii recipes', style: context.text.bodySmall)]))),
+          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${plants.length}', style: context.metric), Text('plant foods in Chefii recipes', style: context.text.bodySmall)]))),
         ]),
         if (fibreLow) ...[
           const SectionHeader('Something to try'),

@@ -919,7 +919,7 @@ class _Metric extends StatelessWidget {
     excludeSemantics: true,
     child: Column(
       children: [
-        Text(value, style: context.text.headlineMedium),
+        Text(value, style: context.metric),
         Text(label, style: context.text.bodySmall),
       ],
     ),

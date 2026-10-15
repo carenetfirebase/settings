@@ -78,7 +78,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       ),
       primaryAction: featured == null
           ? PrimaryActionButton(icon: Icons.receipt_long_outlined, label: 'Scan a receipt', onPressed: () => context.push('/receipt/capture'))
-          : PrimaryActionButton(icon: Icons.restaurant, label: 'Cook ${featured.title.split(' ').take(3).join(' ')}', onPressed: () => context.push('/recipe/${featured.id}')),
+          : PrimaryActionButton(icon: Icons.restaurant, label: 'Start cooking', onPressed: () => context.push('/recipe/${featured.id}')),
       children: [
         if (isDemo) const DemoBanner(),
         for (final r in inProgress)
@@ -99,7 +99,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         const SizedBox(height: Space.xs),
         Wrap(spacing: Space.xs, children: [
           for (final m in [15, 30, 45, 60])
-            ChoiceChip(label: Text(m == 60 ? '1 hour' : '$m min'), selected: minutes == m, onSelected: (_) => setState(() => _minutes = m)),
+            ChoiceChip(label: Text('$m min'), selected: minutes == m, onSelected: (_) => setState(() => _minutes = m)),
         ]),
         const SizedBox(height: Space.s),
         if (featured != null)

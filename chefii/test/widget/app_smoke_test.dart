@@ -1,4 +1,5 @@
 import 'package:chefii/app/app.dart';
+import 'package:chefii/app/actions.dart';
 import 'package:chefii/app/providers.dart';
 import 'package:chefii/app/router.dart';
 import 'package:chefii/core/services/notification_service.dart';
@@ -15,7 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<(ProviderContainer, MemoryDocStore)> pumpApp(WidgetTester tester) async {
+Future<(ProviderContainer, MemoryDocStore)> pumpApp(WidgetTester tester, {double textScale = 1}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   final store = MemoryDocStore();
@@ -36,7 +37,9 @@ Future<(ProviderContainer, MemoryDocStore)> pumpApp(WidgetTester tester) async {
   ]);
   tester.view.physicalSize = const Size(1170, 2532);
   tester.view.devicePixelRatio = 3;
+  tester.platformDispatcher.textScaleFactorTestValue = textScale;
   addTearDown(tester.view.reset);
+  addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
   await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const ChefiiApp()));
   await tester.pump(const Duration(milliseconds: 100));
   return (container, store);
@@ -146,5 +149,32 @@ void main() {
     router.go('/today');
     await settle(tester, 2);
     expect(router, isA<GoRouter>());
+  });
+
+  testWidgets('key screens survive 160% text size without overflow', (tester) async {
+    final (container, _) = await pumpApp(tester, textScale: 1.6);
+    await settle(tester);
+    // Sign in and onboard through the repositories (UI covered above).
+    final auth = container.read(authServiceProvider) as DemoAuthService;
+    final user = await auth.signInDemo('Alexandra');
+    await settle(tester);
+    await container.read(profileRepoProvider).ensureProfile(uid: user.uid, displayName: 'Alexandra');
+    await container.read(householdRepoProvider).createHousehold(
+        uid: user.uid, ownerName: 'Alexandra', name: 'Home', type: HouseholdType.family, portions: 4);
+    await container.read(profileRepoProvider).updateProfileFields(user.uid, {'onboardingComplete': true});
+    await settle(tester, 10);
+    await container.read(actionsProvider).seedExampleKitchen();
+    await settle(tester, 10);
+    final router = container.read(routerProvider);
+    for (final r in [
+      '/today', '/kitchen', '/kitchen/freshness', '/kitchen/reconcile', '/kitchen/add', '/discover', '/journal',
+      '/you', '/recipe/red-lentil-dal', '/plan', '/chef', '/receipt/capture', '/morning/setup', '/you/privacy',
+    ]) {
+      router.go(r);
+      await settle(tester, 4);
+      expect(tester.takeException(), isNull, reason: 'route $r overflowed or threw at 160% text');
+    }
+    router.go('/today');
+    await settle(tester, 2);
   });
 }

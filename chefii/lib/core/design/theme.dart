@@ -7,6 +7,8 @@ TextStyle _serif(double size, {FontWeight weight = FontWeight.w500, double heigh
       fontSize: size,
       fontWeight: weight,
       fontVariations: [FontVariation.weight(weight.value.toDouble())],
+      // Lining figures: Cormorant's default old-style "1" reads like "I".
+      fontFeatures: const [FontFeature.liningFigures()],
       height: height,
       letterSpacing: spacing,
     );
@@ -115,6 +117,12 @@ extension ChefiiThemeX on BuildContext {
   TextTheme get text => Theme.of(this).textTheme;
   ColorScheme get colors => Theme.of(this).colorScheme;
   bool get reduceMotion => MediaQuery.maybeDisableAnimationsOf(this) ?? false;
+
+  /// Numbers people read at a glance: sans, tabular, generous.
+  TextStyle? get metric => Theme.of(this).textTheme.titleLarge?.copyWith(
+        fontSize: 26,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
 }
 
 ThemeData _build({

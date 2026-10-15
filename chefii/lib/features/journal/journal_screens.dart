@@ -568,9 +568,9 @@ class EatingPatternsScreen extends ConsumerWidget {
       header: const EditorialPageHeader(eyebrow: 'Journal', title: 'Eating patterns', subtitle: 'The last two weeks, as recorded.'),
       children: [
         Row(children: [
-          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text((meals.length / days).toStringAsFixed(1), style: context.text.headlineMedium), Text('meals logged per day', style: context.text.bodySmall)]))),
+          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text((meals.length / days).toStringAsFixed(1), style: context.metric), Text('meals logged per day', style: context.text.bodySmall)]))),
           const SizedBox(width: Space.xs),
-          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${gaps.length}', style: context.text.headlineMedium), Text('days with no records', style: context.text.bodySmall)]))),
+          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${gaps.length}', style: context.metric), Text('days with no records', style: context.text.bodySmall)]))),
         ]),
         const SectionHeader('Usual times'),
         if (avgMinutes.isEmpty) Text('Log a few meals to see your rhythm.', style: context.text.bodyMedium),

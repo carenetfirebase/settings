@@ -103,7 +103,7 @@ class _Count extends StatelessWidget {
   Widget build(BuildContext context) => SoftCard(
         semanticLabel: '$value $label',
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('$value', style: context.text.headlineMedium),
+          Text('$value', style: context.metric),
           Text(label, style: context.text.bodySmall),
         ]),
       );

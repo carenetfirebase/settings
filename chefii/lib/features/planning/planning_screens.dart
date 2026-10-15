@@ -531,9 +531,9 @@ class SpendingWasteScreen extends ConsumerWidget {
       header: const EditorialPageHeader(eyebrow: 'Kitchen', title: 'Spending & waste'),
       children: [
         Row(children: [
-          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(Money(spent).format(), style: context.text.headlineMedium), Text('groceries this month', style: context.text.bodySmall)]))),
+          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(Money(spent).format(), style: context.metric), Text('groceries this month', style: context.text.bodySmall)]))),
           const SizedBox(width: Space.xs),
-          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${discards.length}', style: context.text.headlineMedium), Text('items discarded recently', style: context.text.bodySmall)]))),
+          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${discards.length}', style: context.metric), Text('items discarded recently', style: context.text.bodySmall)]))),
         ]),
         const SectionHeader('Last six weeks'),
         if (byWeek.isEmpty) Text('Scan receipts to see spending trends.', style: context.text.bodyMedium),

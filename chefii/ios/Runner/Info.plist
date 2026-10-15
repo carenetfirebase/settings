@@ -66,5 +66,33 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Chefii uses the camera to scan grocery receipts, barcodes and your fridge or pantry so your kitchen stays up to date.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Chefii lets you choose a photo of a receipt or meal from your library.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Chefii listens when you tap the microphone so you can say things like "I used two eggs".</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Chefii turns what you say into kitchen updates and meal notes.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>ca.chefii.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>chefii</string>
+			</array>
+		</dict>
+	</array>
+	<key>FlutterDeepLinkingEnabled</key>
+	<true/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>mailto</string>
+		<string>https</string>
+	</array>
 </dict>
 </plist>

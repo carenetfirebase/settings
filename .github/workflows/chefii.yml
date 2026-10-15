@@ -2,9 +2,16 @@ name: Chefii
 
 on:
   push:
+    # Feature branches are covered by pull_request; avoid double runs.
+    branches: ['main', 'claude/investment-research-v1-v9wzvm']
     paths: ['chefii/**', '.github/workflows/chefii.yml']
   pull_request:
     paths: ['chefii/**', '.github/workflows/chefii.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: chefii-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 defaults:
   run:

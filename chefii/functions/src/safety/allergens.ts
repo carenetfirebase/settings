@@ -20,15 +20,35 @@ export interface Conflict {
   key: string;
 }
 
-const normalise = (s: string): string =>
-  ` ${s.toLowerCase().replace(/[^a-z0-9àâçéèêëîïôûùüÿñæœ'\- ]/g, ' ').replace(/\s+/g, ' ').trim()} `;
+const FOLD: Record<string, string> = {
+  à: 'a', á: 'a', â: 'a', ä: 'a', ã: 'a', å: 'a', ç: 'c', é: 'e', è: 'e', ê: 'e', ë: 'e',
+  í: 'i', ì: 'i', î: 'i', ï: 'i', ñ: 'n', ó: 'o', ò: 'o', ô: 'o', ö: 'o', õ: 'o',
+  ú: 'u', ù: 'u', û: 'u', ü: 'u', ÿ: 'y', æ: 'ae', œ: 'oe', ß: 'ss',
+};
+
+/** Mirrors AllergenGuard.normalise: fold accents, keep [a-z0-9'- ], pad with spaces. */
+export const normalise = (s: string): string => {
+  const folded = [...s.toLowerCase()].map((c) => FOLD[c] ?? c).join('');
+  return ` ${folded.replace(/[’‘`]/g, "'").replace(/[^a-z0-9'\- ]/g, ' ').replace(/\s+/g, ' ').trim()} `;
+};
 
 const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const patterns = new Map<string, string>();
+const wordPattern = (term: string): string => {
+  let p = patterns.get(term);
+  if (p === undefined) {
+    p = `(^|[^a-z])${escape(normalise(term).trim())}(?:s|es)?(?=[^a-z]|$)`;
+    patterns.set(term, p);
+  }
+  return p;
+};
+
+/** Whole-word match after removing exclusions, also only at word boundaries. */
 function containsAny(text: string, terms: string[], exclusions: string[]): boolean {
   let t = text;
-  for (const ex of exclusions) t = t.split(ex.toLowerCase()).join(' ');
-  return terms.some((term) => new RegExp(`(^|[^a-z])${escape(term.toLowerCase())}(s|es)?([^a-z]|$)`).test(t));
+  for (const ex of exclusions) t = t.replace(new RegExp(wordPattern(ex), 'g'), (_m, lead: string) => `${lead} `);
+  return terms.some((term) => new RegExp(wordPattern(term)).test(t));
 }
 
 export function detectAllergens(ingredient: string, productAllergens: string[] = []): Set<string> {

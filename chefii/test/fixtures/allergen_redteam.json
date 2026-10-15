@@ -1,0 +1,1199 @@
+{
+  "_comment": "Allergen red-team set. Run by test/domain/allergen_redteam_test.dart and functions/src/backend.test.ts. Recall on 'mustDetect' must be 100%. Add a case for every reported miss.",
+  "mustDetect": [
+    {
+      "text": "Peanut butter",
+      "allergens": [
+        "peanut"
+      ]
+    },
+    {
+      "text": "roasted peanuts",
+      "allergens": [
+        "peanut"
+      ]
+    },
+    {
+      "text": "Beurre d'arachide",
+      "allergens": [
+        "peanut"
+      ]
+    },
+    {
+      "text": "beurre d’arachide crémeux",
+      "allergens": [
+        "peanut"
+      ]
+    },
+    {
+      "text": "arachides grillées",
+      "allergens": [
+        "peanut"
+      ]
+    },
+    {
+      "text": "cacahuètes",
+      "allergens": [
+        "peanut"
+      ]
+    },
+    {
+      "text": "chicken satay skewers",
+      "allergens": [
+        "peanut"
+      ]
+    },
+    {
+      "text": "mixed nuts",
+      "allergens": [
+        "peanut",
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "almonds, sliced",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "Cashews",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "basil pesto",
+      "allergens": [
+        "tree_nut",
+        "milk"
+      ]
+    },
+    {
+      "text": "Amandes effilées",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "noix de Grenoble",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "noisettes",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "pistaches",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "pacanes",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "pignons de pin",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "noix de cajou",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "chopped nuts",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "Nutella",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "marzipan",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "roasted chestnuts",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "nougat",
+      "allergens": [
+        "tree_nut",
+        "egg"
+      ]
+    },
+    {
+      "text": "tahini",
+      "allergens": [
+        "sesame"
+      ]
+    },
+    {
+      "text": "Graines de sésame",
+      "allergens": [
+        "sesame"
+      ]
+    },
+    {
+      "text": "hummus",
+      "allergens": [
+        "sesame"
+      ]
+    },
+    {
+      "text": "sesame oil",
+      "allergens": [
+        "sesame"
+      ]
+    },
+    {
+      "text": "za’atar",
+      "allergens": [
+        "sesame"
+      ]
+    },
+    {
+      "text": "baba ghanoush",
+      "allergens": [
+        "sesame"
+      ]
+    },
+    {
+      "text": "furikake",
+      "allergens": [
+        "sesame"
+      ]
+    },
+    {
+      "text": "goat milk",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "Goat Milk Yogurt",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "unsalted butter",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "Beurre doux",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "crème fraîche",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "CRÈME 35%",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "lait 2 %",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "fromage cheddar",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "yogourt grec",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "yogourt",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "whey protein",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "sodium caseinate",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "lactosérum",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "babeurre",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "half-and-half",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "paneer",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "tzatziki",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "béchamel sauce",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "fettuccine alfredo",
+      "allergens": [
+        "milk",
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "lemon curd",
+      "allergens": [
+        "milk",
+        "egg"
+      ]
+    },
+    {
+      "text": "parmigiano-reggiano",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "ghee",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "milk chocolate",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "peanut butter cups with milk chocolate",
+      "allergens": [
+        "peanut",
+        "milk"
+      ]
+    },
+    {
+      "text": "2 large eggs",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "Egg yolks",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "œufs",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "oeufs biologiques",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "blanc d'œuf",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "jaune d’oeuf",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "mayonnaise",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "aioli",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "spaghetti carbonara",
+      "allergens": [
+        "egg",
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "quiche lorraine",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "meringue",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "egg noodles",
+      "allergens": [
+        "egg",
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "frittata",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "salmon fillet",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "saumon fumé",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "thon en conserve",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "morue salée",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "flétan",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "anchois",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "fish sauce",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "nuoc mam",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "Worcestershire sauce",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "caesar dressing",
+      "allergens": [
+        "fish",
+        "egg"
+      ]
+    },
+    {
+      "text": "surimi",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "arctic char",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "smoked salmon lox",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "bonito flakes",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "shrimp",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "crevettes",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "homard",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "crabe des neiges",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "pétoncles",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "moules",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "huîtres",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "oyster sauce",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "shrimp paste",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "scampi",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "fruits de mer",
+      "allergens": [
+        "shellfish",
+        "fish"
+      ]
+    },
+    {
+      "text": "seafood mix",
+      "allergens": [
+        "shellfish",
+        "fish"
+      ]
+    },
+    {
+      "text": "calamari",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "soy sauce",
+      "allergens": [
+        "soy",
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "sauce soja",
+      "allergens": [
+        "soy"
+      ]
+    },
+    {
+      "text": "tofu",
+      "allergens": [
+        "soy"
+      ]
+    },
+    {
+      "text": "edamame",
+      "allergens": [
+        "soy"
+      ]
+    },
+    {
+      "text": "miso paste",
+      "allergens": [
+        "soy"
+      ]
+    },
+    {
+      "text": "soy lecithin",
+      "allergens": [
+        "soy"
+      ]
+    },
+    {
+      "text": "lécithine de soja",
+      "allergens": [
+        "soy"
+      ]
+    },
+    {
+      "text": "hoisin sauce",
+      "allergens": [
+        "soy",
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "teriyaki sauce",
+      "allergens": [
+        "soy",
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "tamari",
+      "allergens": [
+        "soy"
+      ]
+    },
+    {
+      "text": "tempeh",
+      "allergens": [
+        "soy"
+      ]
+    },
+    {
+      "text": "all-purpose flour",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "farine tout usage",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "farine de blé entier",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "pain de blé",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "pâtes alimentaires",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "nouilles",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "chapelure",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "semoule",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "épeautre",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "sourdough loaf",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "shortbread",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "cornbread",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "flatbread",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "cupcakes",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "pizza dough",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "puff pastry",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "couscous",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "panko",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "ravioli",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "crackers",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "tempura batter",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "whole wheat tortillas",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "barley",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "orge perlé",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "rye bread",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "seigle",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "rolled oats",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "flocons d'avoine",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "oatmeal",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "malt vinegar",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "beer",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "bière",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "granola",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "Dijon mustard",
+      "allergens": [
+        "mustard"
+      ]
+    },
+    {
+      "text": "moutarde de Dijon",
+      "allergens": [
+        "mustard"
+      ]
+    },
+    {
+      "text": "mustard seeds",
+      "allergens": [
+        "mustard"
+      ]
+    },
+    {
+      "text": "red wine",
+      "allergens": [
+        "sulphites"
+      ]
+    },
+    {
+      "text": "vin blanc",
+      "allergens": [
+        "sulphites"
+      ]
+    },
+    {
+      "text": "raisins",
+      "allergens": [
+        "sulphites"
+      ]
+    },
+    {
+      "text": "balsamic vinegar",
+      "allergens": [
+        "sulphites"
+      ]
+    },
+    {
+      "text": "sodium metabisulphite",
+      "allergens": [
+        "sulphites"
+      ]
+    },
+    {
+      "text": "dried apricots",
+      "allergens": [
+        "sulphites"
+      ]
+    }
+  ],
+  "mustNotDetect": [
+    {
+      "text": "coconut milk",
+      "allergens": [
+        "milk",
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "lait de coco",
+      "allergens": [
+        "milk",
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "noix de coco râpée",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "oat milk",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "almond milk",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "lait d'amande",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "eggplant",
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "text": "nutmeg",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "noix de muscade",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "butternut squash",
+      "allergens": [
+        "milk",
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "cocoa butter",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "cream of tartar",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "crème de tartre",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "oyster mushrooms",
+      "allergens": [
+        "shellfish"
+      ]
+    },
+    {
+      "text": "swiss chard",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "charred peppers",
+      "allergens": [
+        "fish"
+      ]
+    },
+    {
+      "text": "buckwheat groats",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "farine de sarrasin",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "rice noodles",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "corn tortillas",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "rice flour",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "farine de riz",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "almond flour",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
+    },
+    {
+      "text": "water chestnuts",
+      "allergens": [
+        "tree_nut"
+      ]
+    },
+    {
+      "text": "ginger",
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "text": "vinaigrette",
+      "allergens": [
+        "sulphites"
+      ]
+    },
+    {
+      "text": "butter lettuce",
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "text": "chickpeas",
+      "allergens": [
+        "milk",
+        "egg",
+        "wheat"
+      ]
+    }
+  ],
+  "restrictions": [
+    {
+      "text": "bacon",
+      "restriction": "vegetarian",
+      "blocked": true
+    },
+    {
+      "text": "lardons",
+      "restriction": "no_pork",
+      "blocked": true
+    },
+    {
+      "text": "jambon",
+      "restriction": "halal",
+      "blocked": true
+    },
+    {
+      "text": "poulet rôti",
+      "restriction": "vegetarian",
+      "blocked": true
+    },
+    {
+      "text": "bouillon de boeuf",
+      "restriction": "vegan",
+      "blocked": true
+    },
+    {
+      "text": "miel",
+      "restriction": "vegan",
+      "blocked": true
+    },
+    {
+      "text": "honey",
+      "restriction": "vegan",
+      "blocked": true
+    },
+    {
+      "text": "vin rouge",
+      "restriction": "no_alcohol",
+      "blocked": true
+    },
+    {
+      "text": "rhum",
+      "restriction": "halal",
+      "blocked": true
+    },
+    {
+      "text": "gin",
+      "restriction": "no_alcohol",
+      "blocked": true
+    },
+    {
+      "text": "shrimp",
+      "restriction": "kosher_style",
+      "blocked": true
+    },
+    {
+      "text": "butter",
+      "restriction": "vegan",
+      "blocked": true
+    },
+    {
+      "text": "ginger",
+      "restriction": "no_alcohol",
+      "blocked": false
+    },
+    {
+      "text": "vegetable broth",
+      "restriction": "vegetarian",
+      "blocked": false
+    },
+    {
+      "text": "vinaigre",
+      "restriction": "no_alcohol",
+      "blocked": false
+    },
+    {
+      "text": "hamburger buns",
+      "restriction": "no_pork",
+      "blocked": false
+    },
+    {
+      "text": "tofu",
+      "restriction": "vegan",
+      "blocked": false
+    }
+  ]
+}

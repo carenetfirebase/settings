@@ -24,45 +24,80 @@ class AllergenInfo {
 }
 
 /// Health Canada's priority food allergens, plus gluten sources.
+///
+/// Terms are English and Canadian French (labels are bilingual). Matching folds
+/// accents, so "crème", "œufs" and "blé" match "creme", "oeuf" and "ble".
+/// Every addition should come with a case in test/fixtures/allergen_redteam.json.
 const allergens = <AllergenInfo>[
-  AllergenInfo('peanut', 'Peanuts', ['peanut', 'groundnut', 'arachis', 'satay']),
+  AllergenInfo('peanut', 'Peanuts', [
+    'peanut', 'groundnut', 'arachis', 'satay', 'monkey nut', 'beer nut', 'mixed nuts',
+    'arachide', 'cacahuete', "beurre d'arachide",
+  ]),
   AllergenInfo('tree_nut', 'Tree nuts', [
     'almond', 'cashew', 'walnut', 'pecan', 'pistachio', 'hazelnut', 'filbert', 'macadamia',
     'brazil nut', 'pine nut', 'pignoli', 'praline', 'marzipan', 'gianduja', 'nutella', 'frangipane',
+    'nut', 'nuts', 'pesto', 'nougat', 'chestnut', 'baklava', 'amaretti',
+    'amande', 'noix', 'noisette', 'pistache', 'pacane', 'pignon', 'massepain',
+  ], exclusions: [
+    'nutmeg', 'coconut', 'butternut', 'doughnut', 'water chestnut', 'nut-free', 'nut free',
+    'noix de coco', 'noix de muscade', 'beurre noisette', 'sans noix',
   ]),
-  AllergenInfo('sesame', 'Sesame', ['sesame', 'tahini', 'benne', 'gomasio', 'halva', 'halvah', 'za\'atar', 'zaatar']),
+  AllergenInfo('sesame', 'Sesame', [
+    'sesame', 'tahini', 'tahina', 'benne', 'gomasio', 'gomashio', 'halva', 'halvah', "za'atar", 'zaatar',
+    'hummus', 'houmous', 'hoummos', 'baba ganoush', 'baba ghanoush', 'furikake', 'dukkah',
+  ]),
   AllergenInfo(
     'milk',
     'Milk',
     [
-      'milk', 'butter', 'cream', 'cheese', 'yogurt', 'yoghurt', 'whey', 'casein', 'ghee', 'parmesan',
-      'parmigiano', 'mozzarella', 'ricotta', 'feta', 'burrata', 'creme fraiche', 'crème fraîche', 'kefir',
-      'labneh', 'paneer', 'buttermilk', 'mascarpone', 'halloumi', 'brie', 'cheddar', 'gruyere', 'gruyère', 'pecorino',
-      'goat cheese', 'skyr', 'custard', 'gelato', 'ice cream', 'lactose',
+      'milk', 'butter', 'cream', 'cheese', 'yogurt', 'yoghurt', 'yogourt', 'whey', 'casein', 'caseinate', 'ghee',
+      'parmesan', 'parmigiano', 'mozzarella', 'ricotta', 'feta', 'burrata', 'creme fraiche', 'kefir',
+      'labneh', 'paneer', 'buttermilk', 'mascarpone', 'halloumi', 'brie', 'cheddar', 'gruyere', 'pecorino',
+      'goat cheese', 'skyr', 'custard', 'gelato', 'ice cream', 'lactose', 'curd', 'quark', 'half-and-half',
+      'dulce de leche', 'queso', 'tzatziki', 'raita', 'bechamel', 'alfredo', 'lassi', 'pesto', 'camembert',
+      'gouda', 'emmental', 'provolone', 'bocconcini', 'brioche',
+      'lait', 'beurre', 'creme', 'fromage', 'yaourt', 'lactoserum', 'babeurre', 'petit-lait',
     ],
     exclusions: [
       'coconut milk', 'coconut cream', 'almond milk', 'oat milk', 'soy milk', 'soya milk', 'rice milk',
       'cashew milk', 'peanut butter', 'cocoa butter', 'nut butter', 'almond butter', 'butternut',
       'apple butter', 'shea butter', 'cream of tartar', 'dairy-free', 'vegan butter', 'vegan cheese',
-      'butter bean', 'butter lettuce',
+      'butter bean', 'butter lettuce', 'bean curd',
+      'lait de coco', "lait d'amande", "lait d'avoine", 'lait de soja', 'lait de riz', 'creme de coco',
+      'creme de tartre', "beurre d'arachide", 'beurre de cacao', "beurre d'amande", 'sans lactose',
     ],
   ),
   AllergenInfo(
     'egg',
     'Eggs',
-    ['egg', 'eggs', 'mayonnaise', 'mayo', 'meringue', 'aioli', 'albumen', 'hollandaise', 'custard'],
-    exclusions: ['eggplant', 'egg-free', 'vegan mayo'],
+    [
+      'egg', 'eggs', 'mayonnaise', 'mayo', 'meringue', 'aioli', 'albumen', 'albumin', 'hollandaise', 'bearnaise',
+      'custard', 'frittata', 'omelette', 'omelet', 'quiche', 'brioche', 'challah', 'carbonara', 'tartar sauce',
+      'eggnog', 'nougat', 'pavlova', 'souffle', 'caesar dressing', 'lemon curd',
+      'oeuf', 'oeufs',
+    ],
+    exclusions: ['eggplant', 'egg-free', 'vegan mayo', 'sans oeuf', 'sans oeufs'],
   ),
   AllergenInfo('fish', 'Fish', [
     'fish', 'salmon', 'tuna', 'cod', 'halibut', 'trout', 'sardine', 'anchovy', 'anchovies', 'mackerel',
     'haddock', 'tilapia', 'sea bass', 'snapper', 'char', 'pollock', 'sole', 'worcestershire', 'bonito',
-    'dashi', 'caesar dressing',
-  ], exclusions: ['swiss chard', 'charred', 'char-grilled']),
+    'dashi', 'caesar dressing', 'surimi', 'nam pla', 'nuoc mam', 'lox', 'caviar', 'roe', 'herring', 'pickerel',
+    'walleye', 'perch', 'pike', 'catfish', 'swordfish', 'mahi', 'kipper', 'bottarga', 'seafood',
+    'poisson', 'saumon', 'thon', 'morue', 'fletan', 'truite', 'anchois', 'maquereau', 'aiglefin', 'omble',
+    'hareng', 'fruits de mer',
+  ], exclusions: ['swiss chard', 'charred', 'char-grilled', 'fish-free']),
   AllergenInfo('shellfish', 'Crustaceans & molluscs', [
-    'shrimp', 'prawn', 'crab', 'lobster', 'crayfish', 'langoustine', 'scallop', 'clam', 'mussel', 'oyster',
-    'squid', 'calamari', 'octopus', 'shellfish', 'oyster sauce',
-  ], exclusions: ['oyster mushroom']),
-  AllergenInfo('soy', 'Soy', ['soy', 'soya', 'tofu', 'edamame', 'miso', 'tempeh', 'tamari', 'shoyu']),
+    'shrimp', 'prawn', 'crab', 'lobster', 'crayfish', 'crawfish', 'langoustine', 'langostino', 'scampi', 'krill',
+    'scallop', 'clam', 'mussel', 'oyster', 'squid', 'calamari', 'octopus', 'shellfish', 'oyster sauce',
+    'abalone', 'cockle', 'whelk', 'snail', 'escargot', 'conch', 'xo sauce', 'shrimp paste', 'seafood',
+    'crevette', 'homard', 'crabe', 'petoncle', 'palourde', 'moule', 'huitre', 'calmar', 'pieuvre', 'poulpe',
+    'langouste', 'ecrevisse', 'fruits de mer',
+  ], exclusions: ['oyster mushroom', 'pleurote']),
+  AllergenInfo('soy', 'Soy', [
+    'soy', 'soya', 'tofu', 'edamame', 'miso', 'tempeh', 'tamari', 'shoyu', 'lecithin', 'natto', 'yuba',
+    'textured vegetable protein', 'tvp', 'hoisin', 'teriyaki', 'ponzu', 'gochujang', 'doenjang', 'black bean sauce',
+    'bean curd', 'soja', 'lecithine',
+  ], exclusions: ['soy-free', 'sans soja']),
   AllergenInfo(
     'wheat',
     'Wheat & triticale',
@@ -70,21 +105,37 @@ const allergens = <AllergenInfo>[
       'wheat', 'flour', 'bread', 'pasta', 'spaghetti', 'linguine', 'penne', 'fettuccine', 'noodle', 'couscous',
       'bulgur', 'semolina', 'farro', 'spelt', 'seitan', 'panko', 'breadcrumb', 'tortilla', 'soy sauce',
       'triticale', 'pita', 'naan', 'baguette', 'croissant', 'brioche', 'orzo', 'gnocchi', 'udon', 'ramen',
+      'cracker', 'biscuit', 'cake', 'cupcake', 'cookie', 'muffin', 'bagel', 'roux', 'dumpling', 'wonton',
+      'lasagna', 'lasagne', 'macaroni', 'ravioli', 'tortellini', 'rigatoni', 'fusilli', 'tagliatelle',
+      'pappardelle', 'farfalle', 'ziti', 'vermicelli', 'pastry', 'phyllo', 'filo', 'crouton', 'pancake',
+      'waffle', 'durum', 'einkorn', 'emmer', 'kamut', 'freekeh', 'graham', 'matzo', 'matzah', 'bran',
+      'wheat germ', 'hoisin', 'teriyaki', 'gochujang', 'roti', 'chapati', 'paratha', 'bao', 'soba', 'dough',
+      'sourdough', 'pizza', 'flatbread', 'shortbread', 'cornbread', 'gingerbread', 'wholewheat', 'stuffing',
+      'pretzel', 'crumpet', 'scone', 'tempura', 'batter', 'seitan', 'beer',
+      'ble', 'farine', 'pain', 'pate', 'nouille', 'semoule', 'chapelure', 'epeautre', 'biscuit', 'gateau',
     ],
     exclusions: [
       'almond flour', 'rice flour', 'coconut flour', 'chickpea flour', 'oat flour', 'corn tortilla',
-      'rice noodle', 'gluten-free', 'buckwheat', 'tamari', 'cassava flour', 'corn flour', 'cornflour',
+      'rice noodle', 'rice vermicelli', 'gluten-free', 'buckwheat', 'tamari', 'cassava flour', 'corn flour',
+      'cornflour', 'potato flour', 'tapioca flour', 'rice paper', 'oat bran', 'rice bran',
+      'farine de riz', "farine d'amande", 'farine de noix de coco', 'farine de pois chiche', 'farine de mais',
+      'farine de sarrasin', 'ble noir', 'sarrasin', 'nouilles de riz', 'sans gluten',
     ],
   ),
-  AllergenInfo('mustard', 'Mustard', ['mustard', 'dijon']),
-  AllergenInfo('sulphites', 'Sulphites', ['sulphite', 'sulfite', 'wine', 'dried apricot', 'dried fruit']),
+  AllergenInfo('mustard', 'Mustard', ['mustard', 'dijon', 'moutarde']),
+  AllergenInfo('sulphites', 'Sulphites', [
+    'sulphite', 'sulfite', 'metabisulphite', 'metabisulfite', 'wine', 'dried apricot', 'dried fruit', 'raisin',
+    'balsamic', 'vin', 'abricots secs', 'fruits secs',
+  ]),
   AllergenInfo('gluten', 'Gluten (wheat, barley, rye, oats)', [
     'wheat', 'flour', 'bread', 'pasta', 'spaghetti', 'noodle', 'couscous', 'bulgur', 'semolina', 'farro',
-    'spelt', 'seitan', 'panko', 'breadcrumb', 'barley', 'rye', 'malt', 'triticale', 'oat', 'beer', 'soy sauce',
-    'orzo', 'gnocchi', 'udon', 'ramen', 'pita', 'naan', 'tortilla',
+    'spelt', 'seitan', 'panko', 'breadcrumb', 'barley', 'rye', 'malt', 'triticale', 'oat', 'oats', 'oatmeal',
+    'beer', 'soy sauce', 'orzo', 'gnocchi', 'udon', 'ramen', 'pita', 'naan', 'tortilla', 'granola', 'muesli',
+    'pumpernickel', "brewer's yeast",
+    'orge', 'seigle', 'avoine', 'biere',
   ], exclusions: [
     'gluten-free', 'buckwheat', 'rice flour', 'almond flour', 'coconut flour', 'chickpea flour',
-    'corn tortilla', 'rice noodle', 'tamari', 'cassava flour', 'corn flour', 'cornflour',
+    'corn tortilla', 'rice noodle', 'tamari', 'cassava flour', 'corn flour', 'cornflour', 'sans gluten',
   ]),
 ];
 
@@ -104,23 +155,30 @@ class DietaryRestriction {
   final List<String> exclusions;
 }
 
+const _porkTerms = [
+  'pork', 'bacon', 'ham', 'prosciutto', 'pancetta', 'lard', 'chorizo', 'guanciale', 'salami', 'pepperoni',
+  'porc', 'jambon', 'lardon', 'saucisson',
+];
+const _alcoholTerms = [
+  'wine', 'beer', 'rum', 'brandy', 'vodka', 'sake', 'mirin', 'sherry', 'bourbon', 'liqueur', 'cognac', 'whisky',
+  'whiskey', 'gin', 'tequila', 'vin', 'biere', 'rhum',
+];
 const _meatTerms = [
-  'beef', 'steak', 'pork', 'bacon', 'ham', 'prosciutto', 'pancetta', 'chorizo', 'salami', 'sausage',
-  'chicken', 'turkey', 'duck', 'lamb', 'veal', 'venison', 'gelatin', 'gelatine', 'lard', 'mince',
-  'meatball', 'pepperoni', 'guanciale', 'bone broth', 'chicken stock', 'beef stock', 'chicken broth',
-  'beef broth',
+  ..._porkTerms, 'beef', 'steak', 'sausage', 'chicken', 'turkey', 'duck', 'lamb', 'veal', 'venison', 'gelatin',
+  'gelatine', 'mince', 'meatball', 'bone broth', 'chicken stock', 'beef stock', 'chicken broth', 'beef broth',
+  'boeuf', 'poulet', 'dinde', 'canard', 'agneau', 'veau', 'saucisse', 'bouillon de poulet', 'bouillon de boeuf',
 ];
 const _meatExclusions = ['plant-based', 'vegetable stock', 'vegetable broth', 'mushroom bacon', 'vegan sausage'];
 
 const restrictions = <DietaryRestriction>[
   DietaryRestriction('vegetarian', 'Vegetarian', ['fish', 'shellfish'], _meatTerms, exclusions: _meatExclusions),
-  DietaryRestriction('vegan', 'Vegan', ['fish', 'shellfish', 'milk', 'egg'], [..._meatTerms, 'honey'],
+  DietaryRestriction('vegan', 'Vegan', ['fish', 'shellfish', 'milk', 'egg'], [..._meatTerms, 'honey', 'miel'],
       exclusions: _meatExclusions),
   DietaryRestriction('pescatarian', 'Pescatarian', [], _meatTerms, exclusions: _meatExclusions),
-  DietaryRestriction('halal', 'Halal', [], ['pork', 'bacon', 'ham', 'prosciutto', 'pancetta', 'lard', 'gelatin', 'gelatine', 'wine', 'beer', 'rum', 'brandy', 'chorizo', 'salami', 'pepperoni', 'guanciale']),
-  DietaryRestriction('kosher_style', 'Kosher-style', ['shellfish'], ['pork', 'bacon', 'ham', 'prosciutto', 'pancetta', 'lard', 'chorizo', 'guanciale']),
-  DietaryRestriction('no_pork', 'No pork', [], ['pork', 'bacon', 'ham', 'prosciutto', 'pancetta', 'lard', 'chorizo', 'guanciale', 'salami', 'pepperoni']),
-  DietaryRestriction('no_alcohol', 'No alcohol', [], ['wine', 'beer', 'rum', 'brandy', 'vodka', 'sake', 'mirin', 'sherry', 'bourbon', 'liqueur', 'cognac']),
+  DietaryRestriction('halal', 'Halal', [], [..._porkTerms, ..._alcoholTerms, 'gelatin', 'gelatine']),
+  DietaryRestriction('kosher_style', 'Kosher-style', ['shellfish'], _porkTerms),
+  DietaryRestriction('no_pork', 'No pork', [], _porkTerms),
+  DietaryRestriction('no_alcohol', 'No alcohol', [], _alcoholTerms),
   DietaryRestriction('gluten_free', 'Gluten-free', ['gluten'], []),
   DietaryRestriction('dairy_free', 'Dairy-free', ['milk'], []),
 ];
@@ -239,19 +297,39 @@ class AllergenGuard {
     return SafetyReport(conflicts: conflicts, notices: notices);
   }
 
-  static String _normalise(String s) => ' ${s.toLowerCase().replaceAll(RegExp(r"[^a-z0-9àâçéèêëîïôûùüÿñæœ'\- ]"), ' ').replaceAll(RegExp(r'\s+'), ' ').trim()} ';
+  /// Lower-case, fold accents and ligatures, keep letters, digits, apostrophes
+  /// and hyphens, collapse spaces, and pad with spaces for boundary matching.
+  static String normalise(String s) {
+    final folded = s.toLowerCase().split('').map((c) => _fold[c] ?? c).join();
+    return ' ${folded.replaceAll(RegExp(r"[’‘`]"), "'").replaceAll(RegExp(r"[^a-z0-9'\- ]"), ' ').replaceAll(RegExp(r'\s+'), ' ').trim()} ';
+  }
 
+  static String _normalise(String s) => normalise(s);
+
+  static const _fold = {
+    'à': 'a', 'á': 'a', 'â': 'a', 'ä': 'a', 'ã': 'a', 'å': 'a', 'ç': 'c', 'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+    'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i', 'ñ': 'n', 'ó': 'o', 'ò': 'o', 'ô': 'o', 'ö': 'o', 'õ': 'o',
+    'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u', 'ÿ': 'y', 'æ': 'ae', 'œ': 'oe', 'ß': 'ss',
+  };
+
+  /// Whole-word (simple plural allowed) match of any term, after removing
+  /// exclusion phrases. Exclusions are also removed only at word boundaries,
+  /// so "oat milk" never erases part of "goat milk".
   static bool _containsAny(String normalisedText, List<String> terms, List<String> exclusions) {
     var text = normalisedText;
     for (final ex in exclusions) {
-      text = text.replaceAll(ex.toLowerCase(), ' ');
+      text = text.replaceAllMapped(_wordPattern(ex), (m) => '${m[1]} ');
     }
     for (final t in terms) {
-      final term = t.toLowerCase();
-      // Word-start match, allowing simple plurals ("almonds", "noodles").
-      final re = RegExp('(^|[^a-z])${RegExp.escape(term)}(s|es)?([^a-z]|\$)');
-      if (re.hasMatch(text)) return true;
+      if (_wordPattern(t).hasMatch(text)) return true;
     }
     return false;
   }
+
+  static final Map<String, RegExp> _patterns = {};
+
+  static RegExp _wordPattern(String term) => _patterns.putIfAbsent(term, () {
+        final t = normalise(term).trim();
+        return RegExp('(^|[^a-z])${RegExp.escape(t)}(?:s|es)?(?=[^a-z]|\$)');
+      });
 }

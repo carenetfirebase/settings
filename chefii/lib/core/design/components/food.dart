@@ -140,7 +140,9 @@ class InventoryStatusBadge extends StatelessWidget {
               Icon(icon, size: 14, color: fg),
               if (!compact) ...[
                 const SizedBox(width: 4),
-                Text(status.label, style: context.text.labelMedium?.copyWith(color: fg, fontSize: 12)),
+                Flexible(
+                  child: Text(status.label, overflow: TextOverflow.ellipsis, style: context.text.labelMedium?.copyWith(color: fg, fontSize: 12)),
+                ),
               ],
             ],
           ),
@@ -167,7 +169,7 @@ class TagPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[Icon(icon, size: 14, color: color ?? p.ink), const SizedBox(width: 4)],
-          Text(label, style: context.text.labelMedium?.copyWith(color: color ?? p.ink, fontSize: 12)),
+          Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: context.text.labelMedium?.copyWith(color: color ?? p.ink, fontSize: 12))),
         ],
       ),
     );

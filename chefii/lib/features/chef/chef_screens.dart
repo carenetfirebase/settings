@@ -459,7 +459,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
                   Row(children: [
                     Icon(safety.isBlocked ? Icons.block : Icons.warning_amber_rounded, color: safety.isBlocked ? context.palette.error : context.palette.warning),
                     const SizedBox(width: Space.xs),
-                    Text(safety.isBlocked ? 'Conflicts with your household\'s needs' : 'Worth a look', style: context.text.titleSmall),
+                    Expanded(child: Text(safety.isBlocked ? 'Conflicts with your household\'s needs' : 'Worth a look', style: context.text.titleSmall)),
                   ]),
                   const SizedBox(height: Space.xs),
                   for (final c in safety.conflicts) Text('• ${c.ingredient}: ${c.reason}', style: context.text.bodySmall?.copyWith(color: context.palette.ink)),

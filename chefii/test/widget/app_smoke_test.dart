@@ -1,0 +1,150 @@
+import 'package:chefii/app/app.dart';
+import 'package:chefii/app/providers.dart';
+import 'package:chefii/app/router.dart';
+import 'package:chefii/core/services/notification_service.dart';
+import 'package:chefii/core/services/voice.dart';
+import 'package:chefii/data/ai/demo_ai_gateway.dart';
+import 'package:chefii/data/auth/auth_service.dart';
+import 'package:chefii/data/repositories/inventory_repository.dart';
+import 'package:chefii/data/repositories/receipt_repository.dart';
+import 'package:chefii/data/store/memory_doc_store.dart';
+import 'package:chefii/domain/models/profile.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<(ProviderContainer, MemoryDocStore)> pumpApp(WidgetTester tester) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
+  final store = MemoryDocStore();
+  final auth = DemoAuthService(prefs);
+  final container = ProviderContainer(overrides: [
+    docStoreProvider.overrideWithValue(store),
+    authServiceProvider.overrideWithValue(auth),
+    imageUploaderProvider.overrideWithValue(DemoImageUploader()),
+    notificationServiceProvider.overrideWithValue(RecordingNotificationService()),
+    voiceInputProvider.overrideWithValue(UnavailableVoiceInput()),
+    speakerProvider.overrideWithValue(SilentSpeaker()),
+    aiGatewayProvider.overrideWithValue(DemoAiGateway(
+      receipts: ReceiptRepository(store),
+      inventory: InventoryRepository(store),
+      dietaryOf: () async => const DietaryProfile(),
+      latency: Duration.zero,
+    )),
+  ]);
+  tester.view.physicalSize = const Size(1170, 2532);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const ChefiiApp()));
+  await tester.pump(const Duration(milliseconds: 100));
+  return (container, store);
+}
+
+Future<void> tapOn(WidgetTester tester, Finder f) async {
+  await tester.ensureVisible(f.first);
+  await tester.pump();
+  await tester.tap(f.first);
+}
+
+Future<void> settle(WidgetTester tester, [int frames = 8]) async {
+  for (var i = 0; i < frames; i++) {
+    await tester.pump(const Duration(milliseconds: 120));
+  }
+}
+
+void main() {
+  test('session redirect rules', () {
+    String? go(String loc, {bool signedIn = true, bool onboarded = true}) =>
+        sessionRedirect(location: loc, authLoading: false, signedIn: signedIn, profileLoading: false, onboarded: onboarded);
+    expect(go('/today', signedIn: false), '/welcome');
+    expect(go('/welcome', signedIn: false), isNull);
+    expect(go('/onboarding/account', signedIn: false), isNull);
+    expect(go('/today', onboarded: false), '/onboarding/household');
+    expect(go('/onboarding/dietary', onboarded: false), isNull);
+    expect(go('/welcome'), '/today');
+    expect(go('/kitchen/item/x'), isNull);
+  });
+
+  testWidgets('demo user can onboard and every screen renders', (tester) async {
+    final (container, store) = await pumpApp(tester);
+    await settle(tester);
+    expect(find.text('Get started'), findsOneWidget);
+
+    await tapOn(tester, find.text('Get started'));
+    await settle(tester);
+    expect(find.text('Meet your chef'), findsOneWidget);
+    await tapOn(tester, find.text('Continue'));
+    await settle(tester);
+
+    // Account: demo sign-in requires accepting terms first.
+    await tapOn(tester, find.text('Continue with a demo account'));
+    await settle(tester);
+    expect(find.textContaining('accept the Terms'), findsOneWidget);
+    await tapOn(tester, find.byType(CheckboxListTile));
+    await tapOn(tester, find.text('Continue with a demo account'));
+    await settle(tester, 15);
+    expect(find.text('Your household'), findsOneWidget);
+
+    await tapOn(tester, find.text('Continue'));
+    await settle(tester, 15);
+    expect(find.text('Dietary safety'), findsOneWidget);
+    await tapOn(tester, find.text('Yes'));
+    await settle(tester);
+    await tapOn(tester, find.text('Peanuts'));
+    await settle(tester);
+    await tapOn(tester, find.text('Continue'));
+    await settle(tester, 15);
+    expect(find.text('What you love to eat'), findsOneWidget);
+    await tapOn(tester, find.text('Continue'));
+    await settle(tester, 15);
+    expect(find.text('Wellness, your way'), findsOneWidget);
+    await tapOn(tester, find.text('Continue'));
+    await settle(tester, 15);
+    expect(find.text('Build your kitchen'), findsOneWidget);
+    await tapOn(tester, find.text('Start with example ingredients'));
+    await settle(tester, 20);
+
+    // Landed on Today with a seeded kitchen.
+    expect(find.textContaining('Alex'), findsWidgets);
+    final uid = container.read(uidProvider)!;
+    final dietary = await container.read(profileRepoProvider).dietary(uid);
+    expect(dietary.allergies, ['peanut']);
+    final hid = container.read(householdIdProvider)!;
+    expect((await container.read(inventoryRepoProvider).activeLots(hid)).length, greaterThan(20));
+
+    // Render every route; any build exception fails the test.
+    final router = container.read(routerProvider);
+    final lot = (await container.read(inventoryRepoProvider).activeLots(hid)).first;
+    final routes = [
+      '/today', '/today/briefing', '/today/notifications',
+      '/kitchen', '/kitchen/location/fridge', '/kitchen/item/${lot.id}', '/kitchen/add', '/kitchen/scan', '/kitchen/freshness',
+      '/kitchen/reconcile', '/kitchen/shopping', '/kitchen/spending', '/kitchen/receipts',
+      '/discover', '/discover?filter=expiring', '/journal', '/journal/add', '/journal/history', '/journal/reminders', '/journal/patterns',
+      '/you', '/you/dietary', '/you/culinary', '/you/wellness', '/you/nutrition', '/you/nutrition/intelligence',
+      '/you/nutrition/hair-skin-nails', '/you/nutrition/evidence', '/you/nutrition/nutrient/fibre', '/you/smile', '/you/smile/history',
+      '/you/diabetes', '/you/glucose', '/you/glucose/timeline', '/you/circle', '/you/household', '/you/privacy', '/you/connected',
+      '/you/membership', '/you/accessibility', '/you/security', '/you/help', '/you/legal', '/you/data',
+      '/receipt/capture', '/receipt/preview', '/chef', '/chef/preferences', '/chef/results', '/recipe/red-lentil-dal',
+      '/cook/timers', '/morning/setup', '/morning/alarm', '/morning/evening', '/morning/wake', '/morning/checklist', '/morning/late',
+      '/plan', '/plan/assign', '/plan/leftovers', '/pro',
+    ];
+    for (final r in routes) {
+      router.go(r);
+      await settle(tester, 4);
+      expect(tester.takeException(), isNull, reason: 'route $r threw');
+      expect(find.byType(ErrorWidget), findsNothing, reason: 'route $r rendered an error');
+    }
+    // Peanut allergy is respected in recipes shown.
+    router.go('/recipe/apple-peanut-butter');
+    await settle(tester, 4);
+    expect(find.text('Not safe for your household'), findsOneWidget);
+
+    expect(store.documentCount, greaterThan(30));
+    // Stop periodic timers before teardown.
+    router.go('/today');
+    await settle(tester, 2);
+    expect(router, isA<GoRouter>());
+  });
+}

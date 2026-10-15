@@ -182,6 +182,25 @@ class SharingRepository {
         merge: true,
       );
 
+  /// Append-only access log under the grant (readable by the client).
+  Future<void> logAccess(ShareGrant g, {required String viewerUid, required String what}) {
+    final id = _store.newId();
+    return _store.set('$shareGrantsCollection/${g.id}/accessLog/$id', {
+      'viewerUid': viewerUid,
+      'what': what,
+      'at': _clock(),
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> watchAccessLog(String grantId) => _store
+      .watchQuery('$shareGrantsCollection/$grantId/accessLog', const QuerySpec(orderBy: 'at', descending: true, limit: 50))
+      .map((ds) => ds.map((d) => d.data).toList());
+
+  /// Applies to become a professional reviewer. Verification of the
+  /// registration happens out-of-band (functions: verifyProfessional).
+  Future<void> applyAsProfessional(ProfessionalProfile p) =>
+      _store.set('$professionalsCollection/${p.uid}', {...p.toMap(), 'status': VerificationStatus.pending.name});
+
   /// Professional-side read of a client's records, only within an active
   /// grant. Firestore rules enforce the same constraints server-side.
   Future<List<Map<String, dynamic>>> readClientCategory(ShareGrant g, ShareCategory c, {required String viewerUid}) async {

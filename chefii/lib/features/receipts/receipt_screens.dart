@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -114,14 +112,22 @@ class _ReceiptCaptureScreenState extends ConsumerState<ReceiptCaptureScreen> {
         ])
           Padding(
             padding: const EdgeInsets.only(bottom: Space.s),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(icon, size: 20, color: context.colors.primary),
-              const SizedBox(width: Space.s),
-              Expanded(child: Text(text, style: context.text.bodyMedium)),
-            ]),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, size: 20, color: context.colors.primary),
+                const SizedBox(width: Space.s),
+                Expanded(child: Text(text, style: context.text.bodyMedium)),
+              ],
+            ),
           ),
         const SizedBox(height: Space.s),
-        if (_hasDocScanner) TextButton.icon(onPressed: _busy ? null : () => _photo(true), icon: const Icon(Icons.photo_camera_outlined), label: const Text('Use the regular camera')),
+        if (_hasDocScanner)
+          TextButton.icon(
+            onPressed: _busy ? null : () => _photo(true),
+            icon: const Icon(Icons.photo_camera_outlined),
+            label: const Text('Use the regular camera'),
+          ),
         TextButton.icon(onPressed: _busy ? null : () => _photo(false), icon: const Icon(Icons.photo_library_outlined), label: const Text('Import from photos')),
       ],
     );
@@ -176,42 +182,60 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> {
   Widget build(BuildContext context) {
     final pages = ref.watch(receiptDraftProvider);
     return PremiumAppScaffold(
-      header: EditorialPageHeader(eyebrow: 'Receipt', title: 'Check your photo', subtitle: '${pages.length} page${pages.length == 1 ? '' : 's'}. Make sure the text is sharp.'),
+      header: EditorialPageHeader(
+        eyebrow: 'Receipt',
+        title: 'Check your photo',
+        subtitle: '${pages.length} page${pages.length == 1 ? '' : 's'}. Make sure the text is sharp.',
+      ),
       primaryAction: PrimaryActionButton(label: 'Analyze receipt', loading: _busy, onPressed: pages.isEmpty ? null : _analyze),
       children: [
         if (pages.isEmpty)
-          EmptyState(icon: Icons.receipt_long_outlined, title: 'No pages yet', message: 'Capture your receipt to continue.', actionLabel: 'Capture', onAction: () => context.pop()),
+          EmptyState(
+            icon: Icons.receipt_long_outlined,
+            title: 'No pages yet',
+            message: 'Capture your receipt to continue.',
+            actionLabel: 'Capture',
+            onAction: () => context.pop(),
+          ),
         for (var i = 0; i < pages.length; i++)
           Card(
             margin: const EdgeInsets.only(bottom: Space.s),
             clipBehavior: Clip.antiAlias,
-            child: Column(children: [
-              Semantics(
-                image: true,
-                label: 'Receipt page ${i + 1}',
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 420),
-                  child: Image.memory(pages[i].bytes, fit: BoxFit.contain, width: double.infinity, gaplessPlayback: true),
+            child: Column(
+              children: [
+                Semantics(
+                  image: true,
+                  label: 'Receipt page ${i + 1}',
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 420),
+                    child: Image.memory(pages[i].bytes, fit: BoxFit.contain, width: double.infinity, gaplessPlayback: true),
+                  ),
                 ),
-              ),
-              Row(children: [
-                const SizedBox(width: Space.m),
-                Text('Page ${i + 1}', style: context.text.labelMedium),
-                const Spacer(),
-                IconButton(tooltip: 'Rotate', onPressed: _busy ? null : () => _rotate(i), icon: const Icon(Icons.rotate_right)),
-                IconButton(
-                  tooltip: 'Retake',
-                  onPressed: _busy
-                      ? null
-                      : () async {
-                          final p = await pickPhoto(camera: true);
-                          if (p != null) ref.read(receiptDraftProvider.notifier).replace(i, p);
-                        },
-                  icon: const Icon(Icons.replay),
+                Row(
+                  children: [
+                    const SizedBox(width: Space.m),
+                    Text('Page ${i + 1}', style: context.text.labelMedium),
+                    const Spacer(),
+                    IconButton(tooltip: 'Rotate', onPressed: _busy ? null : () => _rotate(i), icon: const Icon(Icons.rotate_right)),
+                    IconButton(
+                      tooltip: 'Retake',
+                      onPressed: _busy
+                          ? null
+                          : () async {
+                              final p = await pickPhoto(camera: true);
+                              if (p != null) ref.read(receiptDraftProvider.notifier).replace(i, p);
+                            },
+                      icon: const Icon(Icons.replay),
+                    ),
+                    IconButton(
+                      tooltip: 'Remove page',
+                      onPressed: _busy ? null : () => ref.read(receiptDraftProvider.notifier).removeAt(i),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
                 ),
-                IconButton(tooltip: 'Remove page', onPressed: _busy ? null : () => ref.read(receiptDraftProvider.notifier).removeAt(i), icon: const Icon(Icons.delete_outline)),
-              ]),
-            ]),
+              ],
+            ),
           ),
         if (pages.isNotEmpty && pages.length < ReceiptImageRules.maxPages)
           SecondaryActionButton(
@@ -225,7 +249,10 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> {
                   },
           ),
         if (_error != null)
-          Padding(padding: const EdgeInsets.only(top: Space.m), child: Text(_error!, style: context.text.bodyMedium?.copyWith(color: context.palette.error))),
+          Padding(
+            padding: const EdgeInsets.only(top: Space.m),
+            child: Text(_error!, style: context.text.bodyMedium?.copyWith(color: context.palette.error)),
+          ),
       ],
     );
   }
@@ -268,7 +295,11 @@ class ReceiptProcessingScreen extends ConsumerWidget {
     ];
     final reduceMotion = context.reduceMotion;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Receipt', title: 'Reading your receipt', subtitle: 'This usually takes under a minute. You can leave — we\'ll keep going.'),
+      header: const EditorialPageHeader(
+        eyebrow: 'Receipt',
+        title: 'Reading your receipt',
+        subtitle: 'This usually takes under a minute. You can leave — we\'ll keep going.',
+      ),
       primaryAction: SecondaryActionButton(
         label: 'Cancel',
         onPressed: () async {
@@ -287,11 +318,13 @@ class ReceiptProcessingScreen extends ConsumerWidget {
         for (final (label, done) in steps)
           Padding(
             padding: const EdgeInsets.only(bottom: Space.m),
-            child: Row(children: [
-              Icon(done ? Icons.check_circle : Icons.radio_button_unchecked, color: done ? context.palette.success : context.palette.muted),
-              const SizedBox(width: Space.s),
-              Text(label, style: context.text.bodyLarge?.copyWith(color: done ? context.palette.ink : context.palette.muted)),
-            ]),
+            child: Row(
+              children: [
+                Icon(done ? Icons.check_circle : Icons.radio_button_unchecked, color: done ? context.palette.success : context.palette.muted),
+                const SizedBox(width: Space.s),
+                Text(label, style: context.text.bodyLarge?.copyWith(color: done ? context.palette.ink : context.palette.muted)),
+              ],
+            ),
           ),
         const SizedBox(height: Space.l),
         TextButton(onPressed: () => context.go('/today'), child: const Text('Continue in the background')),
@@ -312,9 +345,17 @@ class ReceiptReviewScreen extends ConsumerWidget {
     final r = async.value;
     if (r == null) return PremiumAppScaffold(children: [async.isLoading ? const LoadingState() : const ErrorState(message: 'Receipt not found.')]);
     if (r.status == ReceiptStatus.imported) {
-      return PremiumAppScaffold(children: [
-        EmptyState(icon: Icons.task_alt, title: 'Already in your kitchen', message: 'This receipt was imported.', actionLabel: 'See summary', onAction: () => context.pushReplacement('/receipt/$receiptId/done')),
-      ]);
+      return PremiumAppScaffold(
+        children: [
+          EmptyState(
+            icon: Icons.task_alt,
+            title: 'Already in your kitchen',
+            message: 'This receipt was imported.',
+            actionLabel: 'See summary',
+            onAction: () => context.pushReplacement('/receipt/$receiptId/done'),
+          ),
+        ],
+      );
     }
     final blocking = ReceiptImportService.blockingLines(r);
     final review = r.lines.where((l) => l.needsReview).length;
@@ -335,24 +376,30 @@ class ReceiptReviewScreen extends ConsumerWidget {
         if (r.isDemo) const DemoBanner(message: 'Demo: this is a built-in sample receipt, not your photo.'),
         SoftCard(
           color: totalsMatch ? context.palette.successSoft : context.palette.warningSoft,
-          child: Row(children: [
-            Icon(totalsMatch ? Icons.verified_outlined : Icons.warning_amber_rounded, color: totalsMatch ? context.palette.success : context.palette.warning),
-            const SizedBox(width: Space.s),
-            Expanded(
-              child: Text(
-                totalsMatch
-                    ? 'Items add up to the receipt subtotal${r.total == null ? '' : ' · total ${r.total!.format()}'}.'
-                    : 'Items add up to ${linesTotal.format()} but the subtotal reads ${r.subtotal!.format()}. A line may be missing — you can add it.',
-                style: context.text.bodySmall?.copyWith(color: context.palette.ink),
+          child: Row(
+            children: [
+              Icon(totalsMatch ? Icons.verified_outlined : Icons.warning_amber_rounded, color: totalsMatch ? context.palette.success : context.palette.warning),
+              const SizedBox(width: Space.s),
+              Expanded(
+                child: Text(
+                  totalsMatch
+                      ? 'Items add up to the receipt subtotal${r.total == null ? '' : ' · total ${r.total!.format()}'}.'
+                      : 'Items add up to ${linesTotal.format()} but the subtotal reads ${r.subtotal!.format()}. A line may be missing — you can add it.',
+                  style: context.text.bodySmall?.copyWith(color: context.palette.ink),
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ),
         const SizedBox(height: Space.m),
         for (final l in r.lines)
           Padding(
             padding: const EdgeInsets.only(bottom: Space.xs),
-            child: _LineTile(line: l, onTap: () => showCorrectItemSheet(context, ref, r, l), onToggle: (excluded) => _saveLine(ref, r, l.copyWith(excluded: excluded))),
+            child: _LineTile(
+              line: l,
+              onTap: () => showCorrectItemSheet(context, ref, r, l),
+              onToggle: (excluded) => _saveLine(ref, r, l.copyWith(excluded: excluded)),
+            ),
           ),
         TextButton.icon(onPressed: () => showCorrectItemSheet(context, ref, r, null), icon: const Icon(Icons.add), label: const Text('Add a missing item')),
       ],
@@ -383,32 +430,44 @@ class _LineTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(Radii.l),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(Space.m, Space.s, Space.xs, Space.s),
-          child: Row(children: [
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                  l.name.isEmpty ? 'Unknown item' : l.name,
-                  style: context.text.titleMedium?.copyWith(
-                    decoration: l.excluded ? TextDecoration.lineThrough : null,
-                    color: l.excluded ? p.muted : null,
-                  ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l.name.isEmpty ? 'Unknown item' : l.name,
+                      style: context.text.titleMedium?.copyWith(decoration: l.excluded ? TextDecoration.lineThrough : null, color: l.excluded ? p.muted : null),
+                    ),
+                    Text(l.rawText, style: context.text.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: Space.xs,
+                      runSpacing: 4,
+                      children: [
+                        TagPill(
+                          l.quantity?.format() ?? 'Amount needed',
+                          color: l.quantity == null ? p.warning : null,
+                          background: l.quantity == null ? p.warningSoft : null,
+                        ),
+                        if (l.totalPrice != null) TagPill(l.totalPrice!.format()),
+                        if (!l.isFood) TagPill('Not food', icon: Icons.cleaning_services_outlined),
+                        if (l.userEdited)
+                          TagPill('Checked', icon: Icons.check, color: p.success, background: p.successSoft)
+                        else if (l.needsReview)
+                          TagPill('Please check', icon: Icons.help_outline, color: p.warning, background: p.warningSoft),
+                      ],
+                    ),
+                  ],
                 ),
-                Text(l.rawText, style: context.text.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: 12)),
-                const SizedBox(height: 4),
-                Wrap(spacing: Space.xs, runSpacing: 4, children: [
-                  TagPill(l.quantity?.format() ?? 'Amount needed', color: l.quantity == null ? p.warning : null, background: l.quantity == null ? p.warningSoft : null),
-                  if (l.totalPrice != null) TagPill(l.totalPrice!.format()),
-                  if (!l.isFood) TagPill('Not food', icon: Icons.cleaning_services_outlined),
-                  if (l.userEdited) TagPill('Checked', icon: Icons.check, color: p.success, background: p.successSoft)
-                  else if (l.needsReview) TagPill('Please check', icon: Icons.help_outline, color: p.warning, background: p.warningSoft),
-                ]),
-              ]),
-            ),
-            Semantics(
-              label: l.excluded ? 'Excluded. Tap to include' : 'Included. Tap to exclude',
-              child: Switch(value: !l.excluded, onChanged: (v) => onToggle(!v)),
-            ),
-          ]),
+              ),
+              Semantics(
+                label: l.excluded ? 'Excluded. Tap to include' : 'Included. Tap to exclude',
+                child: Switch(value: !l.excluded, onChanged: (v) => onToggle(!v)),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -417,12 +476,11 @@ class _LineTile extends StatelessWidget {
 
 // ---------------------------------------------------------------- 16 Correct item
 
-Future<void> showCorrectItemSheet(BuildContext context, WidgetRef ref, PurchaseReceipt r, ReceiptLineItem? line) =>
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => CorrectItemSheet(receipt: r, line: line),
-    );
+Future<void> showCorrectItemSheet(BuildContext context, WidgetRef ref, PurchaseReceipt r, ReceiptLineItem? line) => showModalBottomSheet(
+  context: context,
+  isScrollControlled: true,
+  builder: (_) => CorrectItemSheet(receipt: r, line: line),
+);
 
 class CorrectItemSheet extends ConsumerStatefulWidget {
   const CorrectItemSheet({super.key, required this.receipt, this.line});
@@ -455,14 +513,9 @@ class _CorrectItemSheetState extends ConsumerState<CorrectItemSheet> {
     if (_isFood && _name.text.trim().isEmpty) return;
     setState(() => _busy = true);
     try {
-      final base = widget.line ??
-          ReceiptLineItem(
-            id: 'u${DateTime.now().microsecondsSinceEpoch}',
-            rawText: '(added by you)',
-            name: '',
-            category: FoodCategory.other,
-            confidence: 1,
-          );
+      final base =
+          widget.line ??
+          ReceiptLineItem(id: 'u${DateTime.now().microsecondsSinceEpoch}', rawText: '(added by you)', name: '', category: FoodCategory.other, confidence: 1);
       final updated = base.copyWith(
         name: _name.text.trim(),
         brand: _brand.text.trim().isEmpty ? null : _brand.text.trim(),
@@ -495,52 +548,71 @@ class _CorrectItemSheetState extends ConsumerState<CorrectItemSheet> {
     return SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.l + MediaQuery.viewInsetsOf(context).bottom),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(widget.line == null ? 'Add an item' : 'Correct item', style: context.text.headlineSmall),
-          if (widget.line != null) Text('Receipt says: ${widget.line!.rawText}', style: context.text.bodySmall),
-          const SizedBox(height: Space.m),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('This is food'),
-            subtitle: const Text('Non-food purchases are not added to your kitchen'),
-            value: _isFood,
-            onChanged: (v) => setState(() => _isFood = v),
-          ),
-          TextField(controller: _name, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(labelText: 'Product name')),
-          const SizedBox(height: Space.s),
-          if (_isFood) ...[
-            TextField(controller: _brand, decoration: const InputDecoration(labelText: 'Brand (optional)')),
-            const SizedBox(height: Space.s),
-            TextField(controller: _package, decoration: const InputDecoration(labelText: 'Package size (optional)', hintText: 'e.g. 750 g tub')),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.line == null ? 'Add an item' : 'Correct item', style: context.text.headlineSmall),
+            if (widget.line != null) Text('Receipt says: ${widget.line!.rawText}', style: context.text.bodySmall),
             const SizedBox(height: Space.m),
-            Text('Quantity', style: context.text.titleSmall),
-            const SizedBox(height: Space.xs),
-            Row(children: [
-              QuantityStepper(value: _qty, min: 0.001, onChanged: (q) => setState(() => _qty = q)),
-              const SizedBox(width: Space.s),
-              DropdownButton<Unit>(
-                value: _qty.unit,
-                items: [for (final u in Unit.values) DropdownMenuItem(value: u, child: Text(u.symbol))],
-                onChanged: (u) => setState(() => _qty = Quantity(_qty.amount, u!)),
-              ),
-            ]),
-            const SizedBox(height: Space.m),
-            DropdownButtonFormField<FoodCategory>(
-              initialValue: _category,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: [for (final c in FoodCategory.values.where((c) => c != FoodCategory.nonFood)) DropdownMenuItem(value: c, child: Text(c.label))],
-              onChanged: (c) => setState(() => _category = c!),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('This is food'),
+              subtitle: const Text('Non-food purchases are not added to your kitchen'),
+              value: _isFood,
+              onChanged: (v) => setState(() => _isFood = v),
             ),
-            const SizedBox(height: Space.m),
-            Text('Store in', style: context.text.titleSmall),
-            Wrap(spacing: Space.xs, children: [
-              for (final s in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry])
-                ChoiceChip(label: Text(s.label), selected: _storage == s, onSelected: (_) => setState(() => _storage = s)),
-            ]),
+            TextField(
+              controller: _name,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(labelText: 'Product name'),
+            ),
+            const SizedBox(height: Space.s),
+            if (_isFood) ...[
+              TextField(
+                controller: _brand,
+                decoration: const InputDecoration(labelText: 'Brand (optional)'),
+              ),
+              const SizedBox(height: Space.s),
+              TextField(
+                controller: _package,
+                decoration: const InputDecoration(labelText: 'Package size (optional)', hintText: 'e.g. 750 g tub'),
+              ),
+              const SizedBox(height: Space.m),
+              Text('Quantity', style: context.text.titleSmall),
+              const SizedBox(height: Space.xs),
+              Row(
+                children: [
+                  QuantityStepper(value: _qty, min: 0.001, onChanged: (q) => setState(() => _qty = q)),
+                  const SizedBox(width: Space.s),
+                  DropdownButton<Unit>(
+                    value: _qty.unit,
+                    items: [for (final u in Unit.values) DropdownMenuItem(value: u, child: Text(u.symbol))],
+                    onChanged: (u) => setState(() => _qty = Quantity(_qty.amount, u!)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: Space.m),
+              DropdownButtonFormField<FoodCategory>(
+                isExpanded: true,
+                initialValue: _category,
+                decoration: const InputDecoration(labelText: 'Category'),
+                items: [for (final c in FoodCategory.values.where((c) => c != FoodCategory.nonFood)) DropdownMenuItem(value: c, child: Text(c.label))],
+                onChanged: (c) => setState(() => _category = c!),
+              ),
+              const SizedBox(height: Space.m),
+              Text('Store in', style: context.text.titleSmall),
+              Wrap(
+                spacing: Space.xs,
+                children: [
+                  for (final s in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry])
+                    ChoiceChip(label: Text(s.label), selected: _storage == s, onSelected: (_) => setState(() => _storage = s)),
+                ],
+              ),
+            ],
+            const SizedBox(height: Space.l),
+            PrimaryActionButton(label: 'Save', loading: _busy, onPressed: _save),
           ],
-          const SizedBox(height: Space.l),
-          PrimaryActionButton(label: 'Save', loading: _busy, onPressed: _save),
-        ]),
+        ),
       ),
     );
   }
@@ -559,32 +631,55 @@ class UnknownItemsScreen extends ConsumerWidget {
     final unresolved = r.lines.where((l) => !l.excluded && (l.needsReview || ReceiptImportService.blockingLines(r).contains(l))).toList();
     final blocking = ReceiptImportService.blockingLines(r);
     return PremiumAppScaffold(
-      header: EditorialPageHeader(eyebrow: 'Receipt', title: 'A few to check', subtitle: unresolved.isEmpty ? 'All resolved.' : 'Tell us what these are, or leave them out.'),
+      header: EditorialPageHeader(
+        eyebrow: 'Receipt',
+        title: 'A few to check',
+        subtitle: unresolved.isEmpty ? 'All resolved.' : 'Tell us what these are, or leave them out.',
+      ),
       primaryAction: PrimaryActionButton(
         label: blocking.isEmpty ? 'Continue' : '${blocking.length} still need a name and amount',
         onPressed: blocking.isEmpty ? () => context.pushReplacement('/receipt/$receiptId/storage') : null,
       ),
       children: [
-        if (unresolved.isEmpty) const EmptyState(icon: Icons.task_alt, title: 'Nothing left to check', message: 'Everything has a name and an amount.', compact: true),
+        if (unresolved.isEmpty)
+          const EmptyState(icon: Icons.task_alt, title: 'Nothing left to check', message: 'Everything has a name and an amount.', compact: true),
         for (final l in unresolved)
           Card(
             margin: const EdgeInsets.only(bottom: Space.xs),
             child: Padding(
               padding: const EdgeInsets.all(Space.m),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(l.rawText, style: context.text.bodySmall?.copyWith(fontFamily: 'monospace')),
-                const SizedBox(height: 4),
-                Text(l.name.isEmpty ? 'We couldn\'t tell what this is' : 'Looks like: ${l.name}${l.quantity == null ? ' (amount unknown)' : ' · ${l.quantity!.format()}'}', style: context.text.titleMedium),
-                for (final issue in l.issues) Text(issue, style: context.text.bodySmall),
-                const SizedBox(height: Space.s),
-                Wrap(spacing: Space.xs, runSpacing: Space.xs, children: [
-                  FilledButton.tonal(onPressed: () => showCorrectItemSheet(context, ref, r, l), child: const Text('Fix')),
-                  if (l.name.isNotEmpty && l.quantity != null)
-                    OutlinedButton(onPressed: () => _saveLine(ref, r, l.copyWith(userEdited: true, issues: const [])), child: const Text('Looks right')),
-                  OutlinedButton(onPressed: () => _saveLine(ref, r, l.copyWith(isFood: false, excluded: true, userEdited: true)), child: const Text('Not food')),
-                  TextButton(onPressed: () => _saveLine(ref, r, l.copyWith(excluded: true)), child: const Text('Leave out')),
-                ]),
-              ]),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l.rawText, style: context.text.bodySmall?.copyWith(fontFamily: 'monospace')),
+                  const SizedBox(height: 4),
+                  Text(
+                    l.name.isEmpty
+                        ? 'We couldn\'t tell what this is'
+                        : 'Looks like: ${l.name}${l.quantity == null ? ' (amount unknown)' : ' · ${l.quantity!.format()}'}',
+                    style: context.text.titleMedium,
+                  ),
+                  for (final issue in l.issues) Text(issue, style: context.text.bodySmall),
+                  const SizedBox(height: Space.s),
+                  Wrap(
+                    spacing: Space.xs,
+                    runSpacing: Space.xs,
+                    children: [
+                      FilledButton.tonal(onPressed: () => showCorrectItemSheet(context, ref, r, l), child: const Text('Fix')),
+                      if (l.name.isNotEmpty && l.quantity != null)
+                        OutlinedButton(
+                          onPressed: () => _saveLine(ref, r, l.copyWith(userEdited: true, issues: const [])),
+                          child: const Text('Looks right'),
+                        ),
+                      OutlinedButton(
+                        onPressed: () => _saveLine(ref, r, l.copyWith(isFood: false, excluded: true, userEdited: true)),
+                        child: const Text('Not food'),
+                      ),
+                      TextButton(onPressed: () => _saveLine(ref, r, l.copyWith(excluded: true)), child: const Text('Leave out')),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
       ],
@@ -630,7 +725,11 @@ class _StorageAssignmentScreenState extends ConsumerState<StorageAssignmentScree
     final food = r.lines.where((l) => !l.excluded && l.isFood).toList();
     return PremiumAppScaffold(
       header: EditorialPageHeader(eyebrow: 'Receipt', title: 'Where does it go?', subtitle: 'We\'ve suggested a spot for each. Tap to change.'),
-      primaryAction: PrimaryActionButton(label: 'Add ${food.length} item${food.length == 1 ? '' : 's'} to kitchen', loading: _busy, onPressed: food.isEmpty ? null : () => _import(r)),
+      primaryAction: PrimaryActionButton(
+        label: 'Add ${food.length} item${food.length == 1 ? '' : 's'} to kitchen',
+        loading: _busy,
+        onPressed: food.isEmpty ? null : () => _import(r),
+      ),
       children: [
         for (final kind in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry]) ...[
           if (food.any((l) => l.storage == kind)) SectionHeader(kind.label, topSpacing: Space.s),
@@ -639,22 +738,35 @@ class _StorageAssignmentScreenState extends ConsumerState<StorageAssignmentScree
               margin: const EdgeInsets.only(bottom: Space.xs),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Space.m, vertical: Space.s),
-                child: Row(children: [
-                  Expanded(child: Text('${l.name} · ${l.quantity?.format() ?? ''}', style: context.text.bodyLarge)),
-                  PopupMenuButton<StorageKind>(
-                    tooltip: 'Change storage',
-                    initialValue: l.storage,
-                    onSelected: (k) => _saveLine(ref, r, l.copyWith(storage: k)),
-                    itemBuilder: (_) => [for (final k in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry]) PopupMenuItem(value: k, child: Text(k.label))],
-                    child: Padding(padding: const EdgeInsets.all(Space.xs), child: Row(mainAxisSize: MainAxisSize.min, children: [Text(l.storage.label), const Icon(Icons.expand_more)])),
-                  ),
-                ]),
+                child: Row(
+                  children: [
+                    Expanded(child: Text('${l.name} · ${l.quantity?.format() ?? ''}', style: context.text.bodyLarge)),
+                    PopupMenuButton<StorageKind>(
+                      tooltip: 'Change storage',
+                      initialValue: l.storage,
+                      onSelected: (k) => _saveLine(ref, r, l.copyWith(storage: k)),
+                      itemBuilder: (_) => [
+                        for (final k in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry]) PopupMenuItem(value: k, child: Text(k.label)),
+                      ],
+                      child: Padding(
+                        padding: const EdgeInsets.all(Space.xs),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [Text(l.storage.label), const Icon(Icons.expand_more)]),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
         if (food.any((l) => l.storage == StorageKind.custom))
           for (final l in food.where((l) => l.storage == StorageKind.custom))
-            ListTile(title: Text(l.name), trailing: TextButton(onPressed: () => _saveLine(ref, r, l.copyWith(storage: StorageKind.pantry)), child: const Text('Pantry'))),
+            ListTile(
+              title: Text(l.name),
+              trailing: TextButton(
+                onPressed: () => _saveLine(ref, r, l.copyWith(storage: StorageKind.pantry)),
+                child: const Text('Pantry'),
+              ),
+            ),
         if (_error != null) Text(_error!, style: context.text.bodyMedium?.copyWith(color: context.palette.error)),
       ],
     );
@@ -675,7 +787,10 @@ class ReceiptErrorScreen extends ConsumerWidget {
     if (duplicate) {
       return PremiumAppScaffold(
         header: const EditorialPageHeader(eyebrow: 'Receipt', title: 'Already scanned?'),
-        primaryAction: PrimaryActionButton(label: 'View the earlier receipt', onPressed: () => context.pushReplacement(r?.status == ReceiptStatus.imported ? '/receipt/$receiptId/done' : '/receipt/$receiptId/review')),
+        primaryAction: PrimaryActionButton(
+          label: 'View the earlier receipt',
+          onPressed: () => context.pushReplacement(r?.status == ReceiptStatus.imported ? '/receipt/$receiptId/done' : '/receipt/$receiptId/review'),
+        ),
         children: [
           EmptyState(
             icon: Icons.copy_all_outlined,
@@ -696,14 +811,17 @@ class ReceiptErrorScreen extends ConsumerWidget {
     final quality = r?.errorCode == 'unreadable' || r?.errorCode == 'not_a_receipt';
     return PremiumAppScaffold(
       header: const EditorialPageHeader(eyebrow: 'Receipt', title: 'We couldn\'t read that one'),
-      primaryAction: PrimaryActionButton(label: quality ? 'Retake photo' : 'Try again', onPressed: () async {
-        if (quality) {
-          context.pushReplacement('/receipt/capture');
-        } else {
-          await ref.read(actionsProvider).retryReceipt(receiptId);
-          if (context.mounted) context.pushReplacement('/receipt/$receiptId/processing');
-        }
-      }),
+      primaryAction: PrimaryActionButton(
+        label: quality ? 'Retake photo' : 'Try again',
+        onPressed: () async {
+          if (quality) {
+            context.pushReplacement('/receipt/capture');
+          } else {
+            await ref.read(actionsProvider).retryReceipt(receiptId);
+            if (context.mounted) context.pushReplacement('/receipt/$receiptId/processing');
+          }
+        },
+      ),
       children: [
         EmptyState(
           icon: Icons.blur_on,
@@ -735,17 +853,27 @@ class ReceiptDoneScreen extends ConsumerWidget {
       header: EditorialPageHeader(eyebrow: r.merchant ?? 'Receipt', title: 'Your kitchen is up to date'),
       primaryAction: PrimaryActionButton(label: 'View kitchen', onPressed: () => context.go('/kitchen')),
       children: [
-        Row(children: [
-          Expanded(child: _Metric(value: '${s.imported}', label: 'items added')),
-          Expanded(child: _Metric(value: '${s.excluded}', label: 'left out')),
-          Expanded(child: _Metric(value: s.total?.format() ?? '—', label: 'total')),
-        ]),
+        Row(
+          children: [
+            Expanded(
+              child: _Metric(value: '${s.imported}', label: 'items added'),
+            ),
+            Expanded(
+              child: _Metric(value: '${s.excluded}', label: 'left out'),
+            ),
+            Expanded(
+              child: _Metric(value: s.total?.format() ?? '—', label: 'total'),
+            ),
+          ],
+        ),
         const SizedBox(height: Space.l),
         if (s.estimated > 0)
           SoftCard(
             color: context.palette.infoSoft,
-            child: Text('${s.estimated} item${s.estimated == 1 ? ' is' : 's are'} marked as estimated. Chefii will ask you to confirm next time you\'re in the kitchen.',
-                style: context.text.bodySmall?.copyWith(color: context.palette.ink)),
+            child: Text(
+              '${s.estimated} item${s.estimated == 1 ? ' is' : 's are'} marked as estimated. Chefii will ask you to confirm next time you\'re in the kitchen.',
+              style: context.text.bodySmall?.copyWith(color: context.palette.ink),
+            ),
           ),
         if (r.importOperationId != null) ...[
           const SizedBox(height: Space.s),
@@ -753,8 +881,13 @@ class ReceiptDoneScreen extends ConsumerWidget {
             icon: const Icon(Icons.undo),
             label: const Text('Undo this import'),
             onPressed: () async {
-              final ok = await showConfirmActionSheet(context,
-                  title: 'Undo import?', message: 'Removes these items from your kitchen. Anything already used stays recorded.', confirmLabel: 'Undo import', destructive: true);
+              final ok = await showConfirmActionSheet(
+                context,
+                title: 'Undo import?',
+                message: 'Removes these items from your kitchen. Anything already used stays recorded.',
+                confirmLabel: 'Undo import',
+                destructive: true,
+              );
               if (!ok) return;
               try {
                 final res = await ref.read(actionsProvider).undo(r.importOperationId!);
@@ -779,13 +912,15 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-        label: '$value $label',
-        excludeSemantics: true,
-        child: Column(children: [
-          Text(value, style: context.text.headlineMedium),
-          Text(label, style: context.text.bodySmall),
-        ]),
-      );
+    label: '$value $label',
+    excludeSemantics: true,
+    child: Column(
+      children: [
+        Text(value, style: context.text.headlineMedium),
+        Text(label, style: context.text.bodySmall),
+      ],
+    ),
+  );
 }
 
 /// Receipts list (history) — reachable from the kitchen.

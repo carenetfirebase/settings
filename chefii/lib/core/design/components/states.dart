@@ -73,10 +73,17 @@ class ErrorState extends StatelessWidget {
   final IconData icon;
 
   /// Friendly text for common error types; never leaks stack traces.
+  /// Network failures: inventory changes are transactional and are never
+  /// half-applied or silently queued, so the user is told to retry.
+  static bool isOffline(Object error) {
+    final s = error.toString();
+    return s.contains('SocketException') || s.contains('network') || s.contains('unavailable') || s.contains('offline');
+  }
+
   static String describe(Object error) {
     final s = error.toString();
-    if (s.contains('SocketException') || s.contains('network') || s.contains('unavailable')) {
-      return 'You appear to be offline. Your kitchen is saved on this device and will sync when you reconnect.';
+    if (isOffline(error)) {
+      return 'You appear to be offline, so nothing was changed. Please try again when you\'re connected.';
     }
     if (s.contains('permission-denied') || s.contains('PERMISSION_DENIED')) {
       return 'You don\'t have access to this. If it was shared with you, the owner may have changed permissions.';

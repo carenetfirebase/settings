@@ -118,6 +118,14 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
               onSelectionChanged: (s) => setState(() => _location = s.first),
             ),
           ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => showStorageLocationsSheet(context),
+              icon: const Icon(Icons.tune, size: 18),
+              label: const Text('Manage places'),
+            ),
+          ),
           const SizedBox(height: Space.m),
           SearchFilterBar(
             hint: 'Search your kitchen',

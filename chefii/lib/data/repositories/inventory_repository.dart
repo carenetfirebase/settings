@@ -140,6 +140,57 @@ class InventoryRepository {
       .watchQuery(HouseholdPaths(householdId).products, const QuerySpec(orderBy: 'nameLower'))
       .map((docs) => docs.map((d) => FoodProduct.fromMap(d.id, d.data)).toList());
 
+  // ---------------------------------------------------------------- locations
+
+  /// The three built-in places plus any the household added, in display order.
+  Stream<List<StorageLocation>> watchLocations(String householdId) => _store
+      .watchQuery(HouseholdPaths(householdId).locations)
+      .map((docs) => mergeLocations(docs.map((d) => StorageLocation.fromMap(d.id, d.data))));
+
+  static List<StorageLocation> mergeLocations(Iterable<StorageLocation> custom) {
+    final byId = {for (final l in StorageLocation.defaults) l.id: l};
+    for (final l in custom) {
+      if (!byId.containsKey(l.id)) byId[l.id] = l;
+    }
+    return byId.values.toList()..sort((a, b) => a.sortOrder != b.sortOrder ? a.sortOrder.compareTo(b.sortOrder) : a.name.compareTo(b.name));
+  }
+
+  /// Adds a named place such as "Garage freezer". [kind] drives freshness
+  /// estimates and FIFO (freezer stock is used last).
+  Future<StorageLocation> addLocation(String householdId, {required String name, required StorageKind kind}) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed.length > 30) throw InventoryException('Give the place a name of up to 30 characters.');
+    final existing = await _store.query(HouseholdPaths(householdId).locations);
+    final all = mergeLocations(existing.map((d) => StorageLocation.fromMap(d.id, d.data)));
+    if (all.any((l) => l.name.toLowerCase() == trimmed.toLowerCase())) throw InventoryException('You already have a place called $trimmed.');
+    if (all.length >= 12) throw InventoryException('You can have up to 12 places.');
+    final slug = trimmed.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_').replaceAll(RegExp(r'^_|_$'), '');
+    var id = 'loc_${slug.isEmpty ? 'place' : slug}';
+    for (var n = 2; all.any((l) => l.id == id); n++) {
+      id = 'loc_${slug}_$n';
+    }
+    final location = StorageLocation(id: id, name: trimmed, kind: kind, sortOrder: 10 + existing.length);
+    await _store.set('${HouseholdPaths(householdId).locations}/$id', location.toMap());
+    return location;
+  }
+
+  Future<void> renameLocation(String householdId, StorageLocation location, String name) async {
+    if (StorageLocation.defaults.any((d) => d.id == location.id)) throw InventoryException('The built-in places can\'t be renamed.');
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed.length > 30) throw InventoryException('Give the place a name of up to 30 characters.');
+    await _store.set('${HouseholdPaths(householdId).locations}/${location.id}', {'name': trimmed}, merge: true);
+  }
+
+  /// Removes a custom place. Refuses while anything is still stored there, so
+  /// no stock is ever orphaned.
+  Future<void> removeLocation(String householdId, String locationId) async {
+    if (StorageLocation.defaults.any((d) => d.id == locationId)) throw InventoryException('The built-in places can\'t be removed.');
+    final p = HouseholdPaths(householdId);
+    final inUse = await _store.query(p.lots, QuerySpec(where: [const Where.eq('depleted', false), Where.eq('locationId', locationId)], limit: 1));
+    if (inUse.isNotEmpty) throw InventoryException('Move or use up what\'s stored there first.');
+    await _store.delete('${p.locations}/$locationId');
+  }
+
   Future<List<FoodProduct>> products(String householdId) async {
     final docs = await _store.query(HouseholdPaths(householdId).products);
     return docs.map((d) => FoodProduct.fromMap(d.id, d.data)).toList();
@@ -279,6 +330,12 @@ class InventoryRepository {
       }
     }
     final type = kind == OperationKind.discard ? AdjustmentType.discard : AdjustmentType.consume;
+    // Every freezer-kind place (including "Garage freezer") is used last.
+    final freezerIds = {
+      'freezer',
+      for (final d in await _store.query(p.locations))
+        if (StorageLocation.fromMap(d.id, d.data).kind == StorageKind.freezer) d.id,
+    };
 
     return _store.transaction((tx) async {
       final existing = await tx.get(p.operation(operationId));
@@ -301,7 +358,7 @@ class InventoryRepository {
       var n = 0;
       for (final r in requests) {
         final lots = candidateIds[r.productId]!.map((id) => fresh[id]).whereType<InventoryLot>().toList();
-        final plan = planner.plan(lots: lots, requested: r.quantity, bridge: r.bridge, preferLotId: r.lotId);
+        final plan = planner.plan(lots: lots, requested: r.quantity, bridge: r.bridge, preferLotId: r.lotId, deprioritizedLocationIds: freezerIds);
         for (final a in plan.allocations) {
           final current = fresh[a.lot.id]!;
           final after = current.quantity - a.take;

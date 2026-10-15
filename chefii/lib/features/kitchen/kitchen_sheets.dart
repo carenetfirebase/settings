@@ -334,3 +334,133 @@ class _KitchenCommandSheetState extends ConsumerState<KitchenCommandSheet> {
     );
   }
 }
+
+// ---------------------------------------------------------------- storage places
+
+Future<void> showStorageLocationsSheet(BuildContext context) => showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const StorageLocationsSheet(),
+    );
+
+/// Add, rename and remove the household's own places ("Garage freezer").
+class StorageLocationsSheet extends ConsumerStatefulWidget {
+  const StorageLocationsSheet({super.key});
+
+  @override
+  ConsumerState<StorageLocationsSheet> createState() => _StorageLocationsSheetState();
+}
+
+class _StorageLocationsSheetState extends ConsumerState<StorageLocationsSheet> {
+  final _name = TextEditingController();
+  StorageKind _kind = StorageKind.pantry;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(Future<void> Function(String hid) f, {String? done}) async {
+    final hid = ref.read(householdIdProvider);
+    if (hid == null) return;
+    setState(() => _busy = true);
+    try {
+      await f(hid);
+      if (mounted && done != null) showMessage(context, done);
+    } catch (e) {
+      if (mounted) showMessage(context, ErrorState.describe(e), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _rename(StorageLocation l) async {
+    final controller = TextEditingController(text: l.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rename place'),
+        content: TextField(controller: controller, autofocus: true, maxLength: 30, textCapitalization: TextCapitalization.sentences),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Save')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.trim() == l.name) return;
+    await _run((hid) => ref.read(inventoryRepoProvider).renameLocation(hid, l, name));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locations = ref.watch(storageLocationsProvider);
+    final builtIn = {for (final d in StorageLocation.defaults) d.id};
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.l + MediaQuery.viewInsetsOf(context).bottom),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Places in your kitchen', style: context.text.headlineSmall),
+              Text('Add spots like a garage freezer or a wine fridge.', style: context.text.bodySmall),
+              const SizedBox(height: Space.s),
+              for (final l in locations)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(switch (l.kind) {
+                    StorageKind.fridge => Icons.kitchen_outlined,
+                    StorageKind.freezer => Icons.ac_unit,
+                    StorageKind.pantry => Icons.shelves,
+                    StorageKind.custom => Icons.inventory_2_outlined,
+                  }),
+                  title: Text(l.name),
+                  subtitle: Text(builtIn.contains(l.id) ? 'Built in' : 'Kept like a ${l.kind.label.toLowerCase()}'),
+                  trailing: builtIn.contains(l.id)
+                      ? null
+                      : Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(tooltip: 'Rename ${l.name}', onPressed: _busy ? null : () => _rename(l), icon: const Icon(Icons.edit_outlined)),
+                          IconButton(
+                            tooltip: 'Remove ${l.name}',
+                            onPressed: _busy ? null : () => _run((hid) => ref.read(inventoryRepoProvider).removeLocation(hid, l.id), done: 'Removed ${l.name}.'),
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                        ]),
+                ),
+              const Divider(height: Space.l),
+              TextField(
+                controller: _name,
+                maxLength: 30,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(labelText: 'New place', hintText: 'e.g. Garage freezer'),
+                onChanged: (_) => setState(() {}),
+              ),
+              Text('Kept like a…', style: context.text.labelLarge),
+              const SizedBox(height: Space.xxs),
+              Wrap(spacing: Space.xs, children: [
+                for (final k in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry])
+                  ChoiceChip(label: Text(k.label), selected: _kind == k, onSelected: (_) => setState(() => _kind = k)),
+              ]),
+              const SizedBox(height: Space.m),
+              PrimaryActionButton(
+                label: 'Add place',
+                loading: _busy,
+                onPressed: _name.text.trim().isEmpty
+                    ? null
+                    : () => _run((hid) async {
+                          final added = await ref.read(inventoryRepoProvider).addLocation(hid, name: _name.text, kind: _kind);
+                          _name.clear();
+                          if (mounted) showMessage(this.context, 'Added ${added.name}.');
+                        }),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

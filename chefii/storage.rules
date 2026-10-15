@@ -10,7 +10,9 @@ service firebase.storage {
 
     match /households/{hid}/receipts/{receiptId}/{page} {
       allow read: if isMember(hid);
+      // resource == null: new pages only; an existing photo can never be replaced.
       allow create: if isMember(hid)
+        && resource == null
         && request.resource.size < 12 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)')
         && page.matches('page_[0-4]');

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/actions.dart';
 import '../../app/providers.dart';
 import '../../core/design/design.dart';
+import '../../core/services/screen_awake.dart';
 import '../../core/services/voice.dart';
 import '../../domain/models/meals.dart';
 import '../../domain/models/nutrition.dart';
@@ -107,6 +108,7 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
   void initState() {
     super.initState();
     _speak = ref.read(settingsProvider).value?.voiceGuidance ?? false;
+    ScreenAwake.enable();
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (ref.read(cookingTimersProvider).isNotEmpty && mounted) setState(() {});
     });
@@ -117,6 +119,7 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
     _tick?.cancel();
     _pages?.dispose();
     ref.read(speakerProvider).stop();
+    ScreenAwake.disable();
     super.dispose();
   }
 

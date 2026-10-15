@@ -112,6 +112,45 @@ void main() {
     });
   });
 
+  group('Storage places', () {
+    NewLotInput lot(String loc, double n, CalendarDate? useBy) => NewLotInput(
+          product: const FoodProduct(id: 'peas', name: 'Peas', category: FoodCategory.frozen, defaultUnit: Unit.g),
+          quantity: Quantity(n, Unit.g),
+          locationId: loc,
+          source: LotSource.manual,
+          provenance: const Provenance(source: ProvenanceSource.user),
+          useByDate: useBy,
+        );
+
+    test('households can add, rename and remove their own places', () async {
+      final garage = await inventory.addLocation(hid, name: '  Garage freezer ', kind: StorageKind.freezer);
+      expect(garage.id, 'loc_garage_freezer');
+      var all = await inventory.watchLocations(hid).first;
+      expect(all.map((l) => l.name), ['Fridge', 'Freezer', 'Pantry', 'Garage freezer']);
+      await expectLater(inventory.addLocation(hid, name: 'garage FREEZER', kind: StorageKind.pantry), throwsA(isA<InventoryException>()));
+      await expectLater(inventory.removeLocation(hid, 'fridge'), throwsA(isA<InventoryException>()));
+      await inventory.renameLocation(hid, garage, 'Chest freezer');
+      all = await inventory.watchLocations(hid).first;
+      expect(all.last.name, 'Chest freezer');
+
+      await inventory.addLots(householdId: hid, operationId: 'g1', actorUid: uid, inputs: [lot(garage.id, 200, null)]);
+      await expectLater(inventory.removeLocation(hid, garage.id), throwsA(isA<InventoryException>()));
+      await inventory.consume(householdId: hid, operationId: 'g2', actorUid: uid, requests: [ConsumeRequest(productId: 'peas', productName: 'Peas', quantity: const Quantity(200, Unit.g))]);
+      await inventory.removeLocation(hid, garage.id);
+      expect((await inventory.watchLocations(hid).first).length, 3);
+    });
+
+    test('a custom freezer is used after fresher-dated stock elsewhere, like the built-in freezer', () async {
+      final garage = await inventory.addLocation(hid, name: 'Garage freezer', kind: StorageKind.freezer);
+      const soon = CalendarDate(2026, 11, 1);
+      await inventory.addLots(householdId: hid, operationId: 'p1', actorUid: uid, inputs: [lot(garage.id, 300, soon), lot('fridge', 300, const CalendarDate(2026, 12, 1))]);
+      await inventory.consume(householdId: hid, operationId: 'p2', actorUid: uid, requests: [ConsumeRequest(productId: 'peas', productName: 'Peas', quantity: const Quantity(100, Unit.g))]);
+      final lots = await inventory.lotsForProduct(hid, 'peas');
+      expect(lots.firstWhere((l) => l.locationId == garage.id).quantity.amount, 300);
+      expect(lots.firstWhere((l) => l.locationId == 'fridge').quantity.amount, 200);
+    });
+  });
+
   group('Cooking flow', () {
     test('one confirmation deducts all ingredients, logs journal, saves leftovers', () async {
       await inventory.addLots(

@@ -149,7 +149,14 @@ final recentOperationsProvider = StreamProvider<List<InventoryOperation>>(
   (ref) => _householdStream(ref, const <InventoryOperation>[], (hid) => ref.watch(inventoryRepoProvider).watchRecentOperations(hid)),
 );
 
-final storageLocationsProvider = Provider<List<StorageLocation>>((ref) => StorageLocation.defaults);
+final _locationsStreamProvider = StreamProvider<List<StorageLocation>>(
+  (ref) => _householdStream(ref, StorageLocation.defaults, (hid) => ref.watch(inventoryRepoProvider).watchLocations(hid)),
+);
+
+/// Built-in places plus the household's own; never empty.
+final storageLocationsProvider = Provider<List<StorageLocation>>(
+  (ref) => ref.watch(_locationsStreamProvider).value ?? StorageLocation.defaults,
+);
 
 final receiptsProvider = StreamProvider<List<PurchaseReceipt>>(
   (ref) => _householdStream(ref, const <PurchaseReceipt>[], (hid) => ref.watch(receiptRepoProvider).watchRecent(hid)),

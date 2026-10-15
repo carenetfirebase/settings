@@ -11,6 +11,48 @@ abstract final class NotificationIds {
   static const eveningPreviewBase = 2100; // + ISO weekday
   static const timerBase = 3000; // + timer index
   static const generic = 9000;
+  static const snoozeBase = 9100; // + original id % 100
+}
+
+/// Action id for "Snooze 10 min" on reminders and the morning alarm.
+const snoozeActionId = 'snooze';
+const snoozeDuration = Duration(minutes: 10);
+const _snoozeCategory = 'chefii_snoozable';
+
+/// What a snoozed notification says, from the original's deep link.
+({String title, String body}) snoozedContent(String? payload) => switch (payload) {
+      '/morning/wake' => (title: 'Good morning', body: 'Your snoozed alarm. Tap to start your morning.'),
+      '/morning/evening' => (title: 'Tomorrow morning', body: 'Your snoozed evening preview.'),
+      _ => (title: 'A gentle reminder', body: 'Your snoozed reminder from Chefii.'),
+    };
+
+Future<void> _scheduleSnooze(FlutterLocalNotificationsPlugin plugin, NotificationResponse r) async {
+  final content = snoozedContent(r.payload);
+  final alarm = r.payload == '/morning/wake';
+  await plugin.zonedSchedule(
+    id: NotificationIds.snoozeBase + ((r.id ?? 0) % 100),
+    scheduledDate: tz.TZDateTime.now(tz.local).add(snoozeDuration),
+    notificationDetails: LocalNotificationService.detailsFor(alarm ? LocalNotificationService.alarmChannel : LocalNotificationService.remindersChannel, timeSensitive: alarm),
+    androidScheduleMode: alarm ? AndroidScheduleMode.alarmClock : AndroidScheduleMode.inexactAllowWhileIdle,
+    title: content.title,
+    body: content.body,
+    payload: r.payload,
+  );
+}
+
+/// Runs in a background isolate when "Snooze" is tapped without opening the app.
+@pragma('vm:entry-point')
+Future<void> notificationBackgroundHandler(NotificationResponse r) async {
+  if (r.actionId != snoozeActionId) return;
+  tzdata.initializeTimeZones();
+  try {
+    tz.setLocalLocation(tz.getLocation((await FlutterTimezone.getLocalTimezone()).identifier));
+  } catch (_) {
+    tz.setLocalLocation(tz.getLocation('America/Toronto'));
+  }
+  final plugin = FlutterLocalNotificationsPlugin();
+  await plugin.initialize(settings: LocalNotificationService.initSettings);
+  await _scheduleSnooze(plugin, r);
 }
 
 class ScheduledTime {
@@ -115,14 +157,17 @@ class LocalNotificationService implements NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
-  static const _reminders = AndroidNotificationDetails(
+  static const _snooze = AndroidNotificationAction(snoozeActionId, 'Snooze 10 min', cancelNotification: true);
+
+  static const remindersChannel = AndroidNotificationDetails(
     'chefii_reminders',
     'Meal reminders',
     channelDescription: 'Gentle reminders for meals and kitchen tasks',
     importance: Importance.defaultImportance,
     priority: Priority.defaultPriority,
+    actions: [_snooze],
   );
-  static const _alarm = AndroidNotificationDetails(
+  static const alarmChannel = AndroidNotificationDetails(
     'chefii_morning_alarm',
     'Morning alarm',
     channelDescription: 'Your morning routine alarm',
@@ -131,6 +176,7 @@ class LocalNotificationService implements NotificationService {
     category: AndroidNotificationCategory.alarm,
     fullScreenIntent: true,
     audioAttributesUsage: AudioAttributesUsage.alarm,
+    actions: [_snooze],
   );
   static const _timers = AndroidNotificationDetails(
     'chefii_timers',
@@ -141,10 +187,28 @@ class LocalNotificationService implements NotificationService {
     category: AndroidNotificationCategory.alarm,
   );
 
-  NotificationDetails _details(AndroidNotificationDetails android, {bool timeSensitive = false}) => NotificationDetails(
+  static NotificationDetails detailsFor(AndroidNotificationDetails android, {bool timeSensitive = false}) => NotificationDetails(
         android: android,
-        iOS: DarwinNotificationDetails(interruptionLevel: timeSensitive ? InterruptionLevel.timeSensitive : InterruptionLevel.active),
+        iOS: DarwinNotificationDetails(
+          interruptionLevel: timeSensitive ? InterruptionLevel.timeSensitive : InterruptionLevel.active,
+          categoryIdentifier: android.actions?.isNotEmpty == true ? _snoozeCategory : null,
+        ),
       );
+
+  NotificationDetails _details(AndroidNotificationDetails android, {bool timeSensitive = false}) =>
+      detailsFor(android, timeSensitive: timeSensitive);
+
+  static final initSettings = InitializationSettings(
+    android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
+    iOS: DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+      notificationCategories: [
+        DarwinNotificationCategory(_snoozeCategory, actions: [DarwinNotificationAction.plain(snoozeActionId, 'Snooze 10 min')]),
+      ],
+    ),
+  );
 
   @override
   Future<void> init({void Function(String? payload)? onTap}) async {
@@ -157,15 +221,15 @@ class LocalNotificationService implements NotificationService {
       tz.setLocalLocation(tz.getLocation('America/Toronto'));
     }
     await _plugin.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(
-          requestAlertPermission: false,
-          requestBadgePermission: false,
-          requestSoundPermission: false,
-        ),
-      ),
-      onDidReceiveNotificationResponse: (r) => onTap?.call(r.payload),
+      settings: initSettings,
+      onDidReceiveNotificationResponse: (r) {
+        if (r.actionId == snoozeActionId) {
+          _scheduleSnooze(_plugin, r);
+        } else {
+          onTap?.call(r.payload);
+        }
+      },
+      onDidReceiveBackgroundNotificationResponse: notificationBackgroundHandler,
     );
     _ready = true;
   }
@@ -211,7 +275,7 @@ class LocalNotificationService implements NotificationService {
       await _plugin.zonedSchedule(
         id: baseId + wd,
         scheduledDate: _next(time, weekday: wd),
-        notificationDetails: _details(alarm ? _alarm : _reminders, timeSensitive: alarm),
+        notificationDetails: _details(alarm ? alarmChannel : remindersChannel, timeSensitive: alarm),
         androidScheduleMode: alarm ? AndroidScheduleMode.alarmClock : AndroidScheduleMode.inexactAllowWhileIdle,
         title: title,
         body: body,
@@ -226,7 +290,7 @@ class LocalNotificationService implements NotificationService {
       _plugin.zonedSchedule(
         id: id,
         scheduledDate: _next(time),
-        notificationDetails: _details(_reminders),
+        notificationDetails: _details(remindersChannel),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         title: title,
         body: body,
@@ -248,7 +312,7 @@ class LocalNotificationService implements NotificationService {
 
   @override
   Future<void> showNow({required int id, required String title, required String body, String? payload}) =>
-      _plugin.show(id: id, title: title, body: body, notificationDetails: _details(_reminders), payload: payload);
+      _plugin.show(id: id, title: title, body: body, notificationDetails: _details(remindersChannel), payload: payload);
 
   @override
   Future<void> cancel(int id) => _plugin.cancel(id: id);

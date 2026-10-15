@@ -95,7 +95,7 @@ jobs:
       - name: Install Android NDK
         run: |
           for i in 1 2 3; do
-            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" > /dev/null && exit 0
+            (yes || true) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" > /dev/null && exit 0
             echo "NDK install attempt $i failed; retrying"; sleep $((i * 15))
           done
           exit 1

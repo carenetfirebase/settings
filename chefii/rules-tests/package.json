@@ -2,7 +2,7 @@
   "name": "chefii-rules-tests",
   "private": true,
   "scripts": {
-    "test": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-chefii \"vitest run\""
+    "test": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-chefii \"vitest run\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",

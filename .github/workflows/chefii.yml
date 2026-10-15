@@ -54,7 +54,7 @@ jobs:
           node-version: 22
       - run: npm ci
         working-directory: chefii/rules-tests
-      - run: npx firebase emulators:exec --config ../firebase.json --only firestore --project demo-chefii "npx vitest run"
+      - run: npx firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-chefii "npx vitest run"
         working-directory: chefii/rules-tests
 
   android-build:

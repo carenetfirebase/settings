@@ -27,7 +27,7 @@ flutter run --dart-define=CHEFII_BACKEND=firebase --dart-define=CHEFII_EMULATORS
 ```bash
 flutter analyze && flutter test                    # domain, allergen red-team, flows, full-app widget smoke
 (cd functions && npm ci && npm run build && npm test)      # backend + allergen red-team tests
-(cd rules-tests && npm ci && npm test)            # 13 Firestore rules tests (emulator, needs Java)
+(cd rules-tests && npm ci && npm test)            # Firestore + Storage rules tests (emulators, needs Java)
 dart run tool/export_shared_data.dart --check      # client/server catalogue & allergen parity
 ```
 

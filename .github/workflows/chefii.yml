@@ -90,6 +90,15 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      # Pre-install the NDK Flutter's Gradle plugin asks for, with retries:
+      # a truncated download inside Gradle fails the whole build.
+      - name: Install Android NDK
+        run: |
+          for i in 1 2 3; do
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" > /dev/null && exit 0
+            echo "NDK install attempt $i failed; retrying"; sleep $((i * 15))
+          done
+          exit 1
       - run: flutter build apk --debug
       - run: flutter build appbundle --release
       - uses: actions/upload-artifact@v4

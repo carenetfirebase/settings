@@ -56,6 +56,11 @@ jobs:
         working-directory: chefii/rules-tests
       - run: npx firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-chefii "npx vitest run"
         working-directory: chefii/rules-tests
+      - run: npm ci
+        working-directory: chefii/functions
+      - name: Callable integration tests (emulators)
+        run: npm run test:integration
+        working-directory: chefii/functions
 
   android-build:
     runs-on: ubuntu-latest

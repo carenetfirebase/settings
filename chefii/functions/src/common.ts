@@ -5,12 +5,14 @@ import { logger } from 'firebase-functions';
 import { AiRouter, UsageEvent } from './ai/router';
 import { GeminiProvider } from './ai/gemini';
 import { OpenAiProvider } from './ai/openai';
-import { AiTask } from './ai/provider';
+import { AiProvider, AiTask } from './ai/provider';
 import { DAILY_LIMITS, GEMINI_API_KEY, GEMINI_MODEL, GEMINI_VISION_MODEL, OPENAI_API_KEY, OPENAI_ENABLED, OPENAI_MODEL } from './config';
 import { DietaryProfile, mergeProfiles } from './safety/allergens';
 
 if (!getApps().length) initializeApp();
 export const db = getFirestore();
+// Optional fields are left undefined in validated AI output; store them as absent.
+db.settings({ ignoreUndefinedProperties: true });
 export { FieldValue, Timestamp };
 
 export function requireAuth(req: CallableRequest<unknown>): string {
@@ -66,7 +68,17 @@ function usageLogger(uid: string) {
   };
 }
 
+/**
+ * Integration tests (src/*.int.test.ts) swap in a deterministic provider.
+ * Only honoured under the emulator suite, never in a deployed function.
+ */
+export const testHooks: { provider?: AiProvider } = {};
+const testHooksAllowed = () => process.env.CHEFII_INTEGRATION_TEST === '1' && !!process.env.FIRESTORE_EMULATOR_HOST;
+
 export function makeRouter(uid: string, allowOptional: boolean): AiRouter {
+  if (testHooks.provider && testHooksAllowed()) {
+    return new AiRouter({ primary: testHooks.provider, allowOptional: false, onUsage: usageLogger(uid) });
+  }
   const primary = new GeminiProvider(GEMINI_API_KEY.value(), GEMINI_MODEL.value(), GEMINI_VISION_MODEL.value());
   const optional = OPENAI_ENABLED.value() && OPENAI_API_KEY.value() ? new OpenAiProvider(OPENAI_API_KEY.value(), OPENAI_MODEL.value()) : undefined;
   return new AiRouter({ primary, optional, allowOptional, onUsage: usageLogger(uid) });
@@ -94,6 +106,6 @@ export function fmtQty(q: { amount?: number; unit?: string } | undefined): strin
 export function mapProviderError(e: unknown): never {
   if (e instanceof HttpsError) throw e;
   const retryable = (e as { retryable?: boolean }).retryable;
-  logger.error('AI failure', { message: (e as Error).message });
+  logger.error('AI failure', { error: (e as Error).message });
   throw new HttpsError(retryable === false ? 'failed-precondition' : 'unavailable', 'The kitchen assistant is unavailable right now. Please try again shortly.');
 }

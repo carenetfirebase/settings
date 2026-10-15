@@ -111,7 +111,7 @@ export const processReceipt = onCall(opts, async (req) => {
     });
     return { status: 'needsReview' };
   } catch (e) {
-    logger.error('processReceipt failed', { hid, receiptId, message: (e as Error).message });
+    logger.error('processReceipt failed', { hid, receiptId, error: (e as Error).message });
     if (e instanceof HttpsError && e.code === 'resource-exhausted') return await fail('rate_limited', e.message);
     return await fail('unavailable', 'We couldn\'t read this receipt just now. Nothing was added — please try again.');
   }

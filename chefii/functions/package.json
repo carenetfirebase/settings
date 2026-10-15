@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "serve": "npm run build && firebase emulators:start --only functions,firestore,auth,storage",
-    "deploy": "firebase deploy --only functions"
+    "deploy": "firebase deploy --only functions",
+    "test:integration": "npx --prefix ../rules-tests firebase emulators:exec --config ../firebase.json --only firestore,auth,storage --project demo-chefii \"npx vitest run --config vitest.int.config.ts\""
   },
   "dependencies": {
     "@google/genai": "^2.30.0",

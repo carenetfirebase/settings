@@ -56,3 +56,40 @@ jobs:
         working-directory: chefii/rules-tests
       - run: npx firebase emulators:exec --config ../firebase.json --only firestore --project demo-chefii "npx vitest run"
         working-directory: chefii/rules-tests
+
+  android-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build apk --debug
+      - run: flutter build appbundle --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chefii-android
+          path: |
+            chefii/build/app/outputs/flutter-apk/app-debug.apk
+            chefii/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 14
+
+  ios-build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign
+      - run: flutter build ios --simulator --debug

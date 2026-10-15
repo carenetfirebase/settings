@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -386,6 +387,37 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
     }
   }
 
+  Future<void> _join() async {
+    final c = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Invite code'),
+        content: TextField(controller: c, autofocus: true, textCapitalization: TextCapitalization.characters, decoration: const InputDecoration(hintText: 'e.g. 7KQ2M9XA')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: const Text('Join')),
+        ],
+      ),
+    );
+    if (code == null || code.isEmpty || !mounted) return;
+    if (ref.read(appConfigProvider).isDemo) {
+      showMessage(context, 'Joining another household needs the online version of Chefii.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await FirebaseFunctions.instanceFor(region: 'northamerica-northeast1').httpsCallable('acceptHouseholdInvite').call<Map<String, dynamic>>({'code': code});
+      final uid = ref.read(uidProvider)!;
+      await ref.read(profileRepoProvider).updateProfileFields(uid, {'onboardingStep': 4});
+      if (mounted) context.go('/onboarding/dietary');
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted) showMessage(context, e.message ?? 'That code didn\'t work.', error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return OnboardingFrame(
@@ -426,6 +458,8 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
         TextField(controller: _name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Household name (optional)', hintText: 'e.g. The Laurier kitchen')),
         const SizedBox(height: Space.m),
         Text('You can invite others to share the kitchen later. Each person\'s health and journal stay private to them.', style: context.text.bodySmall),
+        const SizedBox(height: Space.s),
+        TextButton.icon(icon: const Icon(Icons.vpn_key_outlined), label: const Text('Join a household with an invite code'), onPressed: _join),
       ],
     );
   }

@@ -1,0 +1,566 @@
+{
+  "allergens": [
+    {
+      "key": "peanut",
+      "label": "Peanuts",
+      "terms": [
+        "peanut",
+        "groundnut",
+        "arachis",
+        "satay"
+      ],
+      "exclusions": []
+    },
+    {
+      "key": "tree_nut",
+      "label": "Tree nuts",
+      "terms": [
+        "almond",
+        "cashew",
+        "walnut",
+        "pecan",
+        "pistachio",
+        "hazelnut",
+        "filbert",
+        "macadamia",
+        "brazil nut",
+        "pine nut",
+        "pignoli",
+        "praline",
+        "marzipan",
+        "gianduja",
+        "nutella",
+        "frangipane"
+      ],
+      "exclusions": []
+    },
+    {
+      "key": "sesame",
+      "label": "Sesame",
+      "terms": [
+        "sesame",
+        "tahini",
+        "benne",
+        "gomasio",
+        "halva",
+        "halvah",
+        "za'atar",
+        "zaatar"
+      ],
+      "exclusions": []
+    },
+    {
+      "key": "milk",
+      "label": "Milk",
+      "terms": [
+        "milk",
+        "butter",
+        "cream",
+        "cheese",
+        "yogurt",
+        "yoghurt",
+        "whey",
+        "casein",
+        "ghee",
+        "parmesan",
+        "parmigiano",
+        "mozzarella",
+        "ricotta",
+        "feta",
+        "burrata",
+        "creme fraiche",
+        "crème fraîche",
+        "kefir",
+        "labneh",
+        "paneer",
+        "buttermilk",
+        "mascarpone",
+        "halloumi",
+        "brie",
+        "cheddar",
+        "gruyere",
+        "gruyère",
+        "pecorino",
+        "goat cheese",
+        "skyr",
+        "custard",
+        "gelato",
+        "ice cream",
+        "lactose"
+      ],
+      "exclusions": [
+        "coconut milk",
+        "coconut cream",
+        "almond milk",
+        "oat milk",
+        "soy milk",
+        "soya milk",
+        "rice milk",
+        "cashew milk",
+        "peanut butter",
+        "cocoa butter",
+        "nut butter",
+        "almond butter",
+        "butternut",
+        "apple butter",
+        "shea butter",
+        "cream of tartar",
+        "dairy-free",
+        "vegan butter",
+        "vegan cheese",
+        "butter bean",
+        "butter lettuce"
+      ]
+    },
+    {
+      "key": "egg",
+      "label": "Eggs",
+      "terms": [
+        "egg",
+        "eggs",
+        "mayonnaise",
+        "mayo",
+        "meringue",
+        "aioli",
+        "albumen",
+        "hollandaise",
+        "custard"
+      ],
+      "exclusions": [
+        "eggplant",
+        "egg-free",
+        "vegan mayo"
+      ]
+    },
+    {
+      "key": "fish",
+      "label": "Fish",
+      "terms": [
+        "fish",
+        "salmon",
+        "tuna",
+        "cod",
+        "halibut",
+        "trout",
+        "sardine",
+        "anchovy",
+        "anchovies",
+        "mackerel",
+        "haddock",
+        "tilapia",
+        "sea bass",
+        "snapper",
+        "char",
+        "pollock",
+        "sole",
+        "worcestershire",
+        "bonito",
+        "dashi",
+        "caesar dressing"
+      ],
+      "exclusions": [
+        "swiss chard",
+        "charred",
+        "char-grilled"
+      ]
+    },
+    {
+      "key": "shellfish",
+      "label": "Crustaceans & molluscs",
+      "terms": [
+        "shrimp",
+        "prawn",
+        "crab",
+        "lobster",
+        "crayfish",
+        "langoustine",
+        "scallop",
+        "clam",
+        "mussel",
+        "oyster",
+        "squid",
+        "calamari",
+        "octopus",
+        "shellfish",
+        "oyster sauce"
+      ],
+      "exclusions": [
+        "oyster mushroom"
+      ]
+    },
+    {
+      "key": "soy",
+      "label": "Soy",
+      "terms": [
+        "soy",
+        "soya",
+        "tofu",
+        "edamame",
+        "miso",
+        "tempeh",
+        "tamari",
+        "shoyu"
+      ],
+      "exclusions": []
+    },
+    {
+      "key": "wheat",
+      "label": "Wheat & triticale",
+      "terms": [
+        "wheat",
+        "flour",
+        "bread",
+        "pasta",
+        "spaghetti",
+        "linguine",
+        "penne",
+        "fettuccine",
+        "noodle",
+        "couscous",
+        "bulgur",
+        "semolina",
+        "farro",
+        "spelt",
+        "seitan",
+        "panko",
+        "breadcrumb",
+        "tortilla",
+        "soy sauce",
+        "triticale",
+        "pita",
+        "naan",
+        "baguette",
+        "croissant",
+        "brioche",
+        "orzo",
+        "gnocchi",
+        "udon",
+        "ramen"
+      ],
+      "exclusions": [
+        "almond flour",
+        "rice flour",
+        "coconut flour",
+        "chickpea flour",
+        "oat flour",
+        "corn tortilla",
+        "rice noodle",
+        "gluten-free",
+        "buckwheat",
+        "tamari",
+        "cassava flour",
+        "corn flour",
+        "cornflour"
+      ]
+    },
+    {
+      "key": "mustard",
+      "label": "Mustard",
+      "terms": [
+        "mustard",
+        "dijon"
+      ],
+      "exclusions": []
+    },
+    {
+      "key": "sulphites",
+      "label": "Sulphites",
+      "terms": [
+        "sulphite",
+        "sulfite",
+        "wine",
+        "dried apricot",
+        "dried fruit"
+      ],
+      "exclusions": []
+    },
+    {
+      "key": "gluten",
+      "label": "Gluten (wheat, barley, rye, oats)",
+      "terms": [
+        "wheat",
+        "flour",
+        "bread",
+        "pasta",
+        "spaghetti",
+        "noodle",
+        "couscous",
+        "bulgur",
+        "semolina",
+        "farro",
+        "spelt",
+        "seitan",
+        "panko",
+        "breadcrumb",
+        "barley",
+        "rye",
+        "malt",
+        "triticale",
+        "oat",
+        "beer",
+        "soy sauce",
+        "orzo",
+        "gnocchi",
+        "udon",
+        "ramen",
+        "pita",
+        "naan",
+        "tortilla"
+      ],
+      "exclusions": [
+        "gluten-free",
+        "buckwheat",
+        "rice flour",
+        "almond flour",
+        "coconut flour",
+        "chickpea flour",
+        "corn tortilla",
+        "rice noodle",
+        "tamari",
+        "cassava flour",
+        "corn flour",
+        "cornflour"
+      ]
+    }
+  ],
+  "intolerances": {
+    "lactose": "milk",
+    "gluten": "gluten",
+    "egg": "egg",
+    "soy": "soy"
+  },
+  "restrictions": [
+    {
+      "key": "vegetarian",
+      "label": "Vegetarian",
+      "excludedAllergens": [
+        "fish",
+        "shellfish"
+      ],
+      "excludedTerms": [
+        "beef",
+        "steak",
+        "pork",
+        "bacon",
+        "ham",
+        "prosciutto",
+        "pancetta",
+        "chorizo",
+        "salami",
+        "sausage",
+        "chicken",
+        "turkey",
+        "duck",
+        "lamb",
+        "veal",
+        "venison",
+        "gelatin",
+        "gelatine",
+        "lard",
+        "mince",
+        "meatball",
+        "pepperoni",
+        "guanciale",
+        "bone broth",
+        "chicken stock",
+        "beef stock",
+        "chicken broth",
+        "beef broth"
+      ],
+      "exclusions": [
+        "plant-based",
+        "vegetable stock",
+        "vegetable broth",
+        "mushroom bacon",
+        "vegan sausage"
+      ]
+    },
+    {
+      "key": "vegan",
+      "label": "Vegan",
+      "excludedAllergens": [
+        "fish",
+        "shellfish",
+        "milk",
+        "egg"
+      ],
+      "excludedTerms": [
+        "beef",
+        "steak",
+        "pork",
+        "bacon",
+        "ham",
+        "prosciutto",
+        "pancetta",
+        "chorizo",
+        "salami",
+        "sausage",
+        "chicken",
+        "turkey",
+        "duck",
+        "lamb",
+        "veal",
+        "venison",
+        "gelatin",
+        "gelatine",
+        "lard",
+        "mince",
+        "meatball",
+        "pepperoni",
+        "guanciale",
+        "bone broth",
+        "chicken stock",
+        "beef stock",
+        "chicken broth",
+        "beef broth",
+        "honey"
+      ],
+      "exclusions": [
+        "plant-based",
+        "vegetable stock",
+        "vegetable broth",
+        "mushroom bacon",
+        "vegan sausage"
+      ]
+    },
+    {
+      "key": "pescatarian",
+      "label": "Pescatarian",
+      "excludedAllergens": [],
+      "excludedTerms": [
+        "beef",
+        "steak",
+        "pork",
+        "bacon",
+        "ham",
+        "prosciutto",
+        "pancetta",
+        "chorizo",
+        "salami",
+        "sausage",
+        "chicken",
+        "turkey",
+        "duck",
+        "lamb",
+        "veal",
+        "venison",
+        "gelatin",
+        "gelatine",
+        "lard",
+        "mince",
+        "meatball",
+        "pepperoni",
+        "guanciale",
+        "bone broth",
+        "chicken stock",
+        "beef stock",
+        "chicken broth",
+        "beef broth"
+      ],
+      "exclusions": [
+        "plant-based",
+        "vegetable stock",
+        "vegetable broth",
+        "mushroom bacon",
+        "vegan sausage"
+      ]
+    },
+    {
+      "key": "halal",
+      "label": "Halal",
+      "excludedAllergens": [],
+      "excludedTerms": [
+        "pork",
+        "bacon",
+        "ham",
+        "prosciutto",
+        "pancetta",
+        "lard",
+        "gelatin",
+        "gelatine",
+        "wine",
+        "beer",
+        "rum",
+        "brandy",
+        "chorizo",
+        "salami",
+        "pepperoni",
+        "guanciale"
+      ],
+      "exclusions": []
+    },
+    {
+      "key": "kosher_style",
+      "label": "Kosher-style",
+      "excludedAllergens": [
+        "shellfish"
+      ],
+      "excludedTerms": [
+        "pork",
+        "bacon",
+        "ham",
+        "prosciutto",
+        "pancetta",
+        "lard",
+        "chorizo",
+        "guanciale"
+      ],
+      "exclusions": []
+    },
+    {
+      "key": "no_pork",
+      "label": "No pork",
+      "excludedAllergens": [],
+      "excludedTerms": [
+        "pork",
+        "bacon",
+        "ham",
+        "prosciutto",
+        "pancetta",
+        "lard",
+        "chorizo",
+        "guanciale",
+        "salami",
+        "pepperoni"
+      ],
+      "exclusions": []
+    },
+    {
+      "key": "no_alcohol",
+      "label": "No alcohol",
+      "excludedAllergens": [],
+      "excludedTerms": [
+        "wine",
+        "beer",
+        "rum",
+        "brandy",
+        "vodka",
+        "sake",
+        "mirin",
+        "sherry",
+        "bourbon",
+        "liqueur",
+        "cognac"
+      ],
+      "exclusions": []
+    },
+    {
+      "key": "gluten_free",
+      "label": "Gluten-free",
+      "excludedAllergens": [
+        "gluten"
+      ],
+      "excludedTerms": [],
+      "exclusions": []
+    },
+    {
+      "key": "dairy_free",
+      "label": "Dairy-free",
+      "excludedAllergens": [
+        "milk"
+      ],
+      "excludedTerms": [],
+      "exclusions": []
+    }
+  ]
+}

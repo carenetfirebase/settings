@@ -16,6 +16,7 @@ import '../../domain/models/nutrition.dart';
 import '../../domain/models/profile.dart';
 import '../../domain/models/recipe.dart';
 import '../../domain/units/units.dart';
+import '../shared/ai_consent.dart';
 import '../shared/photo_picker.dart';
 import '../shared/recipe_logic.dart';
 import '../today/today_screens.dart';
@@ -294,6 +295,8 @@ class _QuickMealEntryScreenState extends ConsumerState<QuickMealEntryScreen> {
 
   Future<void> _estimateNow() async {
     if (_text.text.trim().isEmpty && _photo == null) return;
+    if (!await ensureAiConsent(context, ref, feature: 'estimating meals')) return;
+    if (!mounted) return;
     setState(() => _busy = true);
     try {
       final e = await ref.read(aiGatewayProvider).estimateMeal(description: _text.text.trim(), photo: _photo);

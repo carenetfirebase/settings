@@ -13,6 +13,7 @@ import '../../domain/models/codec.dart';
 import '../../domain/models/inventory.dart';
 import '../../domain/models/nutrition.dart';
 import '../../domain/units/units.dart';
+import '../shared/ai_consent.dart';
 import '../shared/photo_picker.dart';
 import 'kitchen_sheets.dart';
 
@@ -585,6 +586,8 @@ class _FridgeScanScreenState extends ConsumerState<FridgeScanScreen> {
   final _opId = AppActions.newOpId('scan');
 
   Future<void> _capture(bool camera) async {
+    if (!await ensureAiConsent(context, ref, feature: 'scanning your shelves')) return;
+    if (!mounted) return;
     setState(() {
       _busy = true;
       _denied = false;

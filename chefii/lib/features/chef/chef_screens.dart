@@ -13,6 +13,7 @@ import '../../domain/nutrition/nutrition_calculator.dart';
 import '../../domain/recipes/recipe_availability.dart';
 import '../../domain/recipes/substitutions.dart';
 import '../../domain/safety/allergen_guard.dart';
+import '../shared/ai_consent.dart';
 import '../shared/recipe_logic.dart';
 
 // ---------------------------------------------------------------- chat state
@@ -77,6 +78,8 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen> {
   }
 
   Future<void> _send(String text) async {
+    if (text.trim().isEmpty) return;
+    if (!await ensureAiConsent(context, ref, feature: 'your AI chef')) return;
     _input.clear();
     await ref.read(chefChatProvider.notifier).send(text);
     await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -211,7 +214,8 @@ class _ChefPreferencesScreenState extends ConsumerState<ChefPreferencesScreen> {
       header: const EditorialPageHeader(eyebrow: 'Chef', title: 'Tonight, I\'d like…'),
       primaryAction: PrimaryActionButton(
         label: 'Show me recipes',
-        onPressed: () {
+        onPressed: () async {
+          if (!await ensureAiConsent(context, ref, feature: 'your AI chef')) return;
           final hid = ref.read(householdIdProvider);
           if (hid == null) return;
           ref.read(chefRequestProvider.notifier).set(ChefRequest(
@@ -225,7 +229,7 @@ class _ChefPreferencesScreenState extends ConsumerState<ChefPreferencesScreen> {
                 nutritionFocus: _focus,
                 exclusions: _exclusions.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
               ));
-          context.push('/chef/results');
+          if (context.mounted) context.push('/chef/results');
         },
       ),
       children: [

@@ -1,0 +1,24 @@
+rules_version = '2';
+
+// Receipt photos are private to the household that captured them.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isMember(hid) {
+      return request.auth != null
+        && request.auth.uid in firestore.get(/databases/(default)/documents/households/$(hid)).data.memberUids;
+    }
+
+    match /households/{hid}/receipts/{receiptId}/{page} {
+      allow read: if isMember(hid);
+      allow create: if isMember(hid)
+        && request.resource.size < 12 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)')
+        && page.matches('page_[0-4]');
+      allow update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

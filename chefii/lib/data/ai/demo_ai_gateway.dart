@@ -207,7 +207,7 @@ class DemoAiGateway implements AiGateway {
       );
     }
     final matcher = ProductMatcher(catalog.map((e) => e.product));
-    final m = matcher.best(description, minScore: 0.5);
+    final m = matcher.best(description, minScore: 0.65);
     if (m != null) {
       final ref = nutrientReferences[m.product.id]!;
       final grams = m.product.bridge.gramsPerPiece ?? 100;

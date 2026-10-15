@@ -6,3 +6,6 @@ analyzer:
     - android/**
     - ios/**
     - web/**
+    - functions/**
+    - rules-tests/**
+    - '**/node_modules/**'

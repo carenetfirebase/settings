@@ -13,6 +13,7 @@ import '../../domain/models/inventory.dart';
 import '../../domain/models/receipt.dart';
 import '../../domain/units/units.dart';
 import '../kitchen/kitchen_sheets.dart';
+import '../shared/ai_consent.dart';
 import '../shared/photo_picker.dart';
 
 /// Pages captured but not yet submitted (screens 12–13).
@@ -159,6 +160,8 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> {
   }
 
   Future<void> _analyze({bool allowDuplicate = false}) async {
+    if (!await ensureAiConsent(context, ref, feature: 'reading receipts')) return;
+    if (!mounted) return;
     setState(() {
       _busy = true;
       _error = null;

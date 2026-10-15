@@ -2,7 +2,7 @@
 
 ## One-time setup
 
-- [ ] Create Firebase projects (dev, prod); choose `northamerica-northeast1` for Firestore and the Storage bucket.
+- [ ] Create **new, separate** Firebase projects for Chefii (ids must start with `chefii`, e.g. `chefii-dev`, `chefii-prod`). Never reuse, rename or deploy to the Referai project. Put the prod id in `.firebaserc`; `tool/guard_firebase_project.sh` blocks deploys to any other project. Choose `northamerica-northeast1` for Firestore and the Storage bucket.
 - [ ] `dart pub global activate flutterfire_cli && flutterfire configure` → replaces `lib/firebase_options.dart`.
 - [ ] Enable Auth providers: Apple (Services ID, key, return URL), Google (OAuth clients; pass the web client id via `--dart-define=CHEFII_GOOGLE_SERVER_CLIENT_ID`), Email/Password.
 - [ ] App Check: register Play Integrity (Android) and App Attest/DeviceCheck (iOS); enforce for Firestore, Storage and Functions.

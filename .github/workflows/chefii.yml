@@ -31,6 +31,13 @@ jobs:
       - run: flutter analyze
       - run: flutter test
       - run: dart run tool/export_shared_data.dart --check
+      - name: Deploy guard blocks non-Chefii projects
+        run: |
+          for p in referai Referai-prod some-other-app ""; do
+            if GCLOUD_PROJECT="$p" bash tool/guard_firebase_project.sh; then echo "guard allowed '$p'"; exit 1; fi
+          done
+          GCLOUD_PROJECT=chefii-prod bash tool/guard_firebase_project.sh
+          grep -q guard_firebase_project.sh firebase.json
 
   functions:
     runs-on: ubuntu-latest

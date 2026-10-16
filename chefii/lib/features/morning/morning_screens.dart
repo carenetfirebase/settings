@@ -99,15 +99,11 @@ class _MorningSetupScreenState extends ConsumerState<MorningSetupScreen> {
         const SizedBox(height: Space.xs),
         Wrap(spacing: Space.xs, children: [
           for (var d = 1; d <= 7; d++)
-            Semantics(
-              label: _dayNames[d - 1],
+            FilterChip(
+              label: Text(_days[d - 1], semanticsLabel: _dayNames[d - 1]),
               selected: r.weekdays.contains(d),
-              child: FilterChip(
-                label: ExcludeSemantics(child: Text(_days[d - 1])),
-                selected: r.weekdays.contains(d),
-                showCheckmark: false,
-                onSelected: (v) => set(r.copyWith(weekdays: v ? ([...r.weekdays, d]..sort()) : (r.weekdays.where((x) => x != d).toList()))),
-              ),
+              showCheckmark: false,
+              onSelected: (v) => set(r.copyWith(weekdays: v ? ([...r.weekdays, d]..sort()) : (r.weekdays.where((x) => x != d).toList()))),
             ),
         ]),
         const SizedBox(height: Space.l),
@@ -121,7 +117,7 @@ class _MorningSetupScreenState extends ConsumerState<MorningSetupScreen> {
         }),
         const SizedBox(height: Space.s),
         Text('Buffer before leaving: ${r.bufferMinutes} min', style: context.text.bodyMedium),
-        Slider(value: r.bufferMinutes.toDouble(), max: 30, divisions: 6, label: '${r.bufferMinutes} min', onChanged: (v) => set(r.copyWith(bufferMinutes: v.round()))),
+        Semantics(label: 'Buffer before leaving', child: Slider(value: r.bufferMinutes.toDouble(), max: 30, divisions: 6, label: '${r.bufferMinutes} min', onChanged: (v) => set(r.copyWith(bufferMinutes: v.round())))),
         Text(
           invalid ? 'Your departure time needs to be after your wake time plus the buffer.' : 'That leaves ${r.availableMinutes} minutes for getting ready and breakfast.',
           style: context.text.bodySmall?.copyWith(color: invalid ? context.palette.error : null),

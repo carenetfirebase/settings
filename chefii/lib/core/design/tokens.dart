@@ -6,9 +6,16 @@ abstract final class ChefiiColors {
   static const ivory = Color(0xFFFFFDF9);
   static const sage = Color(0xFFD6DDC6);
   static const forest = Color(0xFF344439);
+  /// Brand champagne: logo, icon, splash and large decorative use only.
   static const champagne = Color(0xFFB69B72);
+
+  /// Antique gold: the in-app accent for text and icons (≥4.5:1 on every
+  /// light surface; champagne is only 2.4:1).
+  static const champagneDeep = Color(0xFF7A6240);
   static const ink = Color(0xFF252922);
-  static const muted = Color(0xFF74796F);
+
+  /// Secondary text. ≥4.5:1 (WCAG AA) on porcelain, ivory and all soft fills.
+  static const muted = Color(0xFF5C6158);
 
   // Derived neutrals.
   static const hairline = Color(0xFFE6E1D6);

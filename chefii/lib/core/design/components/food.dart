@@ -55,7 +55,13 @@ class FoodArtwork extends StatelessWidget {
         child: SizedBox(
           height: height,
           width: double.infinity,
-          child: CustomPaint(painter: _StillLifePainter(palettes[key]!, seed: (label ?? key).hashCode)),
+          child: Theme.of(context).brightness == Brightness.dark
+              // Evening light: dim the cream backgrounds so they don't glare in dark mode.
+              ? ColorFiltered(
+                  colorFilter: const ColorFilter.mode(Color(0xFFC6C2B8), BlendMode.modulate),
+                  child: CustomPaint(painter: _StillLifePainter(palettes[key]!, seed: (label ?? key).hashCode)),
+                )
+              : CustomPaint(painter: _StillLifePainter(palettes[key]!, seed: (label ?? key).hashCode)),
         ),
       ),
     );

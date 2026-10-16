@@ -328,7 +328,7 @@ class AccessibilityScreen extends ConsumerWidget {
       header: const EditorialPageHeader(eyebrow: 'Settings', title: 'Accessibility & language'),
       children: [
         Text('Text size', style: context.text.titleMedium),
-        Slider(
+        Semantics(label: 'Text size', child: Slider(
           value: s.textScale,
           min: 0.9,
           max: 1.6,
@@ -336,7 +336,7 @@ class AccessibilityScreen extends ConsumerWidget {
           label: '${(s.textScale * 100).round()}%',
           semanticFormatterCallback: (v) => '${(v * 100).round()} percent',
           onChanged: (v) => save(s.copyWith(textScale: v)),
-        ),
+        )),
         Text('Preview: Simmer gently until the lentils collapse.', style: context.text.bodyLarge),
         Text('Chefii also follows your device\'s text size.', style: context.text.bodySmall),
         const SizedBox(height: Space.m),

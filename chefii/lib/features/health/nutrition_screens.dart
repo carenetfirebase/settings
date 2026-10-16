@@ -247,7 +247,7 @@ class _HairSkinNailsScreenState extends ConsumerState<HairSkinNailsScreen> {
         TextField(controller: _text, maxLines: 2, decoration: const InputDecoration(hintText: 'What have you noticed?')),
         const SizedBox(height: Space.xs),
         Text('How much is it bothering you? ($_severity of 5)', style: context.text.bodySmall),
-        Slider(value: _severity.toDouble(), min: 1, max: 5, divisions: 4, label: '$_severity', onChanged: (v) => setState(() => _severity = v.round())),
+        Semantics(label: 'How much it bothers you, 1 to 5', child: Slider(value: _severity.toDouble(), min: 1, max: 5, divisions: 4, label: '$_severity', onChanged: (v) => setState(() => _severity = v.round()))),
         SecondaryActionButton(
           label: 'Save note',
           onPressed: () async {

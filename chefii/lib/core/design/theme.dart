@@ -74,7 +74,7 @@ class ChefiiPalette extends ThemeExtension<ChefiiPalette> {
     ink: ChefiiColors.ink,
     muted: ChefiiColors.muted,
     hairline: ChefiiColors.hairline,
-    accent: ChefiiColors.champagne,
+    accent: ChefiiColors.champagneDeep,
     accentSoft: ChefiiColors.champagneSoft,
     success: ChefiiColors.success,
     successSoft: ChefiiColors.successSoft,

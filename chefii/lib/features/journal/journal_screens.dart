@@ -515,14 +515,14 @@ class _EatingRemindersScreenState extends ConsumerState<EatingRemindersScreen> {
           ),
         const SectionHeader('Quiet hours'),
         Text('No reminders between ${two(s.quietHoursStart)}:00 and ${two(s.quietHoursEnd)}:00.', style: context.text.bodyMedium),
-        RangeSlider(
+        Semantics(label: 'Quiet hours', child: RangeSlider(
           values: RangeValues(s.quietHoursEnd.toDouble(), s.quietHoursStart.toDouble()),
           min: 0,
           max: 23,
           divisions: 23,
           labels: RangeLabels('Wake ${two(s.quietHoursEnd)}:00', 'Sleep ${two(s.quietHoursStart)}:00'),
           onChanged: (v) => setState(() => _s = s.copyWith(quietHoursEnd: v.start.round(), quietHoursStart: v.end.round())),
-        ),
+        )),
         Text('Snooze any reminder from the notification itself, or just ignore it — Chefii never repeats.', style: context.text.bodySmall),
       ],
     );

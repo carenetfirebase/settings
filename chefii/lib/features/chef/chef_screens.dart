@@ -238,7 +238,7 @@ class _ChefPreferencesScreenState extends ConsumerState<ChefPreferencesScreen> {
           for (final m in MealType.values) ChoiceChip(label: Text(m.label), selected: _meal == m, onSelected: (_) => setState(() => _meal = m)),
         ]),
         const SectionHeader('Time available'),
-        Slider(
+        Semantics(label: 'Time available in minutes', child: Slider(
           value: _minutes.toDouble(),
           min: 10,
           max: 90,
@@ -246,7 +246,7 @@ class _ChefPreferencesScreenState extends ConsumerState<ChefPreferencesScreen> {
           label: formatMinutes(_minutes),
           semanticFormatterCallback: (v) => formatMinutes(v.round()),
           onChanged: (v) => setState(() => _minutes = v.round()),
-        ),
+        )),
         Text('Up to ${formatMinutes(_minutes)}', style: context.text.bodySmall),
         const SectionHeader('Portions'),
         Row(children: [
@@ -475,8 +475,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
             ],
             const SectionHeader('Ingredients'),
             Row(children: [
-              Text('Servings', style: context.text.bodyMedium),
-              const Spacer(),
+              Expanded(child: Text('Servings', style: context.text.bodyMedium)),
               IconButton(tooltip: 'Fewer servings', onPressed: servings > 1 ? () => setState(() => _servings = servings - 1) : null, icon: const Icon(Icons.remove_circle_outline)),
               Text('$servings', style: context.text.titleLarge),
               IconButton(tooltip: 'More servings', onPressed: servings < 16 ? () => setState(() => _servings = servings + 1) : null, icon: const Icon(Icons.add_circle_outline)),
@@ -485,9 +484,8 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
               _IngredientRow(ingredient: i, check: checkByName[i.name]),
             if (availability.missing.isNotEmpty) ...[
               const SizedBox(height: Space.s),
-              Row(children: [
-                Expanded(
-                  child: SecondaryActionButton(
+              _ButtonPair(
+                first: SecondaryActionButton(
                     icon: Icons.add_shopping_cart,
                     label: 'Add ${availability.missing.length} to list',
                     onPressed: () async {
@@ -505,10 +503,8 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
                       if (context.mounted) showMessage(context, 'Added to your shopping list');
                     },
                   ),
-                ),
-                const SizedBox(width: Space.xs),
-                Expanded(child: SecondaryActionButton(icon: Icons.swap_horiz, label: 'Substitutions', onPressed: () => showSubstitutionsSheet(context, base))),
-              ]),
+                second: SecondaryActionButton(icon: Icons.swap_horiz, label: 'Substitutions', onPressed: () => showSubstitutionsSheet(context, base)),
+              ),
             ],
             if (wellness?.showNutritionOnRecipes ?? true) ...[
               const SectionHeader('Nutrition'),
@@ -557,6 +553,21 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
   }
 }
 
+/// Two buttons side by side, stacked when the user's text size is large.
+class _ButtonPair extends StatelessWidget {
+  const _ButtonPair({required this.first, required this.second});
+  final Widget first;
+  final Widget second;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [first, const SizedBox(height: Space.xs), second]);
+    }
+    return Row(children: [Expanded(child: first), const SizedBox(width: Space.xs), Expanded(child: second)]);
+  }
+}
+
 class _IngredientRow extends StatelessWidget {
   const _IngredientRow({required this.ingredient, this.check});
   final RecipeIngredient ingredient;
@@ -579,8 +590,12 @@ class _IngredientRow extends StatelessWidget {
         child: Row(children: [
           Icon(icon, size: 18, color: color),
           const SizedBox(width: Space.s),
-          Expanded(child: Text(ingredient.display + (ingredient.optional ? ' (optional)' : ''), style: context.text.bodyLarge)),
-          if (label.isNotEmpty && check?.availability != IngredientAvailability.available) Text(label, style: context.text.bodySmall),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(ingredient.display + (ingredient.optional ? ' (optional)' : ''), style: context.text.bodyLarge),
+              if (label.isNotEmpty && check?.availability != IngredientAvailability.available) Text(label, style: context.text.bodySmall),
+            ]),
+          ),
         ]),
       ),
     );

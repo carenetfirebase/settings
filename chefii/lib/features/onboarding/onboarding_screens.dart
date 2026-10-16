@@ -675,14 +675,14 @@ class _CulinaryPreferencesScreenState extends ConsumerState<CulinaryPreferencesS
         onChanged: (s) => s.isEmpty ? null : set(c.copyWith(confidence: CookingConfidence.values.byName(s.first))),
       ),
       const SectionHeader('Spice'),
-      Slider(
+      Semantics(label: 'Spice level', child: Slider(
         value: c.spiceLevel.toDouble(),
         max: 4,
         divisions: 4,
         label: spice[c.spiceLevel],
         semanticFormatterCallback: (v) => spice[v.round()],
         onChanged: (v) => set(c.copyWith(spiceLevel: v.round())),
-      ),
+      )),
       Text('Spice: ${spice[c.spiceLevel]}', style: context.text.bodySmall),
       const SectionHeader('Weeknight time'),
       ChoiceChipGroup(

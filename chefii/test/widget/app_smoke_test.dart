@@ -11,12 +11,13 @@ import 'package:chefii/data/repositories/receipt_repository.dart';
 import 'package:chefii/data/store/memory_doc_store.dart';
 import 'package:chefii/domain/models/profile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<(ProviderContainer, MemoryDocStore)> pumpApp(WidgetTester tester, {double textScale = 1}) async {
+Future<(ProviderContainer, MemoryDocStore)> pumpApp(WidgetTester tester, {double textScale = 1, Brightness brightness = Brightness.light}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   final store = MemoryDocStore();
@@ -38,8 +39,10 @@ Future<(ProviderContainer, MemoryDocStore)> pumpApp(WidgetTester tester, {double
   tester.view.physicalSize = const Size(1170, 2532);
   tester.view.devicePixelRatio = 3;
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
+  tester.platformDispatcher.platformBrightnessTestValue = brightness;
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+  addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
   await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const ChefiiApp()));
   await tester.pump(const Duration(milliseconds: 100));
   return (container, store);
@@ -55,6 +58,24 @@ Future<void> settle(WidgetTester tester, [int frames = 8]) async {
   for (var i = 0; i < frames; i++) {
     await tester.pump(const Duration(milliseconds: 120));
   }
+}
+
+/// Signs a demo user in and onboards through the repositories (the UI flow
+/// is covered by the first test), with an example kitchen.
+Future<GoRouter> pumpSignedIn(WidgetTester tester, {double textScale = 1, Brightness brightness = Brightness.light}) async {
+  final (container, _) = await pumpApp(tester, textScale: textScale, brightness: brightness);
+  await settle(tester);
+  final auth = container.read(authServiceProvider) as DemoAuthService;
+  final user = await auth.signInDemo('Alexandra');
+  await settle(tester);
+  await container.read(profileRepoProvider).ensureProfile(uid: user.uid, displayName: 'Alexandra');
+  await container.read(householdRepoProvider).createHousehold(
+      uid: user.uid, ownerName: 'Alexandra', name: 'Home', type: HouseholdType.family, portions: 4);
+  await container.read(profileRepoProvider).updateProfileFields(user.uid, {'onboardingComplete': true});
+  await settle(tester, 10);
+  await container.read(actionsProvider).seedExampleKitchen();
+  await settle(tester, 10);
+  return container.read(routerProvider);
 }
 
 void main() {
@@ -152,20 +173,7 @@ void main() {
   });
 
   testWidgets('key screens survive 160% text size without overflow', (tester) async {
-    final (container, _) = await pumpApp(tester, textScale: 1.6);
-    await settle(tester);
-    // Sign in and onboard through the repositories (UI covered above).
-    final auth = container.read(authServiceProvider) as DemoAuthService;
-    final user = await auth.signInDemo('Alexandra');
-    await settle(tester);
-    await container.read(profileRepoProvider).ensureProfile(uid: user.uid, displayName: 'Alexandra');
-    await container.read(householdRepoProvider).createHousehold(
-        uid: user.uid, ownerName: 'Alexandra', name: 'Home', type: HouseholdType.family, portions: 4);
-    await container.read(profileRepoProvider).updateProfileFields(user.uid, {'onboardingComplete': true});
-    await settle(tester, 10);
-    await container.read(actionsProvider).seedExampleKitchen();
-    await settle(tester, 10);
-    final router = container.read(routerProvider);
+    final router = await pumpSignedIn(tester, textScale: 1.6);
     for (final r in [
       '/today', '/kitchen', '/kitchen/freshness', '/kitchen/reconcile', '/kitchen/add', '/discover', '/journal',
       '/you', '/recipe/red-lentil-dal', '/plan', '/chef', '/receipt/capture', '/morning/setup', '/you/privacy',
@@ -173,6 +181,47 @@ void main() {
       router.go(r);
       await settle(tester, 4);
       expect(tester.takeException(), isNull, reason: 'route $r overflowed or threw at 160% text');
+    }
+    router.go('/today');
+    await settle(tester, 2);
+  });
+
+  const a11yRoutes = [
+    '/today', '/kitchen', '/kitchen/freshness', '/kitchen/reconcile', '/kitchen/add', '/kitchen/shopping', '/discover',
+    '/journal', '/journal/add', '/you', '/you/dietary', '/you/privacy', '/you/accessibility', '/recipe/red-lentil-dal',
+    '/plan', '/chef', '/receipt/capture', '/morning/setup', '/you/nutrition', '/you/glucose',
+  ];
+
+  for (final brightness in Brightness.values) {
+    testWidgets('accessibility guidelines hold in ${brightness.name} mode', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final router = await pumpSignedIn(tester, brightness: brightness);
+      for (final r in a11yRoutes) {
+        router.go(r);
+        await settle(tester, 4);
+        await expectLater(tester, meetsGuideline(androidTapTargetGuideline), reason: '$r: Android 48dp tap targets');
+        await expectLater(tester, meetsGuideline(iOSTapTargetGuideline), reason: '$r: iOS 44pt tap targets');
+        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline), reason: '$r: every tap target has a label');
+        await expectLater(tester, meetsGuideline(textContrastGuideline), reason: '$r: WCAG text contrast');
+      }
+      router.go('/today');
+      await settle(tester, 2);
+      semantics.dispose();
+    });
+  }
+
+  testWidgets('key screens survive 200% text size without overflow', (tester) async {
+    final router = await pumpSignedIn(tester, textScale: 2.0);
+    for (final r in a11yRoutes) {
+      router.go(r);
+      await settle(tester, 4);
+      final e = tester.takeException();
+      if (e != null) {
+        for (final ro in tester.allRenderObjects.whereType<RenderFlex>()) {
+          if (ro.toStringShort().contains('OVERFLOWING')) debugPrint('OVERFLOW_DETAIL ${ro.debugCreator}');
+        }
+      }
+      expect(e, isNull, reason: 'route $r overflowed or threw at 200% text');
     }
     router.go('/today');
     await settle(tester, 2);

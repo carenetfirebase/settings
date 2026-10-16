@@ -364,9 +364,9 @@ class _ShoppingListScreenState extends ConsumerState<ShoppingListScreen> {
           decoration: InputDecoration(hintText: 'Add an item', suffixIcon: IconButton(tooltip: 'Add', onPressed: _addItem, icon: const Icon(Icons.add))),
         ),
         const SizedBox(height: Space.s),
-        Row(children: [
+        // Wraps onto two lines at large text sizes instead of overflowing.
+        Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center, children: [
           TextButton.icon(onPressed: () => context.push('/plan'), icon: const Icon(Icons.calendar_month_outlined), label: const Text('From meal plan')),
-          const Spacer(),
           if (checked.isNotEmpty) TextButton(onPressed: () => ref.read(planningRepoProvider).clearChecked(ref.read(householdIdProvider)!, checked), child: const Text('Clear checked')),
         ]),
         if (items.isEmpty) const EmptyState(icon: Icons.shopping_bag_outlined, title: 'Your list is empty', message: 'Plan a few meals and Chefii will add exactly what\'s missing.'),

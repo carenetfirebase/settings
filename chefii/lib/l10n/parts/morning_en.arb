@@ -1,0 +1,176 @@
+{
+  "morningStepWake": "Wake",
+  "morningStepGetReady": "Get ready",
+  "morningStepMake": "Make {recipe}",
+  "@morningStepMake": {
+    "placeholders": {
+      "recipe": {
+        "type": "String"
+      }
+    }
+  },
+  "morningStepEat": "Eat",
+  "morningStepTidy": "Tidy up",
+  "morningStepLeave": "Leave",
+  "morningEyebrow": "Mornings",
+  "morningSetupTitle": "A calmer morning",
+  "morningSetupSubtitle": "Tell us when you wake and when you leave. We'll plan the bit in between.",
+  "morningOnTheseDays": "On these days",
+  "morningWakeUp": "Wake up",
+  "morningOutTheDoorBy": "Out the door by",
+  "morningBufferValue": "Buffer before leaving: {minutes} min",
+  "@morningBufferValue": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "morningBuffer": "Buffer before leaving",
+  "morningMinutesShort": "{minutes} min",
+  "@morningMinutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "morningInvalidTimes": "Your departure time needs to be after your wake time plus the buffer.",
+  "morningTimeLeft": "{minutes, plural, other{That leaves {minutes} minutes for getting ready and breakfast.}}",
+  "@morningTimeLeft": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "morningBreakfastStyle": "Breakfast style",
+  "morningStyleQuick": "Quick & simple",
+  "morningStyleCooked": "Something warm",
+  "morningStyleNoCook": "No cooking",
+  "morningStyleGrabAndGo": "Grab and go",
+  "morningNotificationsOff": "Notifications are off for Chefii. Turn them on in Settings to use alarms.",
+  "morningAlarmNotificationBody": "Your morning plan is ready.",
+  "morningPreviewNotificationTitle": "Tomorrow's breakfast",
+  "morningPreviewNotificationBody": "Take a look at tomorrow morning's plan.",
+  "morningAlarmAt": "Alarm at {time}",
+  "@morningAlarmAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "morningPreviewAt": "Evening preview at {time}",
+  "@morningPreviewAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "morningAlarmTitle": "Alarm & reminders",
+  "morningSaveSchedule": "Save schedule",
+  "morningWakeWithChefii": "Wake me with Chefii",
+  "morningWakeWithChefiiSubtitle": "An alarm at {time} that opens your morning plan",
+  "@morningWakeWithChefiiSubtitle": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "morningEveningPreview": "Evening preview",
+  "morningEveningPreviewSubtitle": "A gentle note at {time} with tomorrow's breakfast",
+  "@morningEveningPreviewSubtitle": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "morningPlatformNote": "On Android, Chefii uses a system alarm clock entry. On iPhone, it uses a time-sensitive notification that respects Focus settings; it isn't a replacement for the Clock app, so keep a backup alarm for anything critical.",
+  "morningAllOff": "All morning notifications are off.",
+  "morningScheduled": "Scheduled: {items}",
+  "@morningScheduled": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "morningSeeTomorrow": "See tomorrow's plan",
+  "morningSetUpTitle": "Set up your mornings",
+  "morningSetUpMessage": "Chefii can plan breakfast around your wake and leave times.",
+  "morningSetUp": "Set up",
+  "morningPlannedTitle": "Your morning, planned",
+  "morningDayOffTitle": "Tomorrow is a day off",
+  "morningWindow": "{minutes} minutes from {wake} to {leave}",
+  "@morningWindow": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "wake": {
+        "type": "String"
+      },
+      "leave": {
+        "type": "String"
+      }
+    }
+  },
+  "morningEditRoutine": "Edit routine",
+  "morningSoundsGood": "Sounds good",
+  "morningBreakfastSet": "Breakfast is set for tomorrow.",
+  "morningNoBreakfastFits": "No breakfast fits",
+  "morningNoBreakfastFitsMessage": "Try a longer morning or a different breakfast style.",
+  "morningMissing": "Missing: {items}",
+  "@morningMissing": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "morningTimeline": "Timeline",
+  "morningOrChoose": "Or choose",
+  "morningItIs": "It is {time}",
+  "@morningItIs": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "morningImUp": "I'm up",
+  "morningSnooze": "Snooze 9 minutes",
+  "morningSnoozeTitle": "Time to get up",
+  "morningSnoozeBody": "Snooze is over. Your morning plan is waiting.",
+  "morningThisMorning": "This morning",
+  "morningTimeToGo": "Time to go",
+  "morningUntilYouLeave": "{minutes} min until you leave",
+  "@morningUntilYouLeave": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "morningRunningBehind": "Running behind? See faster options",
+  "morningRunningLate": "I'm running late",
+  "morningNoStress": "No stress",
+  "morningMinutesLeft": "{minutes, plural, other{{minutes} minutes left}}",
+  "@morningMinutesLeft": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "morningWhatStillWorks": "Here's what still works.",
+  "morningSkipBreakfast": "Skip breakfast today",
+  "morningSkipped": "Skipped. Nothing in your kitchen was changed.",
+  "morningNoCookNone": "Nothing no-cook fits your kitchen right now.",
+  "morningTenMinutes": "Ten minutes or less",
+  "morningNothingElse": "Nothing else fits in ten minutes."
+}

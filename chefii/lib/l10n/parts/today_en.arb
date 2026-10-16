@@ -1,0 +1,171 @@
+{
+  "todayNotifications": "Notifications",
+  "todayUnreadNotifications": "{count, plural, =1{1 unread notification} other{{count} unread notifications}}",
+  "@todayUnreadNotifications": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todayGreeting": "{greeting}.",
+  "@todayGreeting": {
+    "placeholders": {
+      "greeting": {
+        "type": "String"
+      }
+    }
+  },
+  "todayGreetingName": "{greeting},\n{name}.",
+  "@todayGreetingName": {
+    "placeholders": {
+      "greeting": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "todayScanReceipt": "Scan a receipt",
+  "todayStartCooking": "Start cooking",
+  "todayReceiptReady": "Your receipt is ready to review",
+  "todayReceiptReading": "Reading your receipt…",
+  "todayPlannedFor": "{mealType, select, other{Planned for {meal}}}",
+  "@todayPlannedFor": {
+    "placeholders": {
+      "mealType": {
+        "type": "String"
+      },
+      "meal": {
+        "type": "String"
+      }
+    }
+  },
+  "todayFor": "{mealType, select, other{For {meal}}}",
+  "@todayFor": {
+    "placeholders": {
+      "mealType": {
+        "type": "String"
+      },
+      "meal": {
+        "type": "String"
+      }
+    }
+  },
+  "todayMinutesChip": "{minutes} min",
+  "@todayMinutesChip": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "todayUsesExpiring": "Uses ingredients that need eating soon.",
+  "todayNothingFits": "Nothing fits in {minutes} minutes",
+  "@todayNothingFits": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "todayNothingFitsMessage": "Try more time, or ask your chef for an idea.",
+  "todayAskChef": "Ask the chef",
+  "todayDailyBriefing": "Daily briefing",
+  "todayYourKitchen": "Your kitchen",
+  "todayTileItems": "items",
+  "todayTileUseSoon": "use soon",
+  "todayTileToVerify": "to verify",
+  "todayScan": "Scan",
+  "todayIUsed": "I used…",
+  "todayReminders": "Reminders",
+  "todayUseSoon": "Use {name} soon",
+  "@todayUseSoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "todayEstimatedFromPurchase": "Estimated from purchase date",
+  "todayRecordedDate": "Recorded date {date}",
+  "@todayRecordedDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "todayRunningLow": "Running low on {name}",
+  "@todayRunningLow": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "todayAddedToShopping": "{name} added to your shopping list",
+  "@todayAddedToShopping": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "todayAddToList": "Add to list",
+  "todayAvailability": "{count, plural, =0{Everything on hand} =1{1 ingredient to buy} other{{count} ingredients to buy}}",
+  "@todayAvailability": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todayPrepStart": "Start {recipe} ({duration})",
+  "@todayPrepStart": {
+    "placeholders": {
+      "recipe": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "todayYourDayInFood": "Your day in food",
+  "todayPlanMeals": "Plan today's meals",
+  "todayMeals": "Meals",
+  "todayNothingPlanned": "Nothing planned yet — Today will suggest something at each meal.",
+  "todayPortions": "{count, plural, =1{1 portion} other{{count} portions}}",
+  "@todayPortions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todayPreparation": "Preparation",
+  "todayAround": "around {time}",
+  "@todayAround": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "todayKitchenAlerts": "Kitchen alerts",
+  "todayNothingUrgent": "Nothing urgent.",
+  "todayUseTodayIfYouCan": "{quantity} · use today if you can",
+  "@todayUseTodayIfYouCan": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "todayTomorrowMorning": "Tomorrow morning",
+  "todayMarkAllRead": "Mark all read",
+  "todayAllCaughtUp": "You're all caught up",
+  "todayAllCaughtUpMessage": "Receipt results, sharing invitations and reviews will appear here."
+}

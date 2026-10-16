@@ -1,0 +1,265 @@
+{
+  "accountEyebrow": "You",
+  "accountTitleFallback": "Your account",
+  "accountEditName": "Edit name",
+  "accountYourName": "Your name",
+  "accountSectionPreferences": "Preferences",
+  "accountDietarySafety": "Dietary safety",
+  "accountNoAllergies": "No allergies recorded",
+  "accountNotProvidedYet": "Not provided yet",
+  "accountCulinaryPreferences": "Culinary preferences",
+  "accountWellnessPreferences": "Wellness preferences",
+  "accountMorningRoutine": "Morning routine",
+  "accountMealReminders": "Meal reminders",
+  "accountSectionHealth": "Health & nutrition",
+  "accountNutrition": "Nutrition",
+  "accountNutritionInsights": "Nutrition insights",
+  "accountSmileAndFood": "Smile & Food",
+  "accountGlucoseJournal": "Glucose journal",
+  "accountOptional": "Optional",
+  "accountNutritionCircle": "My nutrition circle",
+  "accountSectionHousehold": "Household & account",
+  "accountHouseholdMembers": "Household members",
+  "accountPrivacyData": "Privacy & data",
+  "accountConnectedServices": "Connected services",
+  "accountMembership": "Membership",
+  "accountAccessibilityLanguage": "Accessibility & language",
+  "accountSecuritySessions": "Security & sessions",
+  "accountHelpSupport": "Help & support",
+  "accountLegalEvidence": "Legal & evidence",
+  "accountExportOrDelete": "Export or delete your data",
+  "accountProPortal": "Professional portal",
+  "accountSignOut": "Sign out",
+  "accountFooterDemo": "Chefii · Demo mode",
+  "accountFooterEarlyAccess": "Chefii · Early access",
+  "accountHousehold": "Household",
+  "accountUsualPortions": "{count, plural, other{{count} usual portions}}",
+  "@accountUsualPortions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "accountInviteSomeone": "Invite someone",
+  "accountInviteShareText": "Join our kitchen on Chefii with code {code} (valid for 7 days).",
+  "@accountInviteShareText": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "accountInviteShareSubject": "Join my Chefii kitchen",
+  "accountMemberYou": "{name} (you)",
+  "@accountMemberYou": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountMemberSubtitle": "{role} · since {date}",
+  "@accountMemberSubtitle": {
+    "placeholders": {
+      "role": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "accountRoleOwner": "Owner",
+  "accountRoleAdult": "Adult",
+  "accountRoleMember": "Member",
+  "accountRemoveMemberTitle": "Remove {name}?",
+  "@accountRemoveMemberTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountRemoveMemberMessage": "They'll lose access to the shared kitchen. Their private journal stays theirs.",
+  "accountOpenInvitations": "Open invitations",
+  "accountInviteCode": "Code {code}",
+  "@accountInviteCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "accountInviteValidity": "Valid for 7 days, single use",
+  "accountWhatMembersShare": "What members share",
+  "accountMembersShareBody": "Everyone shares the kitchen, shopping list, meal plan and saved recipes. Each person's journal, nutrition, glucose, Smile & Food log and professional reviews stay private. Allergies are shared with the household only so shared meals stay safe.",
+  "accountPrivacyEyebrow": "Privacy",
+  "accountPrivacyTitle": "Your data, your choice",
+  "accountPrivacySubtitle": "Chefii never sells your data or uses your health records for advertising.",
+  "accountAiProcessing": "AI processing",
+  "accountAiProcessingBody": "Send receipt and fridge photos, and chef requests, to our AI providers (Google Gemini; OpenAI if enabled below) through our secure servers. Providers may not train on your data under our agreements.",
+  "accountOptionalAiProvider": "Optional second AI provider",
+  "accountOptionalAiProviderBody": "Allow OpenAI for conversation and recipe writing. Off means Gemini only.",
+  "accountAnalytics": "Product analytics",
+  "accountAnalyticsBody": "Anonymous usage events (e.g. \"receipt imported\"). Never food names, health data or free text.",
+  "accountProfessionalSharing": "Professional sharing",
+  "accountConsentHistory": "Consent history",
+  "accountNoConsents": "No consents recorded.",
+  "accountConsentGranted": "{purpose} · granted",
+  "@accountConsentGranted": {
+    "placeholders": {
+      "purpose": {
+        "type": "String"
+      }
+    }
+  },
+  "accountConsentWithdrawn": "{purpose} · withdrawn",
+  "@accountConsentWithdrawn": {
+    "placeholders": {
+      "purpose": {
+        "type": "String"
+      }
+    }
+  },
+  "accountConsentVersion": "{date} · version {version}",
+  "@accountConsentVersion": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "accountDataResidency": "Data is stored in Canada (Google Cloud, Montréal region) where supported. See the Privacy Policy for details.",
+  "accountServicesEyebrow": "Services",
+  "accountNotifications": "Notifications",
+  "accountNotificationsBody": "For reminders, timers and your morning alarm",
+  "accountNotificationsOn": "Notifications are on",
+  "accountNotificationsOff": "Notifications are off — you can change this in system Settings.",
+  "accountCheck": "Check",
+  "accountKitchenAi": "Kitchen AI",
+  "accountKitchenAiDemo": "Demo mode — sample results, no AI provider connected",
+  "accountKitchenAiConnected": "Connected through Chefii's secure servers",
+  "accountHealthApps": "Apple Health / Health Connect",
+  "accountHealthAppsBody": "Coming later: read-only glucose import with clear provenance. Not available yet.",
+  "accountProfessionals": "Professionals",
+  "accountProfessionalsBody": "Manage who can see your records",
+  "accountBackendDemo": "Backend: local demo storage on this device",
+  "accountBackendFirebase": "Backend: Firebase",
+  "accountBackendEmulators": "Backend: Firebase (emulators)",
+  "accountEarlyAccess": "Early access",
+  "accountMembershipSubtitle": "Every Chefii feature is included while we're in early access.",
+  "accountMembershipName": "Chefii Membership",
+  "accountMembershipBody": "Paid plans aren't available yet. When they launch, you'll be told the price in advance and nothing will be charged without your confirmation through the App Store or Google Play.",
+  "accountIncludedNow": "Included now",
+  "accountFeatureScanning": "Receipt and fridge scanning",
+  "accountFeatureChef": "AI chef and guided cooking",
+  "accountFeaturePlanning": "Meal planning and smart shopping",
+  "accountFeatureJournal": "Nutrition journal and insights",
+  "accountFeatureCircle": "Sharing with your nutrition circle",
+  "accountBillingNote": "Receipts and billing history will appear here once memberships launch.",
+  "accountSettingsEyebrow": "Settings",
+  "accountTextSize": "Text size",
+  "accountTextScaleValue": "{percent}%",
+  "@accountTextScaleValue": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "accountTextScaleSemantic": "{percent} percent",
+  "@accountTextScaleSemantic": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "accountTextPreview": "Preview: Simmer gently until the lentils collapse.",
+  "accountDeviceTextSize": "Chefii also follows your device's text size.",
+  "accountReduceMotion": "Reduce motion",
+  "accountReduceMotionBody": "Fewer animations and transitions",
+  "accountReadStepsAloud": "Read cooking steps aloud",
+  "accountReadStepsAloudBody": "In guided cooking",
+  "accountLanguage": "Language",
+  "accountLanguageSystem": "Same as my device",
+  "accountDemoAccount": "Demo account",
+  "accountSignedIn": "Signed in",
+  "accountStoredOnDevice": "Stored only on this device",
+  "accountIdShort": "Account ID {id}…",
+  "@accountIdShort": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "accountResetPassword": "Reset password",
+  "accountResetPasswordSent": "Password reset email sent",
+  "accountSignOutAll": "Sign out of all devices",
+  "accountSignOutAllBody": "Ends every session, including this one",
+  "accountSignOutEverywhereTitle": "Sign out everywhere?",
+  "accountSignOutEverywhereMessage": "You'll need to sign in again on each device.",
+  "accountSignOutEverywhere": "Sign out everywhere",
+  "accountReauthNote": "Sensitive actions such as deleting your account or exporting health data ask you to confirm your identity again.",
+  "accountHelpEyebrow": "Help",
+  "accountHelpTitle": "How can we help?",
+  "accountSend": "Send",
+  "accountFeedbackThanks": "Thank you — we read every message.",
+  "accountFaqAccuracyQ": "How accurate is my kitchen?",
+  "accountFaqAccuracyA": "Items from receipts you reviewed are confirmed. Amounts after cooking are deducted from what you confirm. Anything estimated is labelled, and Chefii occasionally asks you to verify.",
+  "accountFaqUntrackedQ": "What if I use something without telling Chefii?",
+  "accountFaqUntrackedA": "Use the \"I used…\" button or tap − on an item. If counts drift, Quick check lets you fix several items in seconds.",
+  "accountFaqFreshnessQ": "Are freshness dates safe to rely on?",
+  "accountFaqFreshnessA": "No — they're estimates from typical storage times. Always follow the package date and your own judgement.",
+  "accountFaqMedicalQ": "Does Chefii give medical advice?",
+  "accountFaqMedicalA": "No. Nutrition features are education. For personal advice, share your records with a registered dietitian in My nutrition circle.",
+  "accountFaqHealthDataQ": "Who can see my health data?",
+  "accountFaqHealthDataA": "Only you, plus any professional you explicitly share with, for the time you choose. Household members never see your journal or health records.",
+  "accountWriteToUs": "Write to us",
+  "accountFeedback": "Feedback",
+  "accountReportProblem": "Report a problem",
+  "accountFeedbackHint": "Tell us what happened or what you'd love to see. Please don't include health details.",
+  "accountEmailSupport": "Email support",
+  "accountSupportEmailSubject": "Chefii support",
+  "accountLegalEyebrow": "Legal",
+  "accountLegalTitle": "Legal & disclosures",
+  "accountLegalTermsTitle": "Terms of Service (summary)",
+  "accountLegalTermsBody": "Chefii is provided for household kitchen organisation, cooking guidance and general nutrition education. You're responsible for food safety decisions in your home. Full terms will be published before public launch and require legal review.",
+  "accountLegalPrivacyTitle": "Privacy Policy (summary)",
+  "accountLegalPrivacyBody": "We collect what you enter or scan to run Chefii: kitchen items, receipts, recipes, meal records, and optional health information you choose to add. We process data in Canada where possible, use AI providers only with your consent and under data-processing agreements, never sell personal information, and let you export or delete your data at any time. Prepared to meet PIPEDA and applicable provincial health privacy laws; full policy subject to legal review.",
+  "accountLegalMedicalTitle": "Medical limitations",
+  "accountLegalMedicalBody": "Chefii does not diagnose, treat, cure or prevent any disease, and is not a medical device. Nutrition values are estimates. Glucose features are a personal journal and do not replace medical devices, alarms or your care team. Allergy screening relies on ingredient names and labels you check; it cannot guarantee a food is free of an allergen.",
+  "accountLegalFoodSafetyTitle": "Food safety",
+  "accountLegalFoodSafetyBody": "Freshness indicators are estimates based on typical storage times. Always follow package dates, safe storage temperatures and safe internal cooking temperatures.",
+  "accountLegalEvidenceTitle": "Evidence methodology",
+  "accountLegalEvidenceBody": "Nutrition statements come from national guidelines and authoritative references. Each shows its sources, evidence strength, limitations and review status. AI may rephrase approved statements but may not create new health claims.",
+  "accountLegalAiTitle": "AI disclosure",
+  "accountLegalAiBody": "Recipes marked \"Created by your AI chef\", receipt readings and photo suggestions are generated by AI and may contain mistakes. Illustrations are not photographs of your food.",
+  "accountEvidenceLibrary": "Evidence library",
+  "accountLicences": "Open-source licences",
+  "accountLicencesBody": "Including Cormorant Garamond and Inter (SIL Open Font License)",
+  "accountDataEyebrow": "Your data",
+  "accountDataTitle": "Export or delete",
+  "accountExport": "Export",
+  "accountExportBody": "A complete copy of your profile, kitchen, journal, health records, consents and sharing history as a JSON file.",
+  "accountPasswordConfirm": "Password (to confirm it's you)",
+  "accountExportMyData": "Export my data",
+  "accountExportShareSubject": "Your Chefii data",
+  "accountDeleteAccount": "Delete account",
+  "accountDeleteBody": "Permanently deletes your account, journal, health records and sharing grants. If you're the only member of your household, its kitchen is deleted too. Some records may be kept where the law requires (for example, purchase receipts for membership billing). This can't be undone.",
+  "accountDeleteConfirmWord": "DELETE",
+  "accountDeleteConfirmLabel": "Type {word} to confirm",
+  "@accountDeleteConfirmLabel": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "accountDeleteMyAccount": "Delete my account"
+}

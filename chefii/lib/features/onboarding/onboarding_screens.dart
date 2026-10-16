@@ -10,6 +10,8 @@ import '../../data/auth/auth_service.dart';
 import '../../domain/models/profile.dart';
 import '../../domain/recipes/curated_recipes.dart';
 import '../../domain/safety/allergen_guard.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 
 const termsVersion = '2026-10';
 
@@ -25,7 +27,7 @@ class OnboardingFrame extends StatelessWidget {
     required this.onPrimary,
     this.loading = false,
     this.onSkip,
-    this.skipLabel = 'Skip for now',
+    this.skipLabel,
   });
 
   final int step;
@@ -36,26 +38,28 @@ class OnboardingFrame extends StatelessWidget {
   final VoidCallback? onPrimary;
   final bool loading;
   final VoidCallback? onSkip;
-  final String skipLabel;
+  final String? skipLabel;
 
   static const total = 7;
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
+    final stepLabel = l.onboardingStepOf(step, total);
     return PremiumAppScaffold(
-      actions: [if (onSkip != null) TextButton(onPressed: onSkip, child: Text(skipLabel))],
+      actions: [if (onSkip != null) TextButton(onPressed: onSkip, child: Text(skipLabel ?? l.onboardingSkipForNow))],
       header: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Semantics(
-            label: 'Step $step of $total',
+            label: stepLabel,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(value: step / total, minHeight: 4),
             ),
           ),
           const SizedBox(height: Space.l),
-          EditorialPageHeader(eyebrow: 'Step $step of $total', title: title, subtitle: subtitle),
+          EditorialPageHeader(eyebrow: stepLabel, title: title, subtitle: subtitle),
         ],
       ),
       primaryAction: PrimaryActionButton(label: primaryLabel, onPressed: onPrimary, loading: loading),
@@ -72,6 +76,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final l = context.l10n;
     return Scaffold(
       body: SafeArea(
         child: LayoutBuilder(builder: (context, c) {
@@ -84,20 +89,20 @@ class WelcomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: Space.l),
-                    Text('CHEFII', style: context.text.labelSmall?.copyWith(color: p.accent, letterSpacing: 4)),
+                    Text('CHEFII', style: context.text.labelSmall?.copyWith(color: p.accent, letterSpacing: 4)), // l10n-ignore
                     const SizedBox(height: Space.l),
-                    const FoodArtwork(artKey: 'herb', height: 280, radius: Radii.xl, label: 'A beautifully set kitchen table'),
+                    FoodArtwork(artKey: 'herb', height: 280, radius: Radii.xl, label: l.onboardingWelcomeArtLabel),
                     const SizedBox(height: Space.xl),
-                    Semantics(header: true, child: Text('Your kitchen,\nbeautifully taken care of.', style: context.text.displayMedium)),
+                    Semantics(header: true, child: Text(l.onboardingWelcomeTitle, style: context.text.displayMedium)),
                     const SizedBox(height: Space.m),
                     Text(
-                      'Chefii knows what\'s in your kitchen, suggests what to make, guides you through it — and keeps everything in order.',
+                      l.onboardingWelcomeBody,
                       style: context.text.bodyLarge?.copyWith(color: p.muted),
                     ),
                     const SizedBox(height: Space.xxl),
-                    PrimaryActionButton(label: 'Get started', onPressed: () => context.go('/onboarding/meet')),
+                    PrimaryActionButton(label: l.onboardingGetStarted, onPressed: () => context.go('/onboarding/meet')),
                     const SizedBox(height: Space.s),
-                    SecondaryActionButton(label: 'I already have an account', onPressed: () => context.go('/onboarding/account?mode=signin')),
+                    SecondaryActionButton(label: l.onboardingHaveAccount, onPressed: () => context.go('/onboarding/account?mode=signin')),
                   ],
                 ),
               ),
@@ -133,20 +138,21 @@ class MeetChefScreen extends StatelessWidget {
             ],
           ),
         );
+    final l = context.l10n;
     return OnboardingFrame(
       step: 1,
-      title: 'Meet your chef',
-      subtitle: 'Three things Chefii does for you, every day.',
+      title: l.onboardingMeetTitle,
+      subtitle: l.onboardingMeetSubtitle,
       onSkip: () => context.go('/onboarding/account'),
-      skipLabel: 'Skip',
-      primaryLabel: 'Continue',
+      skipLabel: l.onboardingSkip,
+      primaryLabel: l.commonContinue,
       onPrimary: () => context.go('/onboarding/account'),
       children: [
-        benefit(Icons.kitchen_outlined, 'Knows your kitchen', 'Scan a receipt and your pantry, fridge and freezer stay up to date — with almost no typing.'),
-        benefit(Icons.restaurant_menu, 'Decides what to make', 'Recipes matched to what you have, how much time you have, and everyone\'s dietary needs.'),
-        benefit(Icons.self_improvement, 'Guides you calmly', 'Step-by-step cooking with timers, then one tap to update your kitchen.'),
-        const SectionHeader('A taste'),
-        LuxuryRecipeCard(recipe: sample, availabilityLabel: 'Example', compact: true),
+        benefit(Icons.kitchen_outlined, l.onboardingBenefitKitchenTitle, l.onboardingBenefitKitchenBody),
+        benefit(Icons.restaurant_menu, l.onboardingBenefitDecideTitle, l.onboardingBenefitDecideBody),
+        benefit(Icons.self_improvement, l.onboardingBenefitGuideTitle, l.onboardingBenefitGuideBody),
+        SectionHeader(l.onboardingTasteHeader),
+        LuxuryRecipeCard(recipe: sample, availabilityLabel: l.onboardingExample, compact: true),
       ],
     );
   }
@@ -182,19 +188,20 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
   Future<void> _run(Future<AppUser> Function() f) async {
     if (!_signIn && !_consent) {
-      setState(() => _error = 'Please accept the Terms and Privacy Policy to continue.');
+      setState(() => _error = context.l10n.onboardingConsentRequired);
       return;
     }
     setState(() {
       _busy = true;
       _error = null;
     });
+    final defaultName = context.l10n.onboardingDefaultName;
     try {
       final user = await f();
       final profiles = ref.read(profileRepoProvider);
       final profile = await profiles.ensureProfile(
         uid: user.uid,
-        displayName: user.displayName ?? (_name.text.trim().isEmpty ? 'Friend' : _name.text.trim()),
+        displayName: user.displayName ?? (_name.text.trim().isEmpty ? defaultName : _name.text.trim()),
         email: user.email,
       );
       if (!_signIn || profile.termsAcceptedVersion == null) {
@@ -219,11 +226,12 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final auth = ref.watch(authServiceProvider);
     final methods = auth.availableMethods;
     final isDemo = ref.watch(appConfigProvider).isDemo;
+    final l = context.l10n;
     return OnboardingFrame(
       step: 2,
-      title: _signIn ? 'Welcome back' : 'Create your account',
-      subtitle: _signIn ? 'Sign in to your kitchen.' : 'Your kitchen stays private to you and the people you invite.',
-      primaryLabel: _signIn ? 'Sign in' : 'Create account',
+      title: _signIn ? l.onboardingWelcomeBack : l.onboardingCreateTitle,
+      subtitle: _signIn ? l.onboardingSignInSubtitle : l.onboardingCreateSubtitle,
+      primaryLabel: _signIn ? l.onboardingSignIn : l.onboardingCreateAccount,
       loading: _busy,
       onPrimary: () {
         if (!(_form.currentState?.validate() ?? false)) return;
@@ -233,27 +241,27 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       },
       children: [
         if (isDemo) ...[
-          const DemoBanner(message: 'Demo mode: your account and data stay on this device only.'),
+          DemoBanner(message: l.onboardingDemoBanner),
           SecondaryActionButton(
             icon: Icons.play_circle_outline,
-            label: 'Continue with a demo account',
+            label: l.onboardingDemoAccount,
             onPressed: _busy
                 ? null
-                : () => _run(() => (auth as DemoAuthService).signInDemo(_name.text.trim().isEmpty ? 'Alex' : _name.text.trim())),
+                : () => _run(() => (auth as DemoAuthService).signInDemo(_name.text.trim().isEmpty ? 'Alex' : _name.text.trim())), // l10n-ignore: demo person name
           ),
           const SizedBox(height: Space.m),
         ],
         if (methods.contains(AuthMethod.apple)) ...[
-          SecondaryActionButton(icon: Icons.apple, label: 'Continue with Apple', onPressed: _busy ? null : () => _run(auth.signInWithApple)),
+          SecondaryActionButton(icon: Icons.apple, label: l.onboardingContinueApple, onPressed: _busy ? null : () => _run(auth.signInWithApple)),
           const SizedBox(height: Space.xs),
         ],
         if (methods.contains(AuthMethod.google)) ...[
-          SecondaryActionButton(icon: Icons.g_mobiledata, label: 'Continue with Google', onPressed: _busy ? null : () => _run(auth.signInWithGoogle)),
+          SecondaryActionButton(icon: Icons.g_mobiledata, label: l.onboardingContinueGoogle, onPressed: _busy ? null : () => _run(auth.signInWithGoogle)),
           const SizedBox(height: Space.m),
         ],
         Row(children: [
           const Expanded(child: Divider()),
-          Padding(padding: const EdgeInsets.symmetric(horizontal: Space.s), child: Text('or with email', style: context.text.bodySmall)),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: Space.s), child: Text(l.onboardingOrEmail, style: context.text.bodySmall)),
           const Expanded(child: Divider()),
         ]),
         const SizedBox(height: Space.m),
@@ -266,8 +274,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   controller: _name,
                   textCapitalization: TextCapitalization.words,
                   autofillHints: const [AutofillHints.givenName],
-                  decoration: const InputDecoration(labelText: 'Your first name'),
-                  validator: (v) => (v ?? '').trim().isEmpty ? 'Please tell us what to call you' : null,
+                  decoration: InputDecoration(labelText: l.onboardingFirstNameLabel),
+                  validator: (v) => (v ?? '').trim().isEmpty ? l.onboardingFirstNameError : null,
                 ),
                 const SizedBox(height: Space.s),
               ],
@@ -275,16 +283,16 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
                 autofillHints: const [AutofillHints.email],
-                decoration: const InputDecoration(labelText: 'Email'),
-                validator: (v) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch((v ?? '').trim()) ? null : 'Enter a valid email',
+                decoration: InputDecoration(labelText: l.onboardingEmailLabel),
+                validator: (v) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch((v ?? '').trim()) ? null : l.onboardingEmailError,
               ),
               const SizedBox(height: Space.s),
               TextFormField(
                 controller: _password,
                 obscureText: true,
                 autofillHints: [_signIn ? AutofillHints.password : AutofillHints.newPassword],
-                decoration: const InputDecoration(labelText: 'Password'),
-                validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+                decoration: InputDecoration(labelText: l.onboardingPasswordLabel),
+                validator: (v) => (v ?? '').length < 8 ? l.onboardingPasswordError : null,
               ),
             ]),
           ),
@@ -295,13 +303,13 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             child: TextButton(
               onPressed: () async {
                 if (_email.text.trim().isEmpty) {
-                  setState(() => _error = 'Enter your email first.');
+                  setState(() => _error = l.onboardingEnterEmailFirst);
                   return;
                 }
                 await auth.sendPasswordReset(_email.text);
-                if (context.mounted) showMessage(context, 'If that email has an account, a reset link is on its way.');
+                if (context.mounted) showMessage(context, l.onboardingResetSent);
               },
-              child: const Text('Forgot password?'),
+              child: Text(l.onboardingForgotPassword),
             ),
           ),
         if (!_signIn) ...[
@@ -311,11 +319,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             onChanged: (v) => setState(() => _consent = v ?? false),
             controlAffinity: ListTileControlAffinity.leading,
             contentPadding: EdgeInsets.zero,
-            title: Text('I agree to the Terms of Service and Privacy Policy', style: context.text.bodyMedium),
+            title: Text(l.onboardingConsentLabel, style: context.text.bodyMedium),
             subtitle: TextButton(
               style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
               onPressed: () => context.push('/you/legal'),
-              child: const Text('Read them'),
+              child: Text(l.onboardingReadThem),
             ),
           ),
         ],
@@ -334,7 +342,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               _signIn = !_signIn;
               _error = null;
             }),
-            child: Text(_signIn ? 'New here? Create an account' : 'Already have an account? Sign in'),
+            child: Text(_signIn ? l.onboardingSwitchToCreate : l.onboardingSwitchToSignIn),
           ),
         ),
       ],
@@ -370,7 +378,7 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
     setState(() => _busy = true);
     try {
       final repo = ref.read(householdRepoProvider);
-      final name = _name.text.trim().isEmpty ? '${profile.firstName}\'s kitchen' : _name.text.trim();
+      final name = _name.text.trim().isEmpty ? context.l10n.onboardingDefaultHouseholdName(profile.firstName) : _name.text.trim();
       if (profile.householdId == null) {
         await repo.createHousehold(uid: uid, ownerName: profile.displayName, name: name, type: _type, portions: _portions);
       } else {
@@ -389,20 +397,21 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
 
   Future<void> _join() async {
     final c = TextEditingController();
+    final l = context.l10n;
     final code = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Invite code'),
-        content: TextField(controller: c, autofocus: true, textCapitalization: TextCapitalization.characters, decoration: const InputDecoration(hintText: 'e.g. 7KQ2M9XA')),
+        title: Text(l.onboardingInviteCodeTitle),
+        content: TextField(controller: c, autofocus: true, textCapitalization: TextCapitalization.characters, decoration: InputDecoration(hintText: l.onboardingInviteCodeHint)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: const Text('Join')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.commonCancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: Text(l.onboardingJoin)),
         ],
       ),
     );
     if (code == null || code.isEmpty || !mounted) return;
     if (ref.read(appConfigProvider).isDemo) {
-      showMessage(context, 'Joining another household needs the online version of Chefii.');
+      showMessage(context, l.onboardingJoinNeedsOnline);
       return;
     }
     setState(() => _busy = true);
@@ -412,7 +421,7 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
       await ref.read(profileRepoProvider).updateProfileFields(uid, {'onboardingStep': 4});
       if (mounted) context.go('/onboarding/dietary');
     } on FirebaseFunctionsException catch (e) {
-      if (mounted) showMessage(context, e.message ?? 'That code didn\'t work.', error: true);
+      if (mounted) showMessage(context, e.message ?? l.onboardingJoinFailed, error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -420,11 +429,12 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return OnboardingFrame(
       step: 3,
-      title: 'Your household',
-      subtitle: 'So portions and planning fit the way you live.',
-      primaryLabel: 'Continue',
+      title: l.onboardingHouseholdTitle,
+      subtitle: l.onboardingHouseholdSubtitle,
+      primaryLabel: l.commonContinue,
       loading: _busy,
       onPrimary: _save,
       children: [
@@ -437,29 +447,29 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
                 _type = t;
                 _portions = switch (t) { HouseholdType.single => 1, HouseholdType.couple => 2, HouseholdType.family => 4 };
               }),
-              semanticLabel: '${t.label}${_type == t ? ', selected' : ''}',
+              semanticLabel: _type == t ? l.onboardingOptionSelected(context.labelOf(t)) : context.labelOf(t),
               child: Row(children: [
                 Icon(switch (t) { HouseholdType.single => Icons.person_outline, HouseholdType.couple => Icons.people_outline, HouseholdType.family => Icons.family_restroom }),
                 const SizedBox(width: Space.m),
-                Expanded(child: Text(t.label, style: context.text.titleMedium)),
+                Expanded(child: Text(context.labelOf(t), style: context.text.titleMedium)),
                 if (_type == t) Icon(Icons.check_circle, color: context.colors.primary),
               ]),
             ),
           ),
         const SizedBox(height: Space.l),
-        Text('Usual portions per meal', style: context.text.titleMedium),
+        Text(l.onboardingPortionsTitle, style: context.text.titleMedium),
         const SizedBox(height: Space.xs),
         Row(children: [
-          IconButton.filledTonal(tooltip: 'Fewer portions', onPressed: _portions > 1 ? () => setState(() => _portions--) : null, icon: const Icon(Icons.remove)),
-          SizedBox(width: 56, child: Text('$_portions', textAlign: TextAlign.center, style: context.text.headlineMedium)),
-          IconButton.filledTonal(tooltip: 'More portions', onPressed: _portions < 12 ? () => setState(() => _portions++) : null, icon: const Icon(Icons.add)),
+          IconButton.filledTonal(tooltip: l.onboardingFewerPortions, onPressed: _portions > 1 ? () => setState(() => _portions--) : null, icon: const Icon(Icons.remove)),
+          SizedBox(width: 56, child: Text('$_portions', textAlign: TextAlign.center, style: context.text.headlineMedium)), // l10n-ignore: number
+          IconButton.filledTonal(tooltip: l.onboardingMorePortions, onPressed: _portions < 12 ? () => setState(() => _portions++) : null, icon: const Icon(Icons.add)),
         ]),
         const SizedBox(height: Space.l),
-        TextField(controller: _name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Household name (optional)', hintText: 'e.g. The Laurier kitchen')),
+        TextField(controller: _name, textCapitalization: TextCapitalization.words, decoration: InputDecoration(labelText: l.onboardingHouseholdNameLabel, hintText: l.onboardingHouseholdNameHint)),
         const SizedBox(height: Space.m),
-        Text('You can invite others to share the kitchen later. Each person\'s health and journal stay private to them.', style: context.text.bodySmall),
+        Text(l.onboardingHouseholdPrivacy, style: context.text.bodySmall),
         const SizedBox(height: Space.s),
-        TextButton.icon(icon: const Icon(Icons.vpn_key_outlined), label: const Text('Join a household with an invite code'), onPressed: _join),
+        TextButton.icon(icon: const Icon(Icons.vpn_key_outlined), label: Text(l.onboardingJoinWithCode), onPressed: _join),
       ],
     );
   }
@@ -514,14 +524,15 @@ class _DietarySafetyScreenState extends ConsumerState<DietarySafetyScreen> {
     final p = _p ??= loaded;
     if (p == null) return const Scaffold(body: LoadingState());
     void set(DietaryProfile n) => setState(() => _p = n);
+    final l = context.l10n;
 
     final content = [
-      Text('Do you have any food allergies?', style: context.text.titleMedium),
+      Text(l.onboardingAllergyQuestion, style: context.text.titleMedium),
       const SizedBox(height: Space.xs),
       Wrap(spacing: Space.xs, runSpacing: Space.xs, children: [
         for (final s in [DisclosureStatus.provided, DisclosureStatus.noneKnown, DisclosureStatus.preferNotToSay])
           ChoiceChip(
-            label: Text(switch (s) { DisclosureStatus.provided => 'Yes', DisclosureStatus.noneKnown => 'None that I know of', _ => 'Prefer not to say' }),
+            label: Text(switch (s) { DisclosureStatus.provided => l.commonYes, DisclosureStatus.noneKnown => l.onboardingAllergyNoneKnown, _ => l.onboardingAllergyPreferNot }),
             selected: p.allergyStatus == s,
             onSelected: (_) => set(p.copyWith(allergyStatus: s, allergies: s == DisclosureStatus.provided ? p.allergies : const [])),
           ),
@@ -530,14 +541,14 @@ class _DietarySafetyScreenState extends ConsumerState<DietarySafetyScreen> {
         const SizedBox(height: Space.m),
         ChoiceChipGroup(
           options: _allergenKeys,
-          labelOf: (k) => AllergenGuard.byKey[k]!.label,
+          labelOf: context.allergenLabel,
           selected: p.allergies.toSet(),
           onChanged: (s) => set(p.copyWith(allergies: s.toList())),
         ),
         const SizedBox(height: Space.s),
         ToggleTile(
-          title: 'Warn me about cross-contact',
-          subtitle: 'Reminders about "may contain" labels and shared equipment',
+          title: l.onboardingCrossContactTitle,
+          subtitle: l.onboardingCrossContactSubtitle,
           value: p.avoidCrossContact,
           onChanged: (v) => set(p.copyWith(avoidCrossContact: v)),
         ),
@@ -545,23 +556,23 @@ class _DietarySafetyScreenState extends ConsumerState<DietarySafetyScreen> {
       if (p.allergyStatus == DisclosureStatus.preferNotToSay || p.allergyStatus == DisclosureStatus.notAsked)
         Padding(
           padding: const EdgeInsets.only(top: Space.s),
-          child: Text('We won\'t assume you have no allergies — recipes will remind you to check ingredients.', style: context.text.bodySmall),
+          child: Text(l.onboardingNoAllergyAssumption, style: context.text.bodySmall),
         ),
-      const SectionHeader('Intolerances'),
+      SectionHeader(l.onboardingIntolerances),
       ChoiceChipGroup(
         options: intoleranceLabels.keys.toList(),
-        labelOf: (k) => intoleranceLabels[k]!,
+        labelOf: context.intoleranceLabel,
         selected: p.intolerances.toSet(),
         onChanged: (s) => set(p.copyWith(intolerances: s.toList())),
       ),
-      const SectionHeader('Dietary pattern'),
+      SectionHeader(l.onboardingDietaryPattern),
       ChoiceChipGroup(
         options: restrictions.map((r) => r.key).toList(),
-        labelOf: (k) => AllergenGuard.restrictionByKey[k]!.label,
+        labelOf: context.restrictionLabel,
         selected: p.restrictions.toSet(),
         onChanged: (s) => set(p.copyWith(restrictions: s.toList())),
       ),
-      const SectionHeader('Foods you\'d rather avoid'),
+      SectionHeader(l.onboardingDislikes),
       Wrap(spacing: Space.xs, runSpacing: Space.xs, children: [
         for (final d in p.dislikes) InputChip(label: Text(d), onDeleted: () => set(p.copyWith(dislikes: [...p.dislikes]..remove(d)))),
       ]),
@@ -569,9 +580,9 @@ class _DietarySafetyScreenState extends ConsumerState<DietarySafetyScreen> {
       TextField(
         controller: _dislike,
         decoration: InputDecoration(
-          labelText: 'Add a food (e.g. cilantro)',
+          labelText: l.onboardingAddFoodLabel,
           suffixIcon: IconButton(
-            tooltip: 'Add',
+            tooltip: l.onboardingAdd,
             icon: const Icon(Icons.add),
             onPressed: () {
               final v = _dislike.text.trim();
@@ -593,8 +604,7 @@ class _DietarySafetyScreenState extends ConsumerState<DietarySafetyScreen> {
         child: Padding(
           padding: const EdgeInsets.all(Space.m),
           child: Text(
-            'Chefii screens every recipe against these, but it can\'t see inside packaged foods. Always check labels. '
-            'Allergies you list are shared with your household only to keep shared meals safe.',
+            l.onboardingDietaryNotice,
             style: context.text.bodySmall?.copyWith(color: context.palette.ink),
           ),
         ),
@@ -603,16 +613,16 @@ class _DietarySafetyScreenState extends ConsumerState<DietarySafetyScreen> {
 
     if (widget.editing) {
       return PremiumAppScaffold(
-        header: const EditorialPageHeader(title: 'Dietary safety', subtitle: 'Allergies, intolerances and preferences.'),
-        primaryAction: PrimaryActionButton(label: 'Save', onPressed: _save, loading: _busy),
+        header: EditorialPageHeader(title: l.onboardingDietaryTitle, subtitle: l.onboardingDietaryEditSubtitle),
+        primaryAction: PrimaryActionButton(label: l.commonSave, onPressed: _save, loading: _busy),
         children: content,
       );
     }
     return OnboardingFrame(
       step: 4,
-      title: 'Dietary safety',
-      subtitle: 'The most important thing we\'ll ask. You can change it any time.',
-      primaryLabel: 'Continue',
+      title: l.onboardingDietaryTitle,
+      subtitle: l.onboardingDietarySubtitle,
+      primaryLabel: l.commonContinue,
       loading: _busy,
       onPrimary: p.allergyStatus == DisclosureStatus.notAsked ? null : _save,
       children: content,
@@ -634,10 +644,51 @@ class _CulinaryPreferencesScreenState extends ConsumerState<CulinaryPreferencesS
   CulinaryPreferences? _c;
   bool _busy = false;
 
-  static const cuisines = ['Italian', 'French', 'Mediterranean', 'Middle Eastern', 'Indian', 'Japanese', 'Chinese', 'Thai', 'Korean', 'Mexican', 'Greek', 'Nordic', 'Canadian'];
-  static const foods = ['Salmon', 'Chicken', 'Pasta', 'Eggs', 'Tofu', 'Lentils', 'Vegetables', 'Salads', 'Soups', 'Rice bowls', 'Baking'];
-  static const equipment = ['Oven', 'Stovetop', 'Air fryer', 'Slow cooker', 'Instant Pot', 'Blender', 'Microwave', 'Grill'];
-  static const spice = ['None', 'Mild', 'Medium', 'Warm', 'Hot'];
+  // Stored values (saved to the profile in English); shown via _optionLabel.
+  static const cuisines = ['Italian', 'French', 'Mediterranean', 'Middle Eastern', 'Indian', 'Japanese', 'Chinese', 'Thai', 'Korean', 'Mexican', 'Greek', 'Nordic', 'Canadian']; // l10n-ignore: stored keys
+  static const foods = ['Salmon', 'Chicken', 'Pasta', 'Eggs', 'Tofu', 'Lentils', 'Vegetables', 'Salads', 'Soups', 'Rice bowls', 'Baking']; // l10n-ignore: stored keys
+  static const equipment = ['Oven', 'Stovetop', 'Air fryer', 'Slow cooker', 'Instant Pot', 'Blender', 'Microwave', 'Grill']; // l10n-ignore: stored keys
+
+  static List<String> spiceLabels(AppLocalizations l) =>
+      [l.onboardingSpiceNone, l.onboardingSpiceMild, l.onboardingSpiceMedium, l.onboardingSpiceWarm, l.onboardingSpiceHot];
+
+  /// Translated label for a stored cuisine / food / equipment value; values
+  /// not in the lists (older or custom data) are shown as stored.
+  static String _optionLabel(AppLocalizations l, String v) => switch (v) {
+        'Italian' => l.onboardingCuisineItalian,
+        'French' => l.onboardingCuisineFrench,
+        'Mediterranean' => l.onboardingCuisineMediterranean,
+        'Middle Eastern' => l.onboardingCuisineMiddleEastern,
+        'Indian' => l.onboardingCuisineIndian,
+        'Japanese' => l.onboardingCuisineJapanese,
+        'Chinese' => l.onboardingCuisineChinese,
+        'Thai' => l.onboardingCuisineThai,
+        'Korean' => l.onboardingCuisineKorean,
+        'Mexican' => l.onboardingCuisineMexican,
+        'Greek' => l.onboardingCuisineGreek,
+        'Nordic' => l.onboardingCuisineNordic,
+        'Canadian' => l.onboardingCuisineCanadian,
+        'Salmon' => l.onboardingFoodSalmon,
+        'Chicken' => l.onboardingFoodChicken,
+        'Pasta' => l.onboardingFoodPasta,
+        'Eggs' => l.onboardingFoodEggs,
+        'Tofu' => l.onboardingFoodTofu,
+        'Lentils' => l.onboardingFoodLentils,
+        'Vegetables' => l.onboardingFoodVegetables,
+        'Salads' => l.onboardingFoodSalads,
+        'Soups' => l.onboardingFoodSoups,
+        'Rice bowls' => l.onboardingFoodRiceBowls,
+        'Baking' => l.onboardingFoodBaking,
+        'Oven' => l.onboardingEquipmentOven,
+        'Stovetop' => l.onboardingEquipmentStovetop,
+        'Air fryer' => l.onboardingEquipmentAirFryer,
+        'Slow cooker' => l.onboardingEquipmentSlowCooker,
+        'Instant Pot' => l.onboardingEquipmentInstantPot,
+        'Blender' => l.onboardingEquipmentBlender,
+        'Microwave' => l.onboardingEquipmentMicrowave,
+        'Grill' => l.onboardingEquipmentGrill,
+        _ => v,
+      };
 
   Future<void> _save() async {
     final uid = ref.read(uidProvider);
@@ -660,22 +711,25 @@ class _CulinaryPreferencesScreenState extends ConsumerState<CulinaryPreferencesS
     final c = _c ??= profile?.culinary;
     if (c == null) return const Scaffold(body: LoadingState());
     void set(CulinaryPreferences n) => setState(() => _c = n);
+    final l = context.l10n;
+    final spice = spiceLabels(l);
+    String optionLabel(String v) => _optionLabel(l, v);
     final content = [
-      Text('Cuisines you love', style: context.text.titleMedium),
+      Text(l.onboardingCuisinesTitle, style: context.text.titleMedium),
       const SizedBox(height: Space.xs),
-      ChoiceChipGroup(options: cuisines, selected: c.cuisines.toSet(), onChanged: (s) => set(c.copyWith(cuisines: s.toList()))),
-      const SectionHeader('Favourite foods'),
-      ChoiceChipGroup(options: foods, selected: c.favouriteFoods.toSet(), onChanged: (s) => set(c.copyWith(favouriteFoods: s.toList()))),
-      const SectionHeader('Cooking confidence'),
+      ChoiceChipGroup(options: cuisines, labelOf: optionLabel, selected: c.cuisines.toSet(), onChanged: (s) => set(c.copyWith(cuisines: s.toList()))),
+      SectionHeader(l.onboardingFavouriteFoods),
+      ChoiceChipGroup(options: foods, labelOf: optionLabel, selected: c.favouriteFoods.toSet(), onChanged: (s) => set(c.copyWith(favouriteFoods: s.toList()))),
+      SectionHeader(l.onboardingCookingConfidence),
       ChoiceChipGroup(
         single: true,
         options: CookingConfidence.values.map((e) => e.name).toList(),
-        labelOf: (n) => CookingConfidence.values.byName(n).label,
+        labelOf: (n) => context.labelOf(CookingConfidence.values.byName(n)),
         selected: {c.confidence.name},
         onChanged: (s) => s.isEmpty ? null : set(c.copyWith(confidence: CookingConfidence.values.byName(s.first))),
       ),
-      const SectionHeader('Spice'),
-      Semantics(label: 'Spice level', child: Slider(
+      SectionHeader(l.onboardingSpice),
+      Semantics(label: l.onboardingSpiceLevel, child: Slider(
         value: c.spiceLevel.toDouble(),
         max: 4,
         divisions: 4,
@@ -683,30 +737,30 @@ class _CulinaryPreferencesScreenState extends ConsumerState<CulinaryPreferencesS
         semanticFormatterCallback: (v) => spice[v.round()],
         onChanged: (v) => set(c.copyWith(spiceLevel: v.round())),
       )),
-      Text('Spice: ${spice[c.spiceLevel]}', style: context.text.bodySmall),
-      const SectionHeader('Weeknight time'),
+      Text(l.onboardingSpiceValue(spice[c.spiceLevel]), style: context.text.bodySmall),
+      SectionHeader(l.onboardingWeeknightTime),
       ChoiceChipGroup(
         single: true,
         options: const ['15', '20', '30', '45', '60'],
-        labelOf: (m) => '$m min',
+        labelOf: (m) => formatMinutes(int.parse(m)),
         selected: {'${c.weeknightMinutes}'},
         onChanged: (s) => s.isEmpty ? null : set(c.copyWith(weeknightMinutes: int.parse(s.first))),
       ),
-      const SectionHeader('Your equipment'),
-      ChoiceChipGroup(options: equipment, selected: c.equipment.toSet(), onChanged: (s) => set(c.copyWith(equipment: s.toList()))),
+      SectionHeader(l.onboardingYourEquipment),
+      ChoiceChipGroup(options: equipment, labelOf: optionLabel, selected: c.equipment.toSet(), onChanged: (s) => set(c.copyWith(equipment: s.toList()))),
     ];
     if (widget.editing) {
       return PremiumAppScaffold(
-        header: const EditorialPageHeader(title: 'Culinary preferences'),
-        primaryAction: PrimaryActionButton(label: 'Save', onPressed: _save, loading: _busy),
+        header: EditorialPageHeader(title: l.onboardingCulinaryEditTitle),
+        primaryAction: PrimaryActionButton(label: l.commonSave, onPressed: _save, loading: _busy),
         children: content,
       );
     }
     return OnboardingFrame(
       step: 5,
-      title: 'What you love to eat',
-      subtitle: 'Pick as many or as few as you like.',
-      primaryLabel: 'Continue',
+      title: l.onboardingCulinaryTitle,
+      subtitle: l.onboardingCulinarySubtitle,
+      primaryLabel: l.commonContinue,
       loading: _busy,
       onPrimary: _save,
       onSkip: () => context.go('/onboarding/wellness'),
@@ -729,13 +783,16 @@ class _WellnessPreferencesScreenState extends ConsumerState<WellnessPreferencesS
   WellnessPreferences? _w;
   bool _busy = false;
 
-  static const interests = {
-    'balanced': 'Balanced meals',
-    'protein': 'More protein',
-    'variety': 'More variety',
-    'plants': 'More vegetables & plants',
-    'education': 'Learn about nutrition',
-  };
+  static const interests = ['balanced', 'protein', 'variety', 'plants', 'education'];
+
+  static String interestLabel(AppLocalizations l, String key) => switch (key) {
+        'balanced' => l.onboardingInterestBalanced,
+        'protein' => l.onboardingInterestProtein,
+        'variety' => l.onboardingInterestVariety,
+        'plants' => l.onboardingInterestPlants,
+        'education' => l.onboardingInterestEducation,
+        _ => key,
+      };
 
   Future<void> _save() async {
     final uid = ref.read(uidProvider);
@@ -757,52 +814,53 @@ class _WellnessPreferencesScreenState extends ConsumerState<WellnessPreferencesS
     final w = _w ??= ref.watch(wellnessProvider).value;
     if (w == null) return const Scaffold(body: LoadingState());
     void set(WellnessPreferences n) => setState(() => _w = n);
+    final l = context.l10n;
     final content = [
-      Text('Anything you\'d like help with?', style: context.text.titleMedium),
+      Text(l.onboardingWellnessQuestion, style: context.text.titleMedium),
       const SizedBox(height: Space.xs),
       ChoiceChipGroup(
-        options: interests.keys.toList(),
-        labelOf: (k) => interests[k]!,
+        options: interests,
+        labelOf: (k) => interestLabel(l, k),
         selected: w.interests.toSet(),
         onChanged: (s) => set(w.copyWith(interests: s.toList())),
       ),
       const SizedBox(height: Space.l),
       ToggleTile(
-        title: 'Show nutrition on recipes',
-        subtitle: 'Estimated protein, fibre and more',
+        title: l.onboardingShowNutritionTitle,
+        subtitle: l.onboardingShowNutritionSubtitle,
         value: w.showNutritionOnRecipes,
         onChanged: (v) => set(w.copyWith(showNutritionOnRecipes: v)),
       ),
       ToggleTile(
-        title: 'Track calories',
-        subtitle: 'Off by default. Chefii never sets targets for you.',
+        title: l.onboardingTrackCaloriesTitle,
+        subtitle: l.onboardingTrackCaloriesSubtitle,
         value: w.calorieTracking,
         onChanged: (v) => set(w.copyWith(calorieTracking: v)),
       ),
       ToggleTile(
-        title: 'Smile & Food',
-        subtitle: 'Education about sugar and acid exposure for your teeth',
+        title: l.onboardingSmileTitle,
+        subtitle: l.onboardingSmileSubtitle,
         value: w.smileAndFood,
         onChanged: (v) => set(w.copyWith(smileAndFood: v)),
       ),
       const SizedBox(height: Space.m),
       Text(
-        'Chefii offers food and nutrition education. It isn\'t medical advice and doesn\'t diagnose or treat any condition.',
+        l.onboardingWellnessDisclaimer,
         style: context.text.bodySmall,
       ),
     ];
     if (widget.editing) {
       return PremiumAppScaffold(
-        header: const EditorialPageHeader(title: 'Wellness preferences'),
-        primaryAction: PrimaryActionButton(label: 'Save', onPressed: _save, loading: _busy),
+        header: EditorialPageHeader(title: l.onboardingWellnessEditTitle),
+        primaryAction: PrimaryActionButton(label: l.commonSave, onPressed: _save, loading: _busy),
         children: content,
       );
     }
     return OnboardingFrame(
       step: 6,
-      title: 'Wellness, your way',
-      subtitle: 'Entirely optional — and never about guilt.',
-      primaryLabel: 'Continue',
+      title: l.onboardingWellnessTitle,
+      subtitle: l.onboardingWellnessSubtitle,
+      primaryLabel: l.commonContinue,
       loading: _busy,
       onPrimary: _save,
       onSkip: () => context.go('/onboarding/kitchen'),
@@ -849,7 +907,7 @@ class _BuildKitchenScreenState extends ConsumerState<BuildKitchenScreen> {
           padding: const EdgeInsets.only(bottom: Space.s),
           child: SoftCard(
             onTap: _busy ? null : () => _finish(key),
-            semanticLabel: '$title. $body',
+            semanticLabel: context.l10n.onboardingOptionSemantics(title, body),
             child: Row(children: [
               Container(
                 width: 48,
@@ -868,18 +926,19 @@ class _BuildKitchenScreenState extends ConsumerState<BuildKitchenScreen> {
             ]),
           ),
         );
+    final l = context.l10n;
     return OnboardingFrame(
       step: 7,
-      title: 'Build your kitchen',
-      subtitle: 'The fastest way is your last grocery receipt.',
-      primaryLabel: 'I\'ll do this later',
+      title: l.onboardingKitchenTitle,
+      subtitle: l.onboardingKitchenSubtitle,
+      primaryLabel: l.onboardingKitchenLater,
       loading: _busy,
       onPrimary: () => _finish('later'),
       children: [
-        option(Icons.receipt_long_outlined, 'Scan a receipt', 'Everything you bought, in about a minute', 'receipt'),
-        option(Icons.photo_camera_outlined, 'Scan your fridge or pantry', 'Confirm what we spot', 'scan'),
-        option(Icons.edit_note, 'Add items manually', 'Search, scan a barcode or speak', 'manual'),
-        option(Icons.auto_awesome_outlined, 'Start with example ingredients', 'Explore Chefii with a sample kitchen', 'example'),
+        option(Icons.receipt_long_outlined, l.onboardingScanReceiptTitle, l.onboardingScanReceiptBody, 'receipt'),
+        option(Icons.photo_camera_outlined, l.onboardingScanFridgeTitle, l.onboardingScanFridgeBody, 'scan'),
+        option(Icons.edit_note, l.onboardingAddManualTitle, l.onboardingAddManualBody, 'manual'),
+        option(Icons.auto_awesome_outlined, l.onboardingExampleKitchenTitle, l.onboardingExampleKitchenBody, 'example'),
       ],
     );
   }

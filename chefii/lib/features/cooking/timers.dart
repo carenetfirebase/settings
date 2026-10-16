@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../core/services/notification_service.dart';
+import '../../l10n/l10n.dart';
 
 class CookingTimer {
   const CookingTimer({required this.id, required this.label, required this.total, required this.remainingAtStart, this.startedAt});
@@ -46,11 +47,11 @@ class CookingTimers extends Notifier<List<CookingTimer>> {
 
   NotificationService get _n => ref.read(notificationServiceProvider);
 
-  int start(String label, Duration d) {
+  int start(String label, Duration d, AppLocalizations l) {
     final id = _next++ % 100;
     final t = CookingTimer(id: id, label: label, total: d, remainingAtStart: d, startedAt: now());
     state = [...state.where((x) => x.id != id), t];
-    _n.scheduleIn(id: NotificationIds.timerBase + id, after: d, title: '$label is done', body: 'Your Chefii timer has finished.', payload: '/cook/timers');
+    _n.scheduleIn(id: NotificationIds.timerBase + id, after: d, title: l.cookingTimerNotificationTitle(label), body: l.cookingTimerNotificationBody, payload: '/cook/timers');
     return id;
   }
 
@@ -62,21 +63,21 @@ class CookingTimers extends Notifier<List<CookingTimer>> {
     _n.cancel(NotificationIds.timerBase + id);
   }
 
-  void resume(int id) {
+  void resume(int id, AppLocalizations l) {
     state = [
       for (final t in state)
         if (t.id == id && !t.running) t.copyWith(startedAt: now()) else t,
     ];
     final t = state.firstWhere((t) => t.id == id);
-    _n.scheduleIn(id: NotificationIds.timerBase + id, after: t.remainingAtStart, title: '${t.label} is done', body: 'Your Chefii timer has finished.');
+    _n.scheduleIn(id: NotificationIds.timerBase + id, after: t.remainingAtStart, title: l.cookingTimerNotificationTitle(t.label), body: l.cookingTimerNotificationBody);
   }
 
-  void addTime(int id, Duration extra) {
+  void addTime(int id, Duration extra, AppLocalizations l) {
     final t = state.firstWhere((t) => t.id == id);
     final left = t.remaining(now()) + extra;
     state = [for (final x in state) x.id == id ? x.copyWith(remainingAtStart: left, startedAt: x.running ? now() : null, clearStart: !x.running) : x];
     if (t.running) {
-      _n.scheduleIn(id: NotificationIds.timerBase + id, after: left, title: '${t.label} is done', body: 'Your Chefii timer has finished.');
+      _n.scheduleIn(id: NotificationIds.timerBase + id, after: left, title: l.cookingTimerNotificationTitle(t.label), body: l.cookingTimerNotificationBody);
     }
   }
 

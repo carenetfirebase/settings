@@ -12,7 +12,8 @@ import '../../domain/models/recipe.dart';
 import '../../domain/nutrition/nutrition_calculator.dart';
 import '../../domain/recipes/recipe_availability.dart';
 import '../../domain/recipes/substitutions.dart';
-import '../../domain/safety/allergen_guard.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 import '../shared/ai_consent.dart';
 import '../shared/recipe_logic.dart';
 
@@ -24,7 +25,7 @@ class ChefChat extends Notifier<List<ChefMessage>> {
   @override
   List<ChefMessage> build() => const [];
 
-  Future<void> send(String text) async {
+  Future<void> send(String text, AppLocalizations l) async {
     if (text.trim().isEmpty || busy) return;
     final hid = ref.read(householdIdProvider);
     if (hid == null) return;
@@ -36,9 +37,9 @@ class ChefChat extends Notifier<List<ChefMessage>> {
       ref.read(recipeCacheProvider.notifier).putAll(reply.recipes);
       state = [...state, reply];
     } on AiUnavailableException catch (e) {
-      state = [...state, ChefMessage(fromUser: false, text: '${e.message} Your curated recipes are still available in Discover.')];
+      state = [...state, ChefMessage(fromUser: false, text: l.chefChatUnavailable(e.message))];
     } catch (_) {
-      state = [...state, const ChefMessage(fromUser: false, text: 'I couldn\'t reach the kitchen assistant just now. Please try again.')];
+      state = [...state, ChefMessage(fromUser: false, text: l.chefChatError)];
     } finally {
       busy = false;
       ref.notifyListeners();
@@ -63,12 +64,12 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
 
-  static const prompts = [
-    'Something quick for dinner',
-    'A high-protein breakfast',
-    'What can I make with what I have?',
-    'A comforting vegetarian meal',
-  ];
+  static List<String> prompts(AppLocalizations l) => [
+        l.chefPromptQuickDinner,
+        l.chefPromptProteinBreakfast,
+        l.chefPromptUseWhatIHave,
+        l.chefPromptVegetarian,
+      ];
 
   @override
   void dispose() {
@@ -79,9 +80,10 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen> {
 
   Future<void> _send(String text) async {
     if (text.trim().isEmpty) return;
-    if (!await ensureAiConsent(context, ref, feature: 'your AI chef')) return;
+    if (!await ensureAiConsent(context, ref, feature: context.l10n.chefAiFeature)) return;
+    if (!mounted) return;
     _input.clear();
-    await ref.read(chefChatProvider.notifier).send(text);
+    await ref.read(chefChatProvider.notifier).send(text, context.l10n);
     await Future<void>.delayed(const Duration(milliseconds: 50));
     if (_scroll.hasClients) _scroll.animateTo(_scroll.position.maxScrollExtent, duration: Motion.medium, curve: Curves.easeOut);
   }
@@ -91,12 +93,13 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen> {
     final messages = ref.watch(chefChatProvider);
     final busy = ref.read(chefChatProvider.notifier).busy;
     final isDemo = ref.watch(aiGatewayProvider).isDemo;
+    final l = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your chef'),
+        title: Text(l.chefHomeTitle),
         actions: [
-          IconButton(tooltip: 'Preferences', onPressed: () => context.push('/chef/preferences'), icon: const Icon(Icons.tune)),
-          if (messages.isNotEmpty) IconButton(tooltip: 'New conversation', onPressed: ref.read(chefChatProvider.notifier).clear, icon: const Icon(Icons.refresh)),
+          IconButton(tooltip: l.chefPreferencesTooltip, onPressed: () => context.push('/chef/preferences'), icon: const Icon(Icons.tune)),
+          if (messages.isNotEmpty) IconButton(tooltip: l.chefNewConversation, onPressed: ref.read(chefChatProvider.notifier).clear, icon: const Icon(Icons.refresh)),
         ],
       ),
       body: Column(children: [
@@ -105,10 +108,10 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen> {
             controller: _scroll,
             padding: const EdgeInsets.fromLTRB(Space.gutter, Space.xs, Space.gutter, Space.l),
             children: [
-              if (isDemo) const DemoBanner(message: 'Demo: replies use the curated recipe library, not AI.'),
+              if (isDemo) DemoBanner(message: l.chefDemoChat),
               if (messages.isEmpty) ...[
-                const EditorialPageHeader(eyebrow: 'Chefii', title: 'What shall we cook?', subtitle: 'Ask for anything — I know what\'s in your kitchen and what everyone can eat.'),
-                for (final p in prompts)
+                EditorialPageHeader(eyebrow: 'Chefii', title: l.chefHomeHeadline, subtitle: l.chefHomeSubtitle), // l10n-ignore
+                for (final p in prompts(l))
                   Padding(
                     padding: const EdgeInsets.only(bottom: Space.xs),
                     child: SoftCard(
@@ -121,7 +124,7 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen> {
                     ),
                   ),
                 const SizedBox(height: Space.s),
-                SecondaryActionButton(icon: Icons.tune, label: 'Choose time, portions and more', onPressed: () => context.push('/chef/preferences')),
+                SecondaryActionButton(icon: Icons.tune, label: l.chefChooseOptions, onPressed: () => context.push('/chef/preferences')),
               ],
               for (final m in messages)
                 ChefConversationBubble(
@@ -151,11 +154,11 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen> {
                   maxLines: 4,
                   textInputAction: TextInputAction.send,
                   onSubmitted: _send,
-                  decoration: const InputDecoration(hintText: 'Ask your chef…'),
+                  decoration: InputDecoration(hintText: l.chefAskHint),
                 ),
               ),
               const SizedBox(width: Space.xs),
-              IconButton.filled(tooltip: 'Send', onPressed: busy ? null : () => _send(_input.text), icon: const Icon(Icons.arrow_upward)),
+              IconButton.filled(tooltip: l.chefSend, onPressed: busy ? null : () => _send(_input.text), icon: const Icon(Icons.arrow_upward)),
             ]),
           ),
         ),
@@ -210,12 +213,13 @@ class _ChefPreferencesScreenState extends ConsumerState<ChefPreferencesScreen> {
       _meal = mealTypeFor(DateTime.now());
     }
     final dietary = ref.watch(householdDietaryProvider);
+    final l = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Chef', title: 'Tonight, I\'d like…'),
+      header: EditorialPageHeader(eyebrow: l.chefEyebrow, title: l.chefPreferencesTitle),
       primaryAction: PrimaryActionButton(
-        label: 'Show me recipes',
+        label: l.chefShowRecipes,
         onPressed: () async {
-          if (!await ensureAiConsent(context, ref, feature: 'your AI chef')) return;
+          if (!await ensureAiConsent(context, ref, feature: l.chefAiFeature)) return;
           final hid = ref.read(householdIdProvider);
           if (hid == null) return;
           ref.read(chefRequestProvider.notifier).set(ChefRequest(
@@ -233,12 +237,12 @@ class _ChefPreferencesScreenState extends ConsumerState<ChefPreferencesScreen> {
         },
       ),
       children: [
-        Text('Meal', style: context.text.titleMedium),
+        Text(l.chefMeal, style: context.text.titleMedium),
         Wrap(spacing: Space.xs, children: [
-          for (final m in MealType.values) ChoiceChip(label: Text(m.label), selected: _meal == m, onSelected: (_) => setState(() => _meal = m)),
+          for (final m in MealType.values) ChoiceChip(label: Text(context.labelOf(m)), selected: _meal == m, onSelected: (_) => setState(() => _meal = m)),
         ]),
-        const SectionHeader('Time available'),
-        Semantics(label: 'Time available in minutes', child: Slider(
+        SectionHeader(l.chefTimeAvailable),
+        Semantics(label: l.chefTimeAvailableSemantics, child: Slider(
           value: _minutes.toDouble(),
           min: 10,
           max: 90,
@@ -247,37 +251,38 @@ class _ChefPreferencesScreenState extends ConsumerState<ChefPreferencesScreen> {
           semanticFormatterCallback: (v) => formatMinutes(v.round()),
           onChanged: (v) => setState(() => _minutes = v.round()),
         )),
-        Text('Up to ${formatMinutes(_minutes)}', style: context.text.bodySmall),
-        const SectionHeader('Portions'),
+        Text(l.chefUpTo(formatMinutes(_minutes)), style: context.text.bodySmall),
+        SectionHeader(l.chefPortions),
         Row(children: [
-          IconButton.filledTonal(tooltip: 'Fewer', onPressed: _servings > 1 ? () => setState(() => _servings--) : null, icon: const Icon(Icons.remove)),
-          SizedBox(width: 48, child: Text('$_servings', textAlign: TextAlign.center, style: context.text.headlineSmall)),
-          IconButton.filledTonal(tooltip: 'More', onPressed: _servings < 12 ? () => setState(() => _servings++) : null, icon: const Icon(Icons.add)),
+          IconButton.filledTonal(tooltip: l.chefFewer, onPressed: _servings > 1 ? () => setState(() => _servings--) : null, icon: const Icon(Icons.remove)),
+          SizedBox(width: 48, child: Text('$_servings', textAlign: TextAlign.center, style: context.text.headlineSmall)), // l10n-ignore
+          IconButton.filledTonal(tooltip: l.chefMore, onPressed: _servings < 12 ? () => setState(() => _servings++) : null, icon: const Icon(Icons.add)),
         ]),
         const SizedBox(height: Space.m),
-        ToggleTile(title: 'Use what I have', subtitle: 'Prefer recipes I can make now', value: _useWhatIHave, onChanged: (v) => setState(() => _useWhatIHave = v)),
-        const SectionHeader('Nutrition'),
+        ToggleTile(title: l.chefUseWhatIHave, subtitle: l.chefUseWhatIHaveSubtitle, value: _useWhatIHave, onChanged: (v) => setState(() => _useWhatIHave = v)),
+        SectionHeader(l.chefNutrition),
         ChoiceChipGroup(
           single: true,
           options: const ['more protein', 'more vegetables', 'lighter', 'more fibre'],
+          labelOf: (o) => _focusLabel(l, o),
           selected: {?_focus},
           onChanged: (s) => setState(() => _focus = s.firstOrNull),
         ),
-        const SectionHeader('Cuisine'),
-        ChoiceChipGroup(options: const ['Italian', 'French', 'Mediterranean', 'Indian', 'Middle Eastern', 'Mexican', 'Japanese', 'Chinese', 'Modern'], selected: _cuisines, onChanged: (s) => setState(() => _cuisines
+        SectionHeader(l.chefCuisine),
+        ChoiceChipGroup(options: const ['Italian', 'French', 'Mediterranean', 'Indian', 'Middle Eastern', 'Mexican', 'Japanese', 'Chinese', 'Modern'], labelOf: (o) => _cuisineLabel(l, o), selected: _cuisines, onChanged: (s) => setState(() => _cuisines
           ..clear()
           ..addAll(s))),
-        const SectionHeader('Equipment'),
-        ChoiceChipGroup(options: const ['Oven', 'Stovetop', 'Air fryer', 'Slow cooker', 'Instant Pot', 'Blender', 'Microwave'], selected: _equipment, onChanged: (s) => setState(() => _equipment
+        SectionHeader(l.chefEquipment),
+        ChoiceChipGroup(options: const ['Oven', 'Stovetop', 'Air fryer', 'Slow cooker', 'Instant Pot', 'Blender', 'Microwave'], labelOf: (o) => _equipmentLabel(l, o), selected: _equipment, onChanged: (s) => setState(() => _equipment
           ..clear()
           ..addAll(s))),
-        const SectionHeader('Leave out'),
-        TextField(controller: _exclusions, decoration: const InputDecoration(hintText: 'e.g. mushrooms, olives')),
+        SectionHeader(l.chefLeaveOut),
+        TextField(controller: _exclusions, decoration: InputDecoration(hintText: l.chefLeaveOutHint)),
         const SizedBox(height: Space.m),
         Text(
           dietary.allergiesKnown
-              ? 'Always respected: ${[...dietary.allergies.map((a) => AllergenGuard.byKey[a]?.label ?? a), ...dietary.restrictions.map((r) => AllergenGuard.restrictionByKey[r]?.label ?? r)].join(', ').ifEmpty('no allergies or restrictions recorded')}.'
-              : 'Add your allergies in Profile so I can screen every recipe.',
+              ? l.chefAlwaysRespected([...dietary.allergies.map(context.allergenLabel), ...dietary.restrictions.map(context.restrictionLabel)].join(', ').ifEmpty(l.chefNoAllergiesRecorded))
+              : l.chefAddAllergies,
           style: context.text.bodySmall,
         ),
       ],
@@ -288,6 +293,38 @@ class _ChefPreferencesScreenState extends ConsumerState<ChefPreferencesScreen> {
 extension on String {
   String ifEmpty(String other) => isEmpty ? other : this;
 }
+
+String _focusLabel(AppLocalizations l, String o) => switch (o) {
+      'more protein' => l.chefFocusMoreProtein,
+      'more vegetables' => l.chefFocusMoreVegetables,
+      'lighter' => l.chefFocusLighter,
+      'more fibre' => l.chefFocusMoreFibre,
+      _ => o,
+    };
+
+String _cuisineLabel(AppLocalizations l, String o) => switch (o) {
+      'Italian' => l.chefCuisineItalian,
+      'French' => l.chefCuisineFrench,
+      'Mediterranean' => l.chefCuisineMediterranean,
+      'Indian' => l.chefCuisineIndian,
+      'Middle Eastern' => l.chefCuisineMiddleEastern,
+      'Mexican' => l.chefCuisineMexican,
+      'Japanese' => l.chefCuisineJapanese,
+      'Chinese' => l.chefCuisineChinese,
+      'Modern' => l.chefCuisineModern,
+      _ => o,
+    };
+
+String _equipmentLabel(AppLocalizations l, String o) => switch (o) {
+      'Oven' => l.chefEquipmentOven,
+      'Stovetop' => l.chefEquipmentStovetop,
+      'Air fryer' => l.chefEquipmentAirFryer,
+      'Slow cooker' => l.chefEquipmentSlowCooker,
+      'Instant Pot' => l.chefEquipmentInstantPot,
+      'Blender' => l.chefEquipmentBlender,
+      'Microwave' => l.chefEquipmentMicrowave,
+      _ => o,
+    };
 
 // ---------------------------------------------------------------- 31 Recommendations
 
@@ -312,19 +349,20 @@ class _RecipeResultsScreenState extends ConsumerState<RecipeResultsScreen> {
   @override
   Widget build(BuildContext context) {
     final req = ref.watch(chefRequestProvider);
+    final l = context.l10n;
     if (req == null) {
       return PremiumAppScaffold(children: [
-        EmptyState(icon: Icons.tune, title: 'Tell me what you\'d like', message: 'Choose time and portions first.', actionLabel: 'Set preferences', onAction: () => context.pushReplacement('/chef/preferences')),
+        EmptyState(icon: Icons.tune, title: l.chefNoRequestTitle, message: l.chefNoRequestMessage, actionLabel: l.chefSetPreferences, onAction: () => context.pushReplacement('/chef/preferences')),
       ]);
     }
     final async = ref.watch(chefResultsProvider((req.copyWith(), _round)));
     final result = async.value;
     final suggestions = result?.suggestions.where((s) => _round == 0 || !_seen.contains(s.recipe.id)).toList() ?? const <ChefSuggestion>[];
     return PremiumAppScaffold(
-      header: EditorialPageHeader(eyebrow: 'Chef', title: 'For you', subtitle: '${req.mealType?.label ?? 'Any meal'} · up to ${formatMinutes(req.maxMinutes ?? 60)} · ${req.servings} portions'),
+      header: EditorialPageHeader(eyebrow: l.chefEyebrow, title: l.chefResultsTitle, subtitle: l.chefResultsSubtitle(req.mealType == null ? l.chefAnyMeal : context.labelOf(req.mealType!), formatMinutes(req.maxMinutes ?? 60), req.servings)),
       primaryAction: SecondaryActionButton(
         icon: Icons.refresh,
-        label: 'Try another',
+        label: l.chefTryAnother,
         onPressed: async.isLoading
             ? null
             : () => setState(() {
@@ -333,16 +371,16 @@ class _RecipeResultsScreenState extends ConsumerState<RecipeResultsScreen> {
                 }),
       ),
       children: [
-        if (result?.isDemo == true) const DemoBanner(message: 'Demo: ranked from the curated library, not generated by AI.'),
-        if (async.isLoading) const LoadingState(message: 'Considering your kitchen…'),
+        if (result?.isDemo == true) DemoBanner(message: l.chefDemoResults),
+        if (async.isLoading) LoadingState(message: l.chefConsidering),
         if (async.hasError)
           ErrorState(message: async.error is AiUnavailableException ? (async.error as AiUnavailableException).message : ErrorState.describe(async.error!), onRetry: () => ref.invalidate(chefResultsProvider)),
         if (result != null && suggestions.isEmpty && !async.isLoading)
-          EmptyState(icon: Icons.search_off, title: 'No more ideas with these settings', message: 'Try a longer time or fewer restrictions.', actionLabel: 'Adjust', onAction: () => context.pop()),
+          EmptyState(icon: Icons.search_off, title: l.chefNoMoreIdeasTitle, message: l.chefNoMoreIdeasMessage, actionLabel: l.chefAdjust, onAction: () => context.pop()),
         if (result != null && result.filteredForSafety > 0)
           Padding(
             padding: const EdgeInsets.only(bottom: Space.s),
-            child: Text('${result.filteredForSafety} idea${result.filteredForSafety == 1 ? ' was' : 's were'} left out for your household\'s dietary needs.', style: context.text.bodySmall),
+            child: Text(l.chefFilteredForSafety(result.filteredForSafety), style: context.text.bodySmall),
           ),
         for (final s in suggestions)
           Padding(
@@ -388,9 +426,10 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final base = ref.watch(recipeByIdProvider(widget.recipeId));
+    final l = context.l10n;
     if (base == null) {
       return PremiumAppScaffold(children: [
-        EmptyState(icon: Icons.menu_book_outlined, title: 'Recipe unavailable', message: 'This suggestion wasn\'t saved. Ask your chef again or browse Discover.', actionLabel: 'Discover', onAction: () => context.go('/discover')),
+        EmptyState(icon: Icons.menu_book_outlined, title: l.chefRecipeUnavailableTitle, message: l.chefRecipeUnavailableMessage, actionLabel: l.chefDiscover, onAction: () => context.go('/discover')),
       ]);
     }
     final household = ref.watch(householdProvider).value;
@@ -408,7 +447,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
       padding: EdgeInsets.zero,
       actions: [
         IconButton(
-          tooltip: favs.contains(base.id) ? 'Remove from favourites' : 'Save to favourites',
+          tooltip: favs.contains(base.id) ? l.chefRemoveFavourite : l.chefSaveFavourite,
           onPressed: () async {
             final uid = ref.read(uidProvider)!;
             if (isAi && !saved) await ref.read(recipeRepoProvider).save(ref.read(householdIdProvider)!, base);
@@ -416,11 +455,11 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
           },
           icon: Icon(favs.contains(base.id) ? Icons.favorite : Icons.favorite_border),
         ),
-        IconButton(tooltip: 'Add to meal plan', onPressed: () => context.push('/plan/assign?recipe=${base.id}'), icon: const Icon(Icons.calendar_month_outlined)),
+        IconButton(tooltip: l.chefAddToPlan, onPressed: () => context.push('/plan/assign?recipe=${base.id}'), icon: const Icon(Icons.calendar_month_outlined)),
       ],
       primaryAction: PrimaryActionButton(
         icon: Icons.play_arrow_rounded,
-        label: safety.isBlocked ? 'Not safe for your household' : 'Start cooking',
+        label: safety.isBlocked ? l.chefNotSafe : l.chefStartCooking,
         loading: _busy,
         onPressed: safety.isBlocked
             ? null
@@ -440,20 +479,20 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
           padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const SizedBox(height: Space.l),
-            Text('${recipe.cuisine} · ${recipe.origin.label}'.toUpperCase(), style: context.text.labelSmall?.copyWith(color: context.palette.accent)),
+            Text('${recipe.cuisine} · ${context.labelOf(recipe.origin)}'.toUpperCase(), style: context.text.labelSmall?.copyWith(color: context.palette.accent)), // l10n-ignore
             const SizedBox(height: Space.xs),
             Semantics(header: true, child: Text(recipe.title, style: context.text.displaySmall)),
             const SizedBox(height: Space.xs),
             Text(recipe.summary, style: context.text.bodyLarge?.copyWith(color: context.palette.muted)),
             const SizedBox(height: Space.m),
             Wrap(spacing: Space.xs, runSpacing: Space.xs, children: [
-              TagPill('${formatMinutes(recipe.totalMinutes)} total', icon: Icons.schedule),
-              TagPill(recipe.difficulty.label, icon: Icons.restaurant),
+              TagPill(l.chefTotalTime(formatMinutes(recipe.totalMinutes)), icon: Icons.schedule),
+              TagPill(context.labelOf(recipe.difficulty), icon: Icons.restaurant),
               for (final t in recipe.tags.take(4)) TagPill(t),
             ]),
             if (isAi) ...[
               const SizedBox(height: Space.s),
-              Text('Created by AI for you${recipe.aiModel == null ? '' : ' (${recipe.aiModel})'}. Check cooking temperatures and your own judgement.', style: context.text.bodySmall),
+              Text(recipe.aiModel == null ? l.chefAiCreated : l.chefAiCreatedWithModel(recipe.aiModel!), style: context.text.bodySmall),
             ],
             if (safety.isBlocked || safety.hasWarnings || safety.notices.isNotEmpty) ...[
               const SizedBox(height: Space.m),
@@ -463,22 +502,22 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
                   Row(children: [
                     Icon(safety.isBlocked ? Icons.block : Icons.warning_amber_rounded, color: safety.isBlocked ? context.palette.error : context.palette.warning),
                     const SizedBox(width: Space.xs),
-                    Expanded(child: Text(safety.isBlocked ? 'Conflicts with your household\'s needs' : 'Worth a look', style: context.text.titleSmall)),
+                    Expanded(child: Text(safety.isBlocked ? l.chefConflicts : l.chefWorthALook, style: context.text.titleSmall)),
                   ]),
                   const SizedBox(height: Space.xs),
-                  for (final c in safety.conflicts) Text('• ${c.ingredient}: ${c.reason}', style: context.text.bodySmall?.copyWith(color: context.palette.ink)),
+                  for (final c in safety.conflicts) Text(l.chefConflictLine(c.ingredient, c.reason), style: context.text.bodySmall?.copyWith(color: context.palette.ink)),
                   for (final n in safety.notices) Text('• $n', style: context.text.bodySmall?.copyWith(color: context.palette.ink)),
                   if (safety.conflicts.isNotEmpty)
-                    TextButton(onPressed: () => showSubstitutionsSheet(context, base), child: const Text('See substitutions')),
+                    TextButton(onPressed: () => showSubstitutionsSheet(context, base), child: Text(l.chefSeeSubstitutions)),
                 ]),
               ),
             ],
-            const SectionHeader('Ingredients'),
+            SectionHeader(l.chefIngredients),
             Row(children: [
-              Expanded(child: Text('Servings', style: context.text.bodyMedium)),
-              IconButton(tooltip: 'Fewer servings', onPressed: servings > 1 ? () => setState(() => _servings = servings - 1) : null, icon: const Icon(Icons.remove_circle_outline)),
-              Text('$servings', style: context.text.titleLarge),
-              IconButton(tooltip: 'More servings', onPressed: servings < 16 ? () => setState(() => _servings = servings + 1) : null, icon: const Icon(Icons.add_circle_outline)),
+              Expanded(child: Text(l.chefServings, style: context.text.bodyMedium)),
+              IconButton(tooltip: l.chefFewerServings, onPressed: servings > 1 ? () => setState(() => _servings = servings - 1) : null, icon: const Icon(Icons.remove_circle_outline)),
+              Text('$servings', style: context.text.titleLarge), // l10n-ignore
+              IconButton(tooltip: l.chefMoreServings, onPressed: servings < 16 ? () => setState(() => _servings = servings + 1) : null, icon: const Icon(Icons.add_circle_outline)),
             ]),
             for (final i in recipe.ingredients)
               _IngredientRow(ingredient: i, check: checkByName[i.name]),
@@ -487,7 +526,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
               _ButtonPair(
                 first: SecondaryActionButton(
                     icon: Icons.add_shopping_cart,
-                    label: 'Add ${availability.missing.length} to list',
+                    label: l.chefAddMissingToList(availability.missing.length),
                     onPressed: () async {
                       final hid = ref.read(householdIdProvider)!;
                       for (final c in availability.missing) {
@@ -500,21 +539,21 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
                               forRecipes: [recipe.title],
                             );
                       }
-                      if (context.mounted) showMessage(context, 'Added to your shopping list');
+                      if (context.mounted) showMessage(context, context.l10n.chefAddedToList);
                     },
                   ),
-                second: SecondaryActionButton(icon: Icons.swap_horiz, label: 'Substitutions', onPressed: () => showSubstitutionsSheet(context, base)),
+                second: SecondaryActionButton(icon: Icons.swap_horiz, label: l.chefSubstitutions, onPressed: () => showSubstitutionsSheet(context, base)),
               ),
             ],
             if (wellness?.showNutritionOnRecipes ?? true) ...[
-              const SectionHeader('Nutrition'),
+              SectionHeader(l.chefNutrition),
               NutritionSummaryCard(nutrition: recipe.nutritionPerServing, showCalories: true),
             ],
             if (recipe.equipment.isNotEmpty) ...[
-              const SectionHeader('Equipment'),
+              SectionHeader(l.chefEquipment),
               Text(recipe.equipment.join(' · '), style: context.text.bodyMedium),
             ],
-            const SectionHeader('Method'),
+            SectionHeader(l.chefMethod),
             for (var s = 0; s < recipe.steps.length; s++)
               Padding(
                 padding: const EdgeInsets.only(bottom: Space.m),
@@ -531,7 +570,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
                 ]),
               ),
             if (recipe.storageNotes != null) ...[
-              const SectionHeader('Storing'),
+              SectionHeader(l.chefStoring),
               Text(recipe.storageNotes!, style: context.text.bodyMedium),
             ],
             if (isAi && !saved)
@@ -540,10 +579,10 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
                 child: TextButton.icon(
                   onPressed: () async {
                     await ref.read(recipeRepoProvider).save(ref.read(householdIdProvider)!, base);
-                    if (context.mounted) showMessage(context, 'Saved to your recipes');
+                    if (context.mounted) showMessage(context, context.l10n.chefSavedToRecipes);
                   },
                   icon: const Icon(Icons.bookmark_add_outlined),
-                  label: const Text('Save this recipe'),
+                  label: Text(l.chefSaveRecipe),
                 ),
               ),
           ]),
@@ -576,14 +615,16 @@ class _IngredientRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final l = context.l10n;
+    final short = check?.shortBy;
     final (IconData icon, Color color, String label) = switch (check?.availability) {
-      IngredientAvailability.available => (Icons.check_circle, p.success, 'in your kitchen'),
-      IngredientAvailability.partial => (Icons.timelapse, p.warning, 'need ${check!.shortBy?.format() ?? 'more'}'),
-      IngredientAvailability.missing => (Icons.add_shopping_cart, p.muted, 'to buy'),
+      IngredientAvailability.available => (Icons.check_circle, p.success, l.chefInYourKitchenLower),
+      IngredientAvailability.partial => (Icons.timelapse, p.warning, short == null ? l.chefNeedMore : l.chefNeedQuantity(context.formatQty(short))),
+      IngredientAvailability.missing => (Icons.add_shopping_cart, p.muted, l.chefToBuy),
       _ => (Icons.circle_outlined, p.hairline, ''),
     };
     return Semantics(
-      label: '${ingredient.display}${label.isEmpty ? '' : ', $label'}${ingredient.optional ? ', optional' : ''}',
+      label: '${ingredient.display}${label.isEmpty ? '' : ', $label'}${ingredient.optional ? ', ${l.chefOptional}' : ''}', // l10n-ignore
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: Space.xs),
@@ -592,7 +633,7 @@ class _IngredientRow extends StatelessWidget {
           const SizedBox(width: Space.s),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(ingredient.display + (ingredient.optional ? ' (optional)' : ''), style: context.text.bodyLarge),
+              Text(ingredient.optional ? l.chefOptionalIngredient(ingredient.display) : ingredient.display, style: context.text.bodyLarge),
               if (label.isNotEmpty && check?.availability != IngredientAvailability.available) Text(label, style: context.text.bodySmall),
             ]),
           ),
@@ -629,6 +670,7 @@ class SubstitutionsSheet extends ConsumerWidget {
       rows.addAll(finder.optionsFor(i, dietary).where((o) => o.isSafe));
     }
     final baseProtein = recipe.nutritionPerServing[Nutrient.protein];
+    final l = context.l10n;
     return SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.8),
@@ -636,26 +678,26 @@ class SubstitutionsSheet extends ConsumerWidget {
           shrinkWrap: true,
           padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.l),
           children: [
-            Text('Smart substitutions', style: context.text.headlineSmall),
-            Text('Every swap is checked against your household\'s allergies and diet.', style: context.text.bodySmall),
+            Text(l.chefSmartSubstitutions, style: context.text.headlineSmall),
+            Text(l.chefSubstitutionsNote, style: context.text.bodySmall),
             const SizedBox(height: Space.m),
-            if (rows.isEmpty) const EmptyState(compact: true, icon: Icons.swap_horiz, title: 'No safe swaps we\'re confident about', message: 'Try asking your chef for a different recipe.'),
+            if (rows.isEmpty) EmptyState(compact: true, icon: Icons.swap_horiz, title: l.chefNoSafeSwapsTitle, message: l.chefNoSafeSwapsMessage),
             for (final o in rows)
               Card(
                 margin: const EdgeInsets.only(bottom: Space.xs),
                 child: Padding(
                   padding: const EdgeInsets.all(Space.m),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('${o.original.name} → ${o.replacement.display}', style: context.text.titleMedium),
+                    Text('${o.original.name} → ${o.replacement.display}', style: context.text.titleMedium), // l10n-ignore
                     Text(o.note, style: context.text.bodySmall),
                     const SizedBox(height: Space.xs),
                     Wrap(spacing: Space.xs, children: [
-                      if (stock.containsKey(o.replacement.productId)) TagPill('In your kitchen', icon: Icons.check, color: context.palette.success, background: context.palette.successSoft),
+                      if (stock.containsKey(o.replacement.productId)) TagPill(l.chefInYourKitchen, icon: Icons.check, color: context.palette.success, background: context.palette.successSoft),
                       Builder(builder: (context) {
                         final next = finder.apply(recipe, o);
                         final protein = calc.perServing(next)[Nutrient.protein];
                         final diff = protein - baseProtein;
-                        return TagPill('Protein ${diff >= 0 ? '+' : ''}${diff.toStringAsFixed(0)} g / serving');
+                        return TagPill(l.chefProteinDiff('${diff >= 0 ? '+' : ''}${diff.toStringAsFixed(0)}'));
                       }),
                     ]),
                     Align(
@@ -667,7 +709,7 @@ class SubstitutionsSheet extends ConsumerWidget {
                           Navigator.pop(context);
                           context.pushReplacement('/recipe/${next.id}');
                         },
-                        child: const Text('Use this'),
+                        child: Text(l.chefUseThis),
                       ),
                     ),
                   ]),

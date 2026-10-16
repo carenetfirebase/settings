@@ -1,0 +1,187 @@
+{
+  "planningEyebrow": "Plan",
+  "planningWeekTitle": "Your week",
+  "planningPreviousWeek": "Previous week",
+  "planningNextWeek": "Next week",
+  "planningLeftoversBatch": "Leftovers & batch cooking",
+  "planningBuildShoppingList": "Build shopping list",
+  "planningHaveEverything": "You have everything this week needs.",
+  "planningItemsAdded": "{count, plural, =1{1 item added to your list} other{{count} items added to your list}}",
+  "@planningItemsAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningDayToday": "{day} · today",
+  "@planningDayToday": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "planningAdd": "Add",
+  "planningOptions": "Options",
+  "planningOpenRecipe": "Open recipe",
+  "planningAddToPlanTitle": "Add to your plan",
+  "planningChooseRecipe": "Choose a recipe",
+  "planningPlanMeal": "Plan {day} {meal}",
+  "@planningPlanMeal": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "meal": {
+        "type": "String"
+      }
+    }
+  },
+  "planningPlanned": "{title} planned",
+  "@planningPlanned": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planningChangeRecipe": "Change recipe",
+  "planningToBuy": "To buy: {items}",
+  "@planningToBuy": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "planningSearchRecipes": "Search recipes",
+  "planningLeftoversSubtitle": "Cook once, eat well all week.",
+  "planningInYourFridge": "In your fridge",
+  "planningNoLeftovers": "No saved leftovers. When you finish cooking, Chefii can save extra portions here.",
+  "planningLeftoverPortions": "{count, plural, =1{1 portion} other{{count} portions}}",
+  "@planningLeftoverPortions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningMadeOn": "made {day}",
+  "@planningMadeOn": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "planningEatWithin": "{count, plural, =1{eat within ~1 day} other{eat within ~{count} days}}",
+  "@planningEatWithin": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningEatPortion": "Eat a portion",
+  "planningFreeze": "Freeze",
+  "planningItemDetails": "Item details",
+  "planningGoodForBatch": "Good for batch cooking",
+  "planningLeftoversEntryTitle": "{name} (leftovers)",
+  "@planningLeftoversEntryTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planningKitchenEyebrow": "Kitchen",
+  "planningShoppingTitle": "Shopping list",
+  "planningToBuyCount": "{count} to buy",
+  "@planningToBuyCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningPutAway": "Put {count} away in kitchen",
+  "@planningPutAway": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningAddAmountsFirst": "Add amounts to checked items first, or scan your receipt instead.",
+  "planningAddItemHint": "Add an item",
+  "planningFromMealPlan": "From meal plan",
+  "planningClearChecked": "Clear checked",
+  "planningListEmptyTitle": "Your list is empty",
+  "planningListEmptyMessage": "Plan a few meals and Chefii will add exactly what's missing.",
+  "planningInBasket": "In the basket",
+  "planningAfterShopping": "After shopping, scan your receipt for exact amounts and prices — or put checked items away now.",
+  "planningForRecipes": "for {titles}",
+  "@planningForRecipes": {
+    "placeholders": {
+      "titles": {
+        "type": "String"
+      }
+    }
+  },
+  "planningRunningLow": "running low",
+  "planningDetails": "Details",
+  "planningItemRemovedTitle": "Item removed",
+  "planningItemRemovedMessage": "It may have been bought or removed.",
+  "planningPortions": "Portions",
+  "planningQuantity": "Quantity",
+  "planningPreferredProduct": "Preferred brand or product",
+  "planningExpectedPrice": "Expected price ($)",
+  "planningLastPaid": "Last paid {price} on a scanned receipt",
+  "@planningLastPaid": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "planningNote": "Note",
+  "planningAlternatives": "Alternatives",
+  "planningNeededFor": "Needed for",
+  "planningSpendingTitle": "Spending & waste",
+  "planningGroceriesThisMonth": "groceries this month",
+  "planningItemsDiscarded": "items discarded recently",
+  "planningLastSixWeeks": "Last six weeks",
+  "planningScanReceiptsEmpty": "Scan receipts to see spending trends.",
+  "planningThisWeek": "This week",
+  "planningWeeksAgo": "{count, plural, =1{1 week ago} other{{count} weeks ago}}",
+  "@planningWeeksAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningWeeksAgoShort": "{count} wk ago",
+  "@planningWeeksAgoShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningWeekAmount": "{week}: {amount}",
+  "@planningWeekAmount": {
+    "placeholders": {
+      "week": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planningRecentlyDiscarded": "Recently discarded",
+  "planningNothingDiscarded": "Nothing thrown out recently. Lovely.",
+  "planningSpendingFootnote": "Spending comes from scanned receipts only. Waste counts items you marked as discarded."
+}

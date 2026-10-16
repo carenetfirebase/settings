@@ -16,6 +16,8 @@ import '../../domain/models/nutrition.dart';
 import '../../domain/models/profile.dart';
 import '../../domain/models/recipe.dart';
 import '../../domain/units/units.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 import '../shared/ai_consent.dart';
 import '../shared/photo_picker.dart';
 import '../shared/recipe_logic.dart';
@@ -61,37 +63,38 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     final wellness = ref.watch(wellnessProvider).value ?? const WellnessPreferences();
     final isToday = DateUtils.isSameDay(_day, DateTime.now());
     final total = sumNutrition(meals);
+    final l = context.l10n;
     return PremiumAppScaffold(
       showBack: false,
       actions: [
-        IconButton(tooltip: 'Nutrition', onPressed: () => context.push('/you/nutrition'), icon: const Icon(Icons.insights_outlined)),
+        IconButton(tooltip: l.journalNutritionTooltip, onPressed: () => context.push('/you/nutrition'), icon: const Icon(Icons.insights_outlined)),
         PopupMenuButton<String>(
-          tooltip: 'More',
+          tooltip: l.journalMoreTooltip,
           onSelected: (v) => context.push(v),
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: '/journal/history', child: Text('Full history')),
-            PopupMenuItem(value: '/journal/patterns', child: Text('Eating patterns')),
-            PopupMenuItem(value: '/journal/reminders', child: Text('Meal reminders')),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: '/journal/history', child: Text(l.journalFullHistory)),
+            PopupMenuItem(value: '/journal/patterns', child: Text(l.journalEatingPatterns)),
+            PopupMenuItem(value: '/journal/reminders', child: Text(l.journalMealReminders)),
           ],
         ),
       ],
       header: EditorialPageHeader(
-        eyebrow: 'Journal',
+        eyebrow: l.journalEyebrow,
         title: formatDay(context, _day),
-        subtitle: DateFormat.yMMMMd().format(_day),
+        subtitle: DateFormat.yMMMMd(localeTag(context)).format(_day),
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          IconButton(tooltip: 'Previous day', onPressed: () => setState(() => _day = _day.subtract(const Duration(days: 1))), icon: const Icon(Icons.chevron_left)),
-          IconButton(tooltip: 'Next day', onPressed: isToday ? null : () => setState(() => _day = _day.add(const Duration(days: 1))), icon: const Icon(Icons.chevron_right)),
+          IconButton(tooltip: l.journalPreviousDay, onPressed: () => setState(() => _day = _day.subtract(const Duration(days: 1))), icon: const Icon(Icons.chevron_left)),
+          IconButton(tooltip: l.journalNextDay, onPressed: isToday ? null : () => setState(() => _day = _day.add(const Duration(days: 1))), icon: const Icon(Icons.chevron_right)),
         ]),
       ),
-      primaryAction: PrimaryActionButton(icon: Icons.add, label: 'Log a meal', onPressed: () => context.push('/journal/add?day=${_day.toIso8601String().substring(0, 10)}')),
+      primaryAction: PrimaryActionButton(icon: Icons.add, label: l.journalLogAMeal, onPressed: () => context.push('/journal/add?day=${_day.toIso8601String().substring(0, 10)}')),
       children: [
         if (async.isLoading && meals.isEmpty) const LoadingState(),
         if (!async.isLoading && meals.isEmpty)
           EmptyState(
             icon: Icons.menu_book_outlined,
-            title: isToday ? 'Nothing logged yet today' : 'Nothing logged',
-            message: 'Meals you cook in Chefii are logged automatically. You can also add anything you ate.',
+            title: isToday ? l.journalEmptyTodayTitle : l.journalEmptyTitle,
+            message: l.journalEmptyMessage,
           ),
         for (var i = 0; i < meals.length; i++)
           MealTimelineItem(
@@ -99,7 +102,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
             title: meals[i].title,
             mealType: meals[i].mealType,
             subtitle: [
-              '${_fmtPortions(meals[i].portions)} portion${meals[i].portions == 1 ? '' : 's'}',
+              l.journalPortionCount(meals[i].portions, _fmtPortions(context, meals[i].portions)),
               if (wellness.calorieTracking && meals[i].nutrition.has(Nutrient.energyKcal)) '≈ ${meals[i].nutrition[Nutrient.energyKcal].round()} kcal',
             ].join(' · '),
             isLast: i == meals.length - 1,
@@ -110,7 +113,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
               icon: const Icon(Icons.replay),
-              label: Text('Repeat ${meals.last.title}'),
+              label: Text(l.journalRepeatMeal(meals.last.title)),
               onPressed: () async {
                 final m = meals.last;
                 await ref.read(journalRepoProvider).add(
@@ -125,14 +128,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     );
                 if (context.mounted) {
                   setState(() => _day = DateTime.now());
-                  showMessage(context, 'Logged ${m.title} again');
+                  showMessage(context, l.journalLoggedAgain(m.title));
                 }
               },
             ),
           ),
           if (wellness.showNutritionOnRecipes) ...[
-            const SectionHeader('Day so far'),
-            NutritionSummaryCard(nutrition: total, title: 'Estimated intake', subtitle: '${meals.length} meal${meals.length == 1 ? '' : 's'}', showCalories: wellness.calorieTracking),
+            SectionHeader(l.journalDaySoFar),
+            NutritionSummaryCard(nutrition: total, title: l.journalEstimatedIntake, subtitle: l.journalMealCount(meals.length), showCalories: wellness.calorieTracking),
           ],
         ],
       ],
@@ -140,7 +143,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
   }
 }
 
-String _fmtPortions(double p) => p == p.roundToDouble() ? p.round().toString() : p.toString();
+String _fmtPortions(BuildContext context, double p) {
+  final s = p == p.roundToDouble() ? p.round().toString() : p.toString();
+  return Localizations.localeOf(context).languageCode == 'fr' ? s.replaceAll('.', ',') : s;
+}
 
 // ---------------------------------------------------------------- 51 Food journal (history & corrections)
 
@@ -155,10 +161,11 @@ class FoodJournalScreen extends ConsumerWidget {
       byDay.putIfAbsent(DateFormat('yyyy-MM-dd').format(m.eatenAt.toLocal()), () => []).add(m);
     }
     final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
+    final l = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Journal', title: 'Last 30 days', subtitle: 'Tap any meal to correct it.'),
+      header: EditorialPageHeader(eyebrow: l.journalEyebrow, title: l.journalHistoryTitle, subtitle: l.journalHistorySubtitle),
       children: [
-        if (meals.isEmpty) const EmptyState(icon: Icons.history, title: 'No history yet', message: 'Your meals will build up here.'),
+        if (meals.isEmpty) EmptyState(icon: Icons.history, title: l.journalHistoryEmptyTitle, message: l.journalHistoryEmptyMessage),
         for (final d in days) ...[
           SectionHeader(formatDay(context, DateTime.parse(d)), topSpacing: Space.m),
           for (final m in byDay[d]!)
@@ -166,7 +173,7 @@ class FoodJournalScreen extends ConsumerWidget {
               margin: const EdgeInsets.only(bottom: Space.xs),
               child: ListTile(
                 title: Text(m.title),
-                subtitle: Text('${m.mealType.label} · ${formatTime(context, m.eatenAt)} · ${_fmtPortions(m.portions)} portion${m.portions == 1 ? '' : 's'}'),
+                subtitle: Text([context.labelOf(m.mealType), formatTime(context, m.eatenAt), l.journalPortionCount(m.portions, _fmtPortions(context, m.portions))].join(' · ')),
                 trailing: const Icon(Icons.edit_outlined),
                 onTap: () => context.push('/journal/entry/${m.id}'),
               ),
@@ -198,15 +205,16 @@ class _JournalEntryScreenState extends ConsumerState<JournalEntryScreen> {
       _origPortions = found.portions;
     }
     final m = _m;
-    if (m == null) return PremiumAppScaffold(children: [meals == null ? const LoadingState() : const EmptyState(icon: Icons.menu_book_outlined, title: 'Entry not found', message: 'It may have been deleted.')]);
+    final l = context.l10n;
+    if (m == null) return PremiumAppScaffold(children: [meals == null ? const LoadingState() : EmptyState(icon: Icons.menu_book_outlined, title: l.journalEntryNotFoundTitle, message: l.journalEntryNotFoundMessage)]);
     return PremiumAppScaffold(
-      header: EditorialPageHeader(eyebrow: m.mealType.label, title: m.title),
+      header: EditorialPageHeader(eyebrow: context.labelOf(m.mealType), title: m.title),
       actions: [
         IconButton(
-          tooltip: 'Delete',
+          tooltip: l.journalDelete,
           icon: const Icon(Icons.delete_outline),
           onPressed: () async {
-            final ok = await showConfirmActionSheet(context, title: 'Delete this entry?', message: 'This removes it from your journal. Your kitchen isn\'t changed.', confirmLabel: 'Delete', destructive: true);
+            final ok = await showConfirmActionSheet(context, title: l.journalDeleteTitle, message: l.journalDeleteMessage, confirmLabel: l.journalDelete, destructive: true);
             if (!ok) return;
             await ref.read(journalRepoProvider).delete(m.uid, m.id);
             if (context.mounted) context.pop();
@@ -214,7 +222,7 @@ class _JournalEntryScreenState extends ConsumerState<JournalEntryScreen> {
         ),
       ],
       primaryAction: PrimaryActionButton(
-        label: 'Save changes',
+        label: l.journalSaveChanges,
         onPressed: () async {
           // Nutrition scales with the corrected portion size.
           final scale = (_origPortions ?? m.portions) == 0 ? 1.0 : m.portions / _origPortions!;
@@ -224,13 +232,13 @@ class _JournalEntryScreenState extends ConsumerState<JournalEntryScreen> {
       ),
       children: [
         Wrap(spacing: Space.xs, children: [
-          for (final t in MealType.values) ChoiceChip(label: Text(t.label), selected: m.mealType == t, onSelected: (_) => setState(() => _m = m.copyWith(mealType: t))),
+          for (final t in MealType.values) ChoiceChip(label: Text(context.labelOf(t)), selected: m.mealType == t, onSelected: (_) => setState(() => _m = m.copyWith(mealType: t))),
         ]),
         const SizedBox(height: Space.m),
         Card(
           child: ListTile(
             leading: const Icon(Icons.schedule),
-            title: Text('${formatDay(context, m.eatenAt)} at ${formatTime(context, m.eatenAt)}'),
+            title: Text(l.journalDayAtTime(formatDay(context, m.eatenAt), formatTime(context, m.eatenAt))),
             trailing: const Icon(Icons.edit_outlined),
             onTap: () async {
               final local = m.eatenAt.toLocal();
@@ -241,19 +249,19 @@ class _JournalEntryScreenState extends ConsumerState<JournalEntryScreen> {
         ),
         const SizedBox(height: Space.m),
         Row(children: [
-          Expanded(child: Text('Portions', style: context.text.titleMedium)),
+          Expanded(child: Text(l.journalPortions, style: context.text.titleMedium)),
           QuantityStepper(value: Quantity(m.portions, Unit.piece), step: 0.5, min: 0.5, onChanged: (q) => setState(() => _m = m.copyWith(portions: q.amount))),
         ]),
         if (m.nutrition.completeness > 0) ...[
           const SizedBox(height: Space.m),
           NutritionSummaryCard(
             nutrition: found!.nutrition.scale(m.portions / (_origPortions ?? m.portions)),
-            title: 'Estimated',
-            subtitle: 'for ${_fmtPortions(m.portions)} portion${m.portions == 1 ? '' : 's'}',
+            title: l.journalEstimated,
+            subtitle: l.journalForPortions(m.portions, _fmtPortions(context, m.portions)),
             showCalories: ref.watch(wellnessProvider).value?.calorieTracking ?? false,
           ),
         ],
-        if (m.recipeId != null) TextButton(onPressed: () => context.push('/recipe/${m.recipeId}'), child: const Text('View recipe')),
+        if (m.recipeId != null) TextButton(onPressed: () => context.push('/recipe/${m.recipeId}'), child: Text(l.journalViewRecipe)),
       ],
     );
   }
@@ -295,7 +303,7 @@ class _QuickMealEntryScreenState extends ConsumerState<QuickMealEntryScreen> {
 
   Future<void> _estimateNow() async {
     if (_text.text.trim().isEmpty && _photo == null) return;
-    if (!await ensureAiConsent(context, ref, feature: 'estimating meals')) return;
+    if (!await ensureAiConsent(context, ref, feature: context.l10n.journalAiFeatureEstimatingMeals)) return;
     if (!mounted) return;
     setState(() => _busy = true);
     try {
@@ -330,7 +338,7 @@ class _QuickMealEntryScreenState extends ConsumerState<QuickMealEntryScreen> {
       ref.read(analyticsProvider).log(AnalyticsEvents.mealLogged, {'meal_type': _meal.name, 'source': _recipe != null ? 'recipe' : 'quick'});
       if (mounted) {
         context.pop();
-        showMessage(context, '$title logged');
+        showMessage(context, context.l10n.journalMealLogged(title));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -343,9 +351,10 @@ class _QuickMealEntryScreenState extends ConsumerState<QuickMealEntryScreen> {
     final q = _text.text.trim().toLowerCase();
     final matches = q.length < 2 ? const <Recipe>[] : recipes.where((r) => r.title.toLowerCase().contains(q)).take(4).toList();
     final ready = _recipe != null || _estimate != null || q.isNotEmpty;
+    final l = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Journal', title: 'What did you eat?'),
-      primaryAction: PrimaryActionButton(label: 'Log meal', loading: _busy, onPressed: ready ? _save : null),
+      header: EditorialPageHeader(eyebrow: l.journalEyebrow, title: l.journalQuickTitle),
+      primaryAction: PrimaryActionButton(label: l.journalLogMeal, loading: _busy, onPressed: ready ? _save : null),
       children: [
         TextField(
           controller: _text,
@@ -356,14 +365,14 @@ class _QuickMealEntryScreenState extends ConsumerState<QuickMealEntryScreen> {
           }),
           onSubmitted: (_) => _estimateNow(),
           decoration: InputDecoration(
-            hintText: 'e.g. Greek yogurt with berries',
+            hintText: l.journalQuickHint,
             suffixIcon: IconButton(
-              tooltip: _listening ? 'Listening' : 'Speak',
+              tooltip: _listening ? l.journalListening : l.journalSpeak,
               icon: Icon(_listening ? Icons.graphic_eq : Icons.mic_none),
               onPressed: () async {
                 final voice = ref.read(voiceInputProvider);
                 if (!await voice.available()) {
-                  if (context.mounted) showMessage(context, 'Voice isn\'t available — try your keyboard\'s dictation.');
+                  if (context.mounted) showMessage(context, l.journalVoiceUnavailable);
                   return;
                 }
                 setState(() => _listening = true);
@@ -382,24 +391,24 @@ class _QuickMealEntryScreenState extends ConsumerState<QuickMealEntryScreen> {
         Wrap(spacing: Space.xs, children: [
           ActionChip(
             avatar: const Icon(Icons.photo_camera_outlined, size: 18),
-            label: Text(_photo == null ? 'Add a photo' : 'Photo added'),
+            label: Text(_photo == null ? l.journalAddPhoto : l.journalPhotoAdded),
             onPressed: () async {
               try {
                 final p = await pickPhoto(camera: true, maxWidth: 1400);
                 if (p != null) setState(() => _photo = p.bytes);
               } on PhotoPermissionDenied {
-                if (context.mounted) showMessage(context, 'Camera access is off. You can still describe the meal.', error: true);
+                if (context.mounted) showMessage(context, l.journalCameraOff, error: true);
               }
             },
           ),
-          ActionChip(avatar: const Icon(Icons.calculate_outlined, size: 18), label: const Text('Estimate nutrition'), onPressed: _busy ? null : _estimateNow),
+          ActionChip(avatar: const Icon(Icons.calculate_outlined, size: 18), label: Text(l.journalEstimateNutrition), onPressed: _busy ? null : _estimateNow),
         ]),
         for (final r in matches)
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.menu_book_outlined),
             title: Text(r.title),
-            subtitle: const Text('Saved recipe'),
+            subtitle: Text(l.journalSavedRecipe),
             selected: _recipe?.id == r.id,
             onTap: () => setState(() {
               _recipe = r;
@@ -409,23 +418,23 @@ class _QuickMealEntryScreenState extends ConsumerState<QuickMealEntryScreen> {
           ),
         if (_estimate != null) ...[
           const SizedBox(height: Space.m),
-          if (_estimate!.isDemo) const DemoBanner(message: 'Demo estimate from reference data — no AI used.'),
-          NutritionSummaryCard(nutrition: _estimate!.nutrition.scale(_portions), title: _estimate!.title, subtitle: _estimate!.note ?? 'for ${_fmtPortions(_portions)} portion', showCalories: ref.watch(wellnessProvider).value?.calorieTracking ?? false),
+          if (_estimate!.isDemo) DemoBanner(message: l.journalDemoEstimate),
+          NutritionSummaryCard(nutrition: _estimate!.nutrition.scale(_portions), title: _estimate!.title, subtitle: _estimate!.note ?? l.journalForPortions(_portions, _fmtPortions(context, _portions)), showCalories: ref.watch(wellnessProvider).value?.calorieTracking ?? false),
         ],
-        const SectionHeader('Details'),
+        SectionHeader(l.journalDetails),
         Wrap(spacing: Space.xs, children: [
-          for (final t in MealType.values) ChoiceChip(label: Text(t.label), selected: _meal == t, onSelected: (_) => setState(() => _meal = t)),
+          for (final t in MealType.values) ChoiceChip(label: Text(context.labelOf(t)), selected: _meal == t, onSelected: (_) => setState(() => _meal = t)),
         ]),
         const SizedBox(height: Space.s),
         Row(children: [
-          Expanded(child: Text('Portions', style: context.text.titleMedium)),
+          Expanded(child: Text(l.journalPortions, style: context.text.titleMedium)),
           QuantityStepper(value: Quantity(_portions, Unit.piece), step: 0.5, min: 0.5, onChanged: (q) => setState(() => _portions = q.amount)),
         ]),
         Card(
           margin: const EdgeInsets.only(top: Space.s),
           child: ListTile(
             leading: const Icon(Icons.schedule),
-            title: Text('${formatDay(context, _at)} at ${formatTime(context, _at)}'),
+            title: Text(l.journalDayAtTime(formatDay(context, _at), formatTime(context, _at))),
             trailing: const Icon(Icons.edit_outlined),
             onTap: () async {
               final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_at));
@@ -456,17 +465,18 @@ class _EatingRemindersScreenState extends ConsumerState<EatingRemindersScreen> {
     final s = _s ??= ref.watch(settingsProvider).value;
     if (s == null) return const Scaffold(body: LoadingState());
     String two(int v) => v.toString().padLeft(2, '0');
+    final l = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Journal', title: 'Meal reminders', subtitle: 'Gentle nudges, never nagging. Quiet hours are always respected.'),
+      header: EditorialPageHeader(eyebrow: l.journalEyebrow, title: l.journalMealReminders, subtitle: l.journalRemindersSubtitle),
       primaryAction: PrimaryActionButton(
-        label: 'Save reminders',
+        label: l.journalSaveReminders,
         loading: _busy,
         onPressed: () async {
           setState(() => _busy = true);
           try {
             final n = ref.read(notificationServiceProvider);
             if (s.mealReminders.isNotEmpty && !await n.requestPermission()) {
-              if (context.mounted) showMessage(context, 'Notifications are off for Chefii in Settings.', error: true);
+              if (context.mounted) showMessage(context, l.journalNotificationsOff, error: true);
               return;
             }
             await n.cancelRange(NotificationIds.mealBase, MealType.values.length);
@@ -476,15 +486,15 @@ class _EatingRemindersScreenState extends ConsumerState<EatingRemindersScreen> {
               if (t == null) continue;
               final st = ScheduledTime.parse(t);
               if (isInQuietHours(st, s.quietHoursStart, s.quietHoursEnd)) {
-                skipped.add(m.label);
+                skipped.add(localizedLabel(l, m));
                 continue;
               }
-              await n.scheduleDaily(id: NotificationIds.mealBase + m.index, time: st, title: '${m.label} time', body: 'A gentle reminder from Chefii.', payload: '/today');
+              await n.scheduleDaily(id: NotificationIds.mealBase + m.index, time: st, title: l.journalReminderNotificationTitle(localizedLabel(l, m)), body: l.journalReminderNotificationBody, payload: '/today');
             }
             await ref.read(profileRepoProvider).saveSettings(ref.read(uidProvider)!, s);
             if (context.mounted) {
               context.pop();
-              showMessage(context, skipped.isEmpty ? 'Reminders saved' : 'Saved. ${skipped.join(', ')} fall${skipped.length == 1 ? 's' : ''} in quiet hours and won\'t notify.');
+              showMessage(context, skipped.isEmpty ? l.journalRemindersSaved : l.journalRemindersSavedSkipped(skipped.length, skipped.join(', ')));
             }
           } finally {
             if (mounted) setState(() => _busy = false);
@@ -496,8 +506,8 @@ class _EatingRemindersScreenState extends ConsumerState<EatingRemindersScreen> {
           Card(
             margin: const EdgeInsets.only(bottom: Space.xs),
             child: SwitchListTile(
-              title: Text(m.label),
-              subtitle: Text(s.mealReminders[m.name] ?? 'Off'),
+              title: Text(context.labelOf(m)),
+              subtitle: Text(s.mealReminders[m.name] ?? l.journalReminderOff),
               value: s.mealReminders.containsKey(m.name),
               onChanged: (v) async {
                 final map = Map<String, String>.from(s.mealReminders);
@@ -513,17 +523,17 @@ class _EatingRemindersScreenState extends ConsumerState<EatingRemindersScreen> {
               },
             ),
           ),
-        const SectionHeader('Quiet hours'),
-        Text('No reminders between ${two(s.quietHoursStart)}:00 and ${two(s.quietHoursEnd)}:00.', style: context.text.bodyMedium),
-        Semantics(label: 'Quiet hours', child: RangeSlider(
+        SectionHeader(l.journalQuietHours),
+        Text(l.journalQuietHoursRange(two(s.quietHoursStart), two(s.quietHoursEnd)), style: context.text.bodyMedium),
+        Semantics(label: l.journalQuietHours, child: RangeSlider(
           values: RangeValues(s.quietHoursEnd.toDouble(), s.quietHoursStart.toDouble()),
           min: 0,
           max: 23,
           divisions: 23,
-          labels: RangeLabels('Wake ${two(s.quietHoursEnd)}:00', 'Sleep ${two(s.quietHoursStart)}:00'),
+          labels: RangeLabels(l.journalWakeLabel(two(s.quietHoursEnd)), l.journalSleepLabel(two(s.quietHoursStart))),
           onChanged: (v) => setState(() => _s = s.copyWith(quietHoursEnd: v.start.round(), quietHoursStart: v.end.round())),
         )),
-        Text('Snooze any reminder from the notification itself, or just ignore it — Chefii never repeats.', style: context.text.bodySmall),
+        Text(l.journalRemindersFootnote, style: context.text.bodySmall),
       ],
     );
   }
@@ -564,28 +574,35 @@ class EatingPatternsScreen extends ConsumerWidget {
     }
 
     String hm(int mins) => formatTime(context, DateTime(2000, 1, 1, mins ~/ 60, mins % 60));
+    final l = context.l10n;
+    final tag = localeTag(context);
+    String perDayAvg() {
+      final s = (meals.length / days).toStringAsFixed(1);
+      return tag.startsWith('fr') ? s.replaceAll('.', ',') : s;
+    }
+
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Journal', title: 'Eating patterns', subtitle: 'The last two weeks, as recorded.'),
+      header: EditorialPageHeader(eyebrow: l.journalEyebrow, title: l.journalEatingPatterns, subtitle: l.journalPatternsSubtitle),
       children: [
         Row(children: [
-          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text((meals.length / days).toStringAsFixed(1), style: context.metric), Text('meals logged per day', style: context.text.bodySmall)]))),
+          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(perDayAvg(), style: context.metric), Text(l.journalMealsPerDay, style: context.text.bodySmall)]))),
           const SizedBox(width: Space.xs),
-          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${gaps.length}', style: context.metric), Text('days with no records', style: context.text.bodySmall)]))),
+          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(gaps.length.toString(), style: context.metric), Text(l.journalDaysNoRecords, style: context.text.bodySmall)]))),
         ]),
-        const SectionHeader('Usual times'),
-        if (avgMinutes.isEmpty) Text('Log a few meals to see your rhythm.', style: context.text.bodyMedium),
+        SectionHeader(l.journalUsualTimes),
+        if (avgMinutes.isEmpty) Text(l.journalPatternsEmpty, style: context.text.bodyMedium),
         for (final e in avgMinutes.entries)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(e.key.label),
-            subtitle: adherence(e.key) == null ? null : Text('${adherence(e.key)}% within an hour of your reminder'),
-            trailing: Text('around ${hm(e.value)}', style: context.text.titleSmall),
+            title: Text(context.labelOf(e.key)),
+            subtitle: adherence(e.key) == null ? null : Text(l.journalWithinHour(adherence(e.key)!)),
+            trailing: Text(l.journalAround(hm(e.value)), style: context.text.titleSmall),
           ),
-        const SectionHeader('Last 14 days'),
+        SectionHeader(l.journalLast14Days),
         Wrap(spacing: 6, runSpacing: 6, children: [
           for (var i = days - 1; i >= 0; i--)
             Semantics(
-              label: '${DateFormat.MMMd().format(now.subtract(Duration(days: i)))}: ${perDay[i] ?? 0} meals',
+              label: l.journalDayMealsSemantics(perDay[i] ?? 0, DateFormat.MMMd(tag).format(now.subtract(Duration(days: i)))),
               excludeSemantics: true,
               child: Container(
                 width: 36,
@@ -596,15 +613,15 @@ class EatingPatternsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(Radii.s),
                 ),
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text(DateFormat.E().format(now.subtract(Duration(days: i))).substring(0, 1), style: context.text.labelSmall),
-                  Text('${perDay[i] ?? 0}', style: context.text.titleSmall),
+                  Text(DateFormat.E(tag).format(now.subtract(Duration(days: i))).substring(0, 1).toUpperCase(), style: context.text.labelSmall),
+                  Text((perDay[i] ?? 0).toString(), style: context.text.titleSmall),
                 ]),
               ),
             ),
         ]),
         const SizedBox(height: Space.l),
         Text(
-          'Gaps usually mean a meal wasn\'t logged, not that it wasn\'t eaten. Chefii describes your records; it doesn\'t predict blood sugar or judge your habits.',
+          l.journalPatternsDisclaimer,
           style: context.text.bodySmall,
         ),
       ],

@@ -1,0 +1,196 @@
+{
+  "journalNutritionTooltip": "Nutrition",
+  "journalMoreTooltip": "More",
+  "journalFullHistory": "Full history",
+  "journalEatingPatterns": "Eating patterns",
+  "journalMealReminders": "Meal reminders",
+  "journalEyebrow": "Journal",
+  "journalPreviousDay": "Previous day",
+  "journalNextDay": "Next day",
+  "journalLogAMeal": "Log a meal",
+  "journalEmptyTodayTitle": "Nothing logged yet today",
+  "journalEmptyTitle": "Nothing logged",
+  "journalEmptyMessage": "Meals you cook in Chefii are logged automatically. You can also add anything you ate.",
+  "journalPortionCount": "{count, plural, =1{{portions} portion} other{{portions} portions}}",
+  "@journalPortionCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      },
+      "portions": {
+        "type": "String"
+      }
+    }
+  },
+  "journalRepeatMeal": "Repeat {title}",
+  "@journalRepeatMeal": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "journalLoggedAgain": "Logged {title} again",
+  "@journalLoggedAgain": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "journalDaySoFar": "Day so far",
+  "journalEstimatedIntake": "Estimated intake",
+  "journalMealCount": "{count, plural, =1{1 meal} other{{count} meals}}",
+  "@journalMealCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "journalHistoryTitle": "Last 30 days",
+  "journalHistorySubtitle": "Tap any meal to correct it.",
+  "journalHistoryEmptyTitle": "No history yet",
+  "journalHistoryEmptyMessage": "Your meals will build up here.",
+  "journalEntryNotFoundTitle": "Entry not found",
+  "journalEntryNotFoundMessage": "It may have been deleted.",
+  "journalDelete": "Delete",
+  "journalDeleteTitle": "Delete this entry?",
+  "journalDeleteMessage": "This removes it from your journal. Your kitchen isn't changed.",
+  "journalSaveChanges": "Save changes",
+  "journalDayAtTime": "{day} at {time}",
+  "@journalDayAtTime": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "journalPortions": "Portions",
+  "journalEstimated": "Estimated",
+  "journalForPortions": "{count, plural, =1{for {portions} portion} other{for {portions} portions}}",
+  "@journalForPortions": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      },
+      "portions": {
+        "type": "String"
+      }
+    }
+  },
+  "journalViewRecipe": "View recipe",
+  "journalQuickTitle": "What did you eat?",
+  "journalLogMeal": "Log meal",
+  "journalAiFeatureEstimatingMeals": "estimating meals",
+  "journalMealLogged": "{title} logged",
+  "@journalMealLogged": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "journalQuickHint": "e.g. Greek yogurt with berries",
+  "journalListening": "Listening",
+  "journalSpeak": "Speak",
+  "journalVoiceUnavailable": "Voice isn't available — try your keyboard's dictation.",
+  "journalAddPhoto": "Add a photo",
+  "journalPhotoAdded": "Photo added",
+  "journalCameraOff": "Camera access is off. You can still describe the meal.",
+  "journalEstimateNutrition": "Estimate nutrition",
+  "journalSavedRecipe": "Saved recipe",
+  "journalDemoEstimate": "Demo estimate from reference data — no AI used.",
+  "journalDetails": "Details",
+  "journalRemindersSubtitle": "Gentle nudges, never nagging. Quiet hours are always respected.",
+  "journalSaveReminders": "Save reminders",
+  "journalNotificationsOff": "Notifications are off for Chefii in Settings.",
+  "journalReminderNotificationTitle": "{meal} time",
+  "@journalReminderNotificationTitle": {
+    "placeholders": {
+      "meal": {
+        "type": "String"
+      }
+    }
+  },
+  "journalReminderNotificationBody": "A gentle reminder from Chefii.",
+  "journalRemindersSaved": "Reminders saved",
+  "journalRemindersSavedSkipped": "{count, plural, =1{Saved. {meals} falls in quiet hours and won't notify.} other{Saved. {meals} fall in quiet hours and won't notify.}}",
+  "@journalRemindersSavedSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "meals": {
+        "type": "String"
+      }
+    }
+  },
+  "journalReminderOff": "Off",
+  "journalQuietHours": "Quiet hours",
+  "journalQuietHoursRange": "No reminders between {start}:00 and {end}:00.",
+  "@journalQuietHoursRange": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "journalWakeLabel": "Wake {hour}:00",
+  "@journalWakeLabel": {
+    "placeholders": {
+      "hour": {
+        "type": "String"
+      }
+    }
+  },
+  "journalSleepLabel": "Sleep {hour}:00",
+  "@journalSleepLabel": {
+    "placeholders": {
+      "hour": {
+        "type": "String"
+      }
+    }
+  },
+  "journalRemindersFootnote": "Snooze any reminder from the notification itself, or just ignore it — Chefii never repeats.",
+  "journalPatternsSubtitle": "The last two weeks, as recorded.",
+  "journalMealsPerDay": "meals logged per day",
+  "journalDaysNoRecords": "days with no records",
+  "journalUsualTimes": "Usual times",
+  "journalPatternsEmpty": "Log a few meals to see your rhythm.",
+  "journalWithinHour": "{percent}% within an hour of your reminder",
+  "@journalWithinHour": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "journalAround": "around {time}",
+  "@journalAround": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "journalLast14Days": "Last 14 days",
+  "journalDayMealsSemantics": "{count, plural, =1{{date}: 1 meal} other{{date}: {count} meals}}",
+  "@journalDayMealsSemantics": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "journalPatternsDisclaimer": "Gaps usually mean a meal wasn't logged, not that it wasn't eaten. Chefii describes your records; it doesn't predict blood sugar or judge your habits."
+}

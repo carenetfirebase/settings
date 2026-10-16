@@ -46,3 +46,14 @@ How to review: switch the app to *Vous › Accessibilité et langue › Françai
 
 - Text inside AI-generated content that the model returns in English despite the instruction (rare; re-check on device).
 - Nutrient reference source names in a few detail rows.
+
+## Evidence sources: French links to verify
+
+These French titles and URLs were written without internet access; open each and confirm it resolves to the right page (`lib/domain/nutrition/evidence_library_fr.dart`):
+
+- Guide alimentaire canadien — https://guide-alimentaire.canada.ca/fr/
+- Tableaux des apports nutritionnels de référence — https://www.canada.ca/fr/sante-canada/services/aliments-nutrition/saine-alimentation/apports-nutritionnels-reference/tableaux.html
+- OMS, Directive : apport en sucres chez l'adulte et l'enfant — https://www.who.int/fr/publications/i/item/9789241549028
+- OMS, Sucres et caries dentaires — https://www.who.int/fr/news-room/fact-sheets/detail/sugars-and-dental-caries
+- NIH Office of Dietary Supplements (biotin, iron): English only; no official French version.
+- "CDRR" reference term has no French entry yet (shows in English if used).

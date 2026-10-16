@@ -9,9 +9,12 @@ import '../../app/actions.dart';
 import '../../app/providers.dart';
 import '../../core/design/design.dart';
 import '../../data/repositories/receipt_repository.dart';
+import '../../domain/models/codec.dart';
 import '../../domain/models/inventory.dart';
 import '../../domain/models/receipt.dart';
 import '../../domain/units/units.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 import '../kitchen/kitchen_sheets.dart';
 import '../shared/ai_consent.dart';
 import '../shared/photo_picker.dart';
@@ -82,34 +85,35 @@ class _ReceiptCaptureScreenState extends ConsumerState<ReceiptCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     final isDemo = ref.watch(aiGatewayProvider).isDemo;
+    final l10n = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(
-        eyebrow: 'Receipt',
-        title: 'Scan a receipt',
-        subtitle: 'Lay it flat in good light. Long receipts can be captured in a few pages.',
+      header: EditorialPageHeader(
+        eyebrow: l10n.receiptsEyebrow,
+        title: l10n.receiptsCaptureTitle,
+        subtitle: l10n.receiptsCaptureSubtitle,
       ),
       primaryAction: PrimaryActionButton(
         icon: Icons.document_scanner_outlined,
-        label: _hasDocScanner ? 'Scan receipt' : 'Take a photo',
+        label: _hasDocScanner ? l10n.receiptsScanReceipt : l10n.receiptsTakePhoto,
         loading: _busy,
         onPressed: _hasDocScanner ? _scanDocument : () => _photo(true),
       ),
       children: [
-        if (isDemo) const DemoBanner(message: 'Demo mode: any photo works — we\'ll show a labelled sample receipt instead of reading it.'),
+        if (isDemo) DemoBanner(message: l10n.receiptsDemoCapture),
         if (_denied)
           PermissionDeniedState(
-            permission: 'Camera',
-            why: 'Allow camera access in Settings to scan receipts, or import a photo you already took.',
-            alternativeLabel: 'Import a photo',
+            permission: l10n.receiptsCameraPermission,
+            why: l10n.receiptsCameraWhy,
+            alternativeLabel: l10n.receiptsImportPhoto,
             onAlternative: () => _photo(false),
           ),
-        const FoodArtwork(artKey: 'cream', height: 200, label: 'Receipt on a kitchen counter'),
+        FoodArtwork(artKey: 'cream', height: 200, label: l10n.receiptsArtworkLabel),
         const SizedBox(height: Space.l),
         for (final (icon, text) in [
-          (Icons.light_mode_outlined, 'Bright, even light — avoid shadows across the paper'),
-          (Icons.crop_free, 'Include the store name at the top and the total at the bottom'),
-          (Icons.layers_outlined, 'For long receipts, capture each section as its own page'),
-          (Icons.lock_outline, 'Photos are stored privately for your household and used only to read your purchases'),
+          (Icons.light_mode_outlined, l10n.receiptsTipLight),
+          (Icons.crop_free, l10n.receiptsTipFrame),
+          (Icons.layers_outlined, l10n.receiptsTipPages),
+          (Icons.lock_outline, l10n.receiptsTipPrivacy),
         ])
           Padding(
             padding: const EdgeInsets.only(bottom: Space.s),
@@ -127,9 +131,9 @@ class _ReceiptCaptureScreenState extends ConsumerState<ReceiptCaptureScreen> {
           TextButton.icon(
             onPressed: _busy ? null : () => _photo(true),
             icon: const Icon(Icons.photo_camera_outlined),
-            label: const Text('Use the regular camera'),
+            label: Text(l10n.receiptsRegularCamera),
           ),
-        TextButton.icon(onPressed: _busy ? null : () => _photo(false), icon: const Icon(Icons.photo_library_outlined), label: const Text('Import from photos')),
+        TextButton.icon(onPressed: _busy ? null : () => _photo(false), icon: const Icon(Icons.photo_library_outlined), label: Text(l10n.receiptsImportFromPhotos)),
       ],
     );
   }
@@ -160,7 +164,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> {
   }
 
   Future<void> _analyze({bool allowDuplicate = false}) async {
-    if (!await ensureAiConsent(context, ref, feature: 'reading receipts')) return;
+    if (!await ensureAiConsent(context, ref, feature: context.l10n.receiptsAiFeature)) return;
     if (!mounted) return;
     setState(() {
       _busy = true;
@@ -184,20 +188,21 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     final pages = ref.watch(receiptDraftProvider);
+    final l10n = context.l10n;
     return PremiumAppScaffold(
       header: EditorialPageHeader(
-        eyebrow: 'Receipt',
-        title: 'Check your photo',
-        subtitle: '${pages.length} page${pages.length == 1 ? '' : 's'}. Make sure the text is sharp.',
+        eyebrow: l10n.receiptsEyebrow,
+        title: l10n.receiptsPreviewTitle,
+        subtitle: l10n.receiptsPreviewSubtitle(pages.length),
       ),
-      primaryAction: PrimaryActionButton(label: 'Analyze receipt', loading: _busy, onPressed: pages.isEmpty ? null : _analyze),
+      primaryAction: PrimaryActionButton(label: l10n.receiptsAnalyze, loading: _busy, onPressed: pages.isEmpty ? null : _analyze),
       children: [
         if (pages.isEmpty)
           EmptyState(
             icon: Icons.receipt_long_outlined,
-            title: 'No pages yet',
-            message: 'Capture your receipt to continue.',
-            actionLabel: 'Capture',
+            title: l10n.receiptsNoPagesTitle,
+            message: l10n.receiptsNoPagesMessage,
+            actionLabel: l10n.receiptsCapture,
             onAction: () => context.pop(),
           ),
         for (var i = 0; i < pages.length; i++)
@@ -208,7 +213,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> {
               children: [
                 Semantics(
                   image: true,
-                  label: 'Receipt page ${i + 1}',
+                  label: l10n.receiptsPageSemantics(i + 1),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 420),
                     child: Image.memory(pages[i].bytes, fit: BoxFit.contain, width: double.infinity, gaplessPlayback: true),
@@ -217,11 +222,11 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> {
                 Row(
                   children: [
                     const SizedBox(width: Space.m),
-                    Text('Page ${i + 1}', style: context.text.labelMedium),
+                    Text(l10n.receiptsPageLabel(i + 1), style: context.text.labelMedium),
                     const Spacer(),
-                    IconButton(tooltip: 'Rotate', onPressed: _busy ? null : () => _rotate(i), icon: const Icon(Icons.rotate_right)),
+                    IconButton(tooltip: l10n.receiptsRotate, onPressed: _busy ? null : () => _rotate(i), icon: const Icon(Icons.rotate_right)),
                     IconButton(
-                      tooltip: 'Retake',
+                      tooltip: l10n.receiptsRetake,
                       onPressed: _busy
                           ? null
                           : () async {
@@ -231,7 +236,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> {
                       icon: const Icon(Icons.replay),
                     ),
                     IconButton(
-                      tooltip: 'Remove page',
+                      tooltip: l10n.receiptsRemovePage,
                       onPressed: _busy ? null : () => ref.read(receiptDraftProvider.notifier).removeAt(i),
                       icon: const Icon(Icons.delete_outline),
                     ),
@@ -243,7 +248,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> {
         if (pages.isNotEmpty && pages.length < ReceiptImageRules.maxPages)
           SecondaryActionButton(
             icon: Icons.add_photo_alternate_outlined,
-            label: 'Add another page',
+            label: l10n.receiptsAddPage,
             onPressed: _busy
                 ? null
                 : () async {
@@ -290,21 +295,22 @@ class ReceiptProcessingScreen extends ConsumerWidget {
     });
     final r = ref.watch(receiptProvider(receiptId)).value;
     final progress = r?.progress ?? 0;
+    final l10n = context.l10n;
     final steps = [
-      ('Uploading securely', r != null && r.status != ReceiptStatus.uploading),
-      ('Reading every line', progress >= 0.6),
-      ('Checking totals and duplicates', progress >= 0.9),
-      ('Matching to your kitchen', r?.status == ReceiptStatus.needsReview),
+      (l10n.receiptsStepUploading, r != null && r.status != ReceiptStatus.uploading),
+      (l10n.receiptsStepReading, progress >= 0.6),
+      (l10n.receiptsStepChecking, progress >= 0.9),
+      (l10n.receiptsStepMatching, r?.status == ReceiptStatus.needsReview),
     ];
     final reduceMotion = context.reduceMotion;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(
-        eyebrow: 'Receipt',
-        title: 'Reading your receipt',
-        subtitle: 'This usually takes under a minute. You can leave — we\'ll keep going.',
+      header: EditorialPageHeader(
+        eyebrow: l10n.receiptsEyebrow,
+        title: l10n.receiptsProcessingTitle,
+        subtitle: l10n.receiptsProcessingSubtitle,
       ),
       primaryAction: SecondaryActionButton(
-        label: 'Cancel',
+        label: l10n.commonCancel,
         onPressed: () async {
           final hid = ref.read(householdIdProvider);
           if (hid != null) await ref.read(receiptRepoProvider).cancel(hid, receiptId);
@@ -314,7 +320,7 @@ class ReceiptProcessingScreen extends ConsumerWidget {
       children: [
         const SizedBox(height: Space.l),
         Semantics(
-          label: 'Progress ${(progress * 100).round()} percent',
+          label: l10n.receiptsProgressSemantics((progress * 100).round()),
           child: LinearProgressIndicator(value: reduceMotion || progress == 0 ? (progress == 0 ? null : progress) : progress, minHeight: 6),
         ),
         const SizedBox(height: Space.xl),
@@ -330,7 +336,7 @@ class ReceiptProcessingScreen extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: Space.l),
-        TextButton(onPressed: () => context.go('/today'), child: const Text('Continue in the background')),
+        TextButton(onPressed: () => context.go('/today'), child: Text(l10n.receiptsContinueBackground)),
       ],
     );
   }
@@ -346,15 +352,16 @@ class ReceiptReviewScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(receiptProvider(receiptId));
     final r = async.value;
-    if (r == null) return PremiumAppScaffold(children: [async.isLoading ? const LoadingState() : const ErrorState(message: 'Receipt not found.')]);
+    final l10n = context.l10n;
+    if (r == null) return PremiumAppScaffold(children: [async.isLoading ? const LoadingState() : ErrorState(message: l10n.receiptsNotFound)]);
     if (r.status == ReceiptStatus.imported) {
       return PremiumAppScaffold(
         children: [
           EmptyState(
             icon: Icons.task_alt,
-            title: 'Already in your kitchen',
-            message: 'This receipt was imported.',
-            actionLabel: 'See summary',
+            title: l10n.receiptsAlreadyInKitchenTitle,
+            message: l10n.receiptsAlreadyImportedMessage,
+            actionLabel: l10n.receiptsSeeSummary,
             onAction: () => context.pushReplacement('/receipt/$receiptId/done'),
           ),
         ],
@@ -367,16 +374,16 @@ class ReceiptReviewScreen extends ConsumerWidget {
 
     return PremiumAppScaffold(
       header: EditorialPageHeader(
-        eyebrow: r.merchant ?? 'Receipt',
-        title: 'Review purchases',
-        subtitle: '${r.activeLines.length} items${review == 0 ? '' : ' · $review to check'}',
+        eyebrow: r.merchant ?? l10n.receiptsEyebrow,
+        title: l10n.receiptsReviewTitle,
+        subtitle: review == 0 ? l10n.receiptsReviewSubtitle(r.activeLines.length) : l10n.receiptsReviewSubtitleToCheck(r.activeLines.length, review),
       ),
       primaryAction: PrimaryActionButton(
-        label: blocking.isNotEmpty ? 'Resolve ${blocking.length} item${blocking.length == 1 ? '' : 's'}' : 'Continue',
+        label: blocking.isNotEmpty ? l10n.receiptsResolveItems(blocking.length) : l10n.commonContinue,
         onPressed: () => context.push(blocking.isNotEmpty ? '/receipt/$receiptId/unknown' : '/receipt/$receiptId/storage'),
       ),
       children: [
-        if (r.isDemo) const DemoBanner(message: 'Demo: this is a built-in sample receipt, not your photo.'),
+        if (r.isDemo) DemoBanner(message: l10n.receiptsDemoReview),
         SoftCard(
           color: totalsMatch ? context.palette.successSoft : context.palette.warningSoft,
           child: Row(
@@ -386,8 +393,8 @@ class ReceiptReviewScreen extends ConsumerWidget {
               Expanded(
                 child: Text(
                   totalsMatch
-                      ? 'Items add up to the receipt subtotal${r.total == null ? '' : ' · total ${r.total!.format()}'}.'
-                      : 'Items add up to ${linesTotal.format()} but the subtotal reads ${r.subtotal!.format()}. A line may be missing — you can add it.',
+                      ? (r.total == null ? l10n.receiptsTotalsMatch : l10n.receiptsTotalsMatchWithTotal(_formatMoney(context, r.total!)))
+                      : l10n.receiptsTotalsMismatch(_formatMoney(context, linesTotal), _formatMoney(context, r.subtotal!)),
                   style: context.text.bodySmall?.copyWith(color: context.palette.ink),
                 ),
               ),
@@ -404,7 +411,7 @@ class ReceiptReviewScreen extends ConsumerWidget {
               onToggle: (excluded) => _saveLine(ref, r, l.copyWith(excluded: excluded)),
             ),
           ),
-        TextButton.icon(onPressed: () => showCorrectItemSheet(context, ref, r, null), icon: const Icon(Icons.add), label: const Text('Add a missing item')),
+        TextButton.icon(onPressed: () => showCorrectItemSheet(context, ref, r, null), icon: const Icon(Icons.add), label: Text(l10n.receiptsAddMissingItem)),
       ],
     );
   }
@@ -426,6 +433,7 @@ class _LineTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final l = line;
+    final l10n = context.l10n;
     return Card(
       color: l.excluded ? p.background : null,
       child: InkWell(
@@ -440,7 +448,7 @@ class _LineTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l.name.isEmpty ? 'Unknown item' : l.name,
+                      l.name.isEmpty ? l10n.receiptsUnknownItem : l.name,
                       style: context.text.titleMedium?.copyWith(decoration: l.excluded ? TextDecoration.lineThrough : null, color: l.excluded ? p.muted : null),
                     ),
                     Text(l.rawText, style: context.text.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: 12)),
@@ -450,23 +458,23 @@ class _LineTile extends StatelessWidget {
                       runSpacing: 4,
                       children: [
                         TagPill(
-                          l.quantity?.format() ?? 'Amount needed',
+                          l.quantity == null ? l10n.receiptsAmountNeeded : context.formatQty(l.quantity!),
                           color: l.quantity == null ? p.warning : null,
                           background: l.quantity == null ? p.warningSoft : null,
                         ),
-                        if (l.totalPrice != null) TagPill(l.totalPrice!.format()),
-                        if (!l.isFood) TagPill('Not food', icon: Icons.cleaning_services_outlined),
+                        if (l.totalPrice != null) TagPill(_formatMoney(context, l.totalPrice!)),
+                        if (!l.isFood) TagPill(l10n.receiptsNotFood, icon: Icons.cleaning_services_outlined),
                         if (l.userEdited)
-                          TagPill('Checked', icon: Icons.check, color: p.success, background: p.successSoft)
+                          TagPill(l10n.receiptsChecked, icon: Icons.check, color: p.success, background: p.successSoft)
                         else if (l.needsReview)
-                          TagPill('Please check', icon: Icons.help_outline, color: p.warning, background: p.warningSoft),
+                          TagPill(l10n.receiptsPleaseCheck, icon: Icons.help_outline, color: p.warning, background: p.warningSoft),
                       ],
                     ),
                   ],
                 ),
               ),
               Semantics(
-                label: l.excluded ? 'Excluded. Tap to include' : 'Included. Tap to exclude',
+                label: l.excluded ? l10n.receiptsExcludedSemantics : l10n.receiptsIncludedSemantics,
                 child: Switch(value: !l.excluded, onChanged: (v) => onToggle(!v)),
               ),
             ],
@@ -518,7 +526,7 @@ class _CorrectItemSheetState extends ConsumerState<CorrectItemSheet> {
     try {
       final base =
           widget.line ??
-          ReceiptLineItem(id: 'u${DateTime.now().microsecondsSinceEpoch}', rawText: '(added by you)', name: '', category: FoodCategory.other, confidence: 1);
+          ReceiptLineItem(id: 'u${DateTime.now().microsecondsSinceEpoch}', rawText: context.l10n.receiptsAddedByYou, name: '', category: FoodCategory.other, confidence: 1);
       final updated = base.copyWith(
         name: _name.text.trim(),
         brand: _brand.text.trim().isEmpty ? null : _brand.text.trim(),
@@ -548,40 +556,41 @@ class _CorrectItemSheetState extends ConsumerState<CorrectItemSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.l + MediaQuery.viewInsetsOf(context).bottom),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.line == null ? 'Add an item' : 'Correct item', style: context.text.headlineSmall),
-            if (widget.line != null) Text('Receipt says: ${widget.line!.rawText}', style: context.text.bodySmall),
+            Text(widget.line == null ? l10n.receiptsAddItemTitle : l10n.receiptsCorrectItemTitle, style: context.text.headlineSmall),
+            if (widget.line != null) Text(l10n.receiptsReceiptSays(widget.line!.rawText), style: context.text.bodySmall),
             const SizedBox(height: Space.m),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('This is food'),
-              subtitle: const Text('Non-food purchases are not added to your kitchen'),
+              title: Text(l10n.receiptsIsFood),
+              subtitle: Text(l10n.receiptsIsFoodSubtitle),
               value: _isFood,
               onChanged: (v) => setState(() => _isFood = v),
             ),
             TextField(
               controller: _name,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'Product name'),
+              decoration: InputDecoration(labelText: l10n.receiptsProductName),
             ),
             const SizedBox(height: Space.s),
             if (_isFood) ...[
               TextField(
                 controller: _brand,
-                decoration: const InputDecoration(labelText: 'Brand (optional)'),
+                decoration: InputDecoration(labelText: l10n.receiptsBrandOptional),
               ),
               const SizedBox(height: Space.s),
               TextField(
                 controller: _package,
-                decoration: const InputDecoration(labelText: 'Package size (optional)', hintText: 'e.g. 750 g tub'),
+                decoration: InputDecoration(labelText: l10n.receiptsPackageOptional, hintText: l10n.receiptsPackageHint),
               ),
               const SizedBox(height: Space.m),
-              Text('Quantity', style: context.text.titleSmall),
+              Text(l10n.receiptsQuantity, style: context.text.titleSmall),
               const SizedBox(height: Space.xs),
               Row(
                 children: [
@@ -589,7 +598,7 @@ class _CorrectItemSheetState extends ConsumerState<CorrectItemSheet> {
                   const SizedBox(width: Space.s),
                   DropdownButton<Unit>(
                     value: _qty.unit,
-                    items: [for (final u in Unit.values) DropdownMenuItem(value: u, child: Text(u.symbol))],
+                    items: [for (final u in Unit.values) DropdownMenuItem(value: u, child: Text(context.labelOf(u)))],
                     onChanged: (u) => setState(() => _qty = Quantity(_qty.amount, u!)),
                   ),
                 ],
@@ -598,22 +607,22 @@ class _CorrectItemSheetState extends ConsumerState<CorrectItemSheet> {
               DropdownButtonFormField<FoodCategory>(
                 isExpanded: true,
                 initialValue: _category,
-                decoration: const InputDecoration(labelText: 'Category'),
-                items: [for (final c in FoodCategory.values.where((c) => c != FoodCategory.nonFood)) DropdownMenuItem(value: c, child: Text(c.label))],
+                decoration: InputDecoration(labelText: l10n.receiptsCategory),
+                items: [for (final c in FoodCategory.values.where((c) => c != FoodCategory.nonFood)) DropdownMenuItem(value: c, child: Text(context.labelOf(c)))],
                 onChanged: (c) => setState(() => _category = c!),
               ),
               const SizedBox(height: Space.m),
-              Text('Store in', style: context.text.titleSmall),
+              Text(l10n.receiptsStoreIn, style: context.text.titleSmall),
               Wrap(
                 spacing: Space.xs,
                 children: [
                   for (final s in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry])
-                    ChoiceChip(label: Text(s.label), selected: _storage == s, onSelected: (_) => setState(() => _storage = s)),
+                    ChoiceChip(label: Text(context.labelOf(s)), selected: _storage == s, onSelected: (_) => setState(() => _storage = s)),
                 ],
               ),
             ],
             const SizedBox(height: Space.l),
-            PrimaryActionButton(label: 'Save', loading: _busy, onPressed: _save),
+            PrimaryActionButton(label: l10n.commonSave, loading: _busy, onPressed: _save),
           ],
         ),
       ),
@@ -633,19 +642,20 @@ class UnknownItemsScreen extends ConsumerWidget {
     if (r == null) return const Scaffold(body: LoadingState());
     final unresolved = r.lines.where((l) => !l.excluded && (l.needsReview || ReceiptImportService.blockingLines(r).contains(l))).toList();
     final blocking = ReceiptImportService.blockingLines(r);
+    final l10n = context.l10n;
     return PremiumAppScaffold(
       header: EditorialPageHeader(
-        eyebrow: 'Receipt',
-        title: 'A few to check',
-        subtitle: unresolved.isEmpty ? 'All resolved.' : 'Tell us what these are, or leave them out.',
+        eyebrow: l10n.receiptsEyebrow,
+        title: l10n.receiptsUnknownTitle,
+        subtitle: unresolved.isEmpty ? l10n.receiptsAllResolved : l10n.receiptsUnknownSubtitle,
       ),
       primaryAction: PrimaryActionButton(
-        label: blocking.isEmpty ? 'Continue' : '${blocking.length} still need a name and amount',
+        label: blocking.isEmpty ? l10n.commonContinue : l10n.receiptsStillNeedNameAmount(blocking.length),
         onPressed: blocking.isEmpty ? () => context.pushReplacement('/receipt/$receiptId/storage') : null,
       ),
       children: [
         if (unresolved.isEmpty)
-          const EmptyState(icon: Icons.task_alt, title: 'Nothing left to check', message: 'Everything has a name and an amount.', compact: true),
+          EmptyState(icon: Icons.task_alt, title: l10n.receiptsNothingLeftTitle, message: l10n.receiptsNothingLeftMessage, compact: true),
         for (final l in unresolved)
           Card(
             margin: const EdgeInsets.only(bottom: Space.xs),
@@ -658,8 +668,10 @@ class UnknownItemsScreen extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     l.name.isEmpty
-                        ? 'We couldn\'t tell what this is'
-                        : 'Looks like: ${l.name}${l.quantity == null ? ' (amount unknown)' : ' · ${l.quantity!.format()}'}',
+                        ? l10n.receiptsCouldntTell
+                        : l.quantity == null
+                        ? l10n.receiptsLooksLikeUnknownAmount(l.name)
+                        : l10n.receiptsLooksLikeWithAmount(l.name, context.formatQty(l.quantity!)),
                     style: context.text.titleMedium,
                   ),
                   for (final issue in l.issues) Text(issue, style: context.text.bodySmall),
@@ -668,17 +680,17 @@ class UnknownItemsScreen extends ConsumerWidget {
                     spacing: Space.xs,
                     runSpacing: Space.xs,
                     children: [
-                      FilledButton.tonal(onPressed: () => showCorrectItemSheet(context, ref, r, l), child: const Text('Fix')),
+                      FilledButton.tonal(onPressed: () => showCorrectItemSheet(context, ref, r, l), child: Text(l10n.receiptsFix)),
                       if (l.name.isNotEmpty && l.quantity != null)
                         OutlinedButton(
                           onPressed: () => _saveLine(ref, r, l.copyWith(userEdited: true, issues: const [])),
-                          child: const Text('Looks right'),
+                          child: Text(l10n.receiptsLooksRight),
                         ),
                       OutlinedButton(
                         onPressed: () => _saveLine(ref, r, l.copyWith(isFood: false, excluded: true, userEdited: true)),
-                        child: const Text('Not food'),
+                        child: Text(l10n.receiptsNotFood),
                       ),
-                      TextButton(onPressed: () => _saveLine(ref, r, l.copyWith(excluded: true)), child: const Text('Leave out')),
+                      TextButton(onPressed: () => _saveLine(ref, r, l.copyWith(excluded: true)), child: Text(l10n.receiptsLeaveOut)),
                     ],
                   ),
                 ],
@@ -726,16 +738,17 @@ class _StorageAssignmentScreenState extends ConsumerState<StorageAssignmentScree
     final r = ref.watch(receiptProvider(widget.receiptId)).value;
     if (r == null) return const Scaffold(body: LoadingState());
     final food = r.lines.where((l) => !l.excluded && l.isFood).toList();
+    final l10n = context.l10n;
     return PremiumAppScaffold(
-      header: EditorialPageHeader(eyebrow: 'Receipt', title: 'Where does it go?', subtitle: 'We\'ve suggested a spot for each. Tap to change.'),
+      header: EditorialPageHeader(eyebrow: l10n.receiptsEyebrow, title: l10n.receiptsStorageTitle, subtitle: l10n.receiptsStorageSubtitle),
       primaryAction: PrimaryActionButton(
-        label: 'Add ${food.length} item${food.length == 1 ? '' : 's'} to kitchen',
+        label: l10n.receiptsAddToKitchen(food.length),
         loading: _busy,
         onPressed: food.isEmpty ? null : () => _import(r),
       ),
       children: [
         for (final kind in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry]) ...[
-          if (food.any((l) => l.storage == kind)) SectionHeader(kind.label, topSpacing: Space.s),
+          if (food.any((l) => l.storage == kind)) SectionHeader(context.labelOf(kind), topSpacing: Space.s),
           for (final l in food.where((l) => l.storage == kind))
             Card(
               margin: const EdgeInsets.only(bottom: Space.xs),
@@ -743,17 +756,17 @@ class _StorageAssignmentScreenState extends ConsumerState<StorageAssignmentScree
                 padding: const EdgeInsets.symmetric(horizontal: Space.m, vertical: Space.s),
                 child: Row(
                   children: [
-                    Expanded(child: Text('${l.name} · ${l.quantity?.format() ?? ''}', style: context.text.bodyLarge)),
+                    Expanded(child: Text([l.name, if (l.quantity != null) context.formatQty(l.quantity!)].join(' · '), style: context.text.bodyLarge)),
                     PopupMenuButton<StorageKind>(
-                      tooltip: 'Change storage',
+                      tooltip: l10n.receiptsChangeStorage,
                       initialValue: l.storage,
                       onSelected: (k) => _saveLine(ref, r, l.copyWith(storage: k)),
                       itemBuilder: (_) => [
-                        for (final k in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry]) PopupMenuItem(value: k, child: Text(k.label)),
+                        for (final k in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry]) PopupMenuItem(value: k, child: Text(context.labelOf(k))),
                       ],
                       child: Padding(
                         padding: const EdgeInsets.all(Space.xs),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [Text(l.storage.label), const Icon(Icons.expand_more)]),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [Text(context.labelOf(l.storage)), const Icon(Icons.expand_more)]),
                       ),
                     ),
                   ],
@@ -767,7 +780,7 @@ class _StorageAssignmentScreenState extends ConsumerState<StorageAssignmentScree
               title: Text(l.name),
               trailing: TextButton(
                 onPressed: () => _saveLine(ref, r, l.copyWith(storage: StorageKind.pantry)),
-                child: const Text('Pantry'),
+                child: Text(context.labelOf(StorageKind.pantry)),
               ),
             ),
         if (_error != null) Text(_error!, style: context.text.bodyMedium?.copyWith(color: context.palette.error)),
@@ -787,19 +800,20 @@ class ReceiptErrorScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final r = ref.watch(receiptProvider(receiptId)).value;
     final duplicate = reason == 'duplicate' || r?.status == ReceiptStatus.duplicate;
+    final l10n = context.l10n;
     if (duplicate) {
       return PremiumAppScaffold(
-        header: const EditorialPageHeader(eyebrow: 'Receipt', title: 'Already scanned?'),
+        header: EditorialPageHeader(eyebrow: l10n.receiptsEyebrow, title: l10n.receiptsDuplicateTitle),
         primaryAction: PrimaryActionButton(
-          label: 'View the earlier receipt',
+          label: l10n.receiptsViewEarlier,
           onPressed: () => context.pushReplacement(r?.status == ReceiptStatus.imported ? '/receipt/$receiptId/done' : '/receipt/$receiptId/review'),
         ),
         children: [
           EmptyState(
             icon: Icons.copy_all_outlined,
-            title: 'This looks like a receipt you\'ve already added',
-            message: 'To avoid counting groceries twice, we stopped here.${r == null ? '' : ' Earlier scan: ${formatDay(context, r.createdAt)}.'}',
-            secondaryLabel: 'It\'s a different receipt — continue',
+            title: l10n.receiptsDuplicateHeadline,
+            message: r == null ? l10n.receiptsDuplicateMessage : l10n.receiptsDuplicateMessageWithDate(formatDay(context, r.createdAt)),
+            secondaryLabel: l10n.receiptsDifferentReceipt,
             onSecondary: () async {
               final pages = ref.read(receiptDraftProvider);
               if (pages.isEmpty) return context.pop();
@@ -813,9 +827,9 @@ class ReceiptErrorScreen extends ConsumerWidget {
     }
     final quality = r?.errorCode == 'unreadable' || r?.errorCode == 'not_a_receipt';
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Receipt', title: 'We couldn\'t read that one'),
+      header: EditorialPageHeader(eyebrow: l10n.receiptsEyebrow, title: l10n.receiptsErrorTitle),
       primaryAction: PrimaryActionButton(
-        label: quality ? 'Retake photo' : 'Try again',
+        label: quality ? l10n.receiptsRetakePhoto : l10n.commonTryAgain,
         onPressed: () async {
           if (quality) {
             context.pushReplacement('/receipt/capture');
@@ -828,11 +842,9 @@ class ReceiptErrorScreen extends ConsumerWidget {
       children: [
         EmptyState(
           icon: Icons.blur_on,
-          title: r?.errorMessage ?? 'Something went wrong',
-          message: quality
-              ? 'The photo may be blurry, too dark or cut off. Lay the receipt flat in bright light and include the whole thing.'
-              : 'Nothing was added to your kitchen, so it\'s safe to retry.',
-          secondaryLabel: 'Add items by hand instead',
+          title: r?.errorMessage ?? l10n.receiptsSomethingWrong,
+          message: quality ? l10n.receiptsQualityMessage : l10n.receiptsSafeRetry,
+          secondaryLabel: l10n.receiptsAddByHand,
           onSecondary: () => context.pushReplacement('/kitchen/add'),
         ),
       ],
@@ -851,21 +863,22 @@ class ReceiptDoneScreen extends ConsumerWidget {
     final r = ref.watch(receiptProvider(receiptId)).value;
     if (r == null) return const Scaffold(body: LoadingState());
     final s = ReceiptSummary(r);
+    final l10n = context.l10n;
     return PremiumAppScaffold(
       showBack: false,
-      header: EditorialPageHeader(eyebrow: r.merchant ?? 'Receipt', title: 'Your kitchen is up to date'),
-      primaryAction: PrimaryActionButton(label: 'View kitchen', onPressed: () => context.go('/kitchen')),
+      header: EditorialPageHeader(eyebrow: r.merchant ?? l10n.receiptsEyebrow, title: l10n.receiptsDoneTitle),
+      primaryAction: PrimaryActionButton(label: l10n.receiptsViewKitchen, onPressed: () => context.go('/kitchen')),
       children: [
         Row(
           children: [
             Expanded(
-              child: _Metric(value: '${s.imported}', label: 'items added'),
+              child: _Metric(value: '${s.imported}', label: l10n.receiptsMetricAdded(s.imported)),
             ),
             Expanded(
-              child: _Metric(value: '${s.excluded}', label: 'left out'),
+              child: _Metric(value: '${s.excluded}', label: l10n.receiptsMetricLeftOut(s.excluded)),
             ),
             Expanded(
-              child: _Metric(value: s.total?.format() ?? '—', label: 'total'),
+              child: _Metric(value: s.total == null ? '—' : _formatMoney(context, s.total!), label: l10n.receiptsMetricTotal),
             ),
           ],
         ),
@@ -874,7 +887,7 @@ class ReceiptDoneScreen extends ConsumerWidget {
           SoftCard(
             color: context.palette.infoSoft,
             child: Text(
-              '${s.estimated} item${s.estimated == 1 ? ' is' : 's are'} marked as estimated. Chefii will ask you to confirm next time you\'re in the kitchen.',
+              l10n.receiptsEstimatedNote(s.estimated),
               style: context.text.bodySmall?.copyWith(color: context.palette.ink),
             ),
           ),
@@ -882,13 +895,13 @@ class ReceiptDoneScreen extends ConsumerWidget {
           const SizedBox(height: Space.s),
           TextButton.icon(
             icon: const Icon(Icons.undo),
-            label: const Text('Undo this import'),
+            label: Text(l10n.receiptsUndoImportButton),
             onPressed: () async {
               final ok = await showConfirmActionSheet(
                 context,
-                title: 'Undo import?',
-                message: 'Removes these items from your kitchen. Anything already used stays recorded.',
-                confirmLabel: 'Undo import',
+                title: l10n.receiptsUndoImportTitle,
+                message: l10n.receiptsUndoImportMessage,
+                confirmLabel: l10n.receiptsUndoImportConfirm,
                 destructive: true,
               );
               if (!ok) return;
@@ -902,7 +915,7 @@ class ReceiptDoneScreen extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: Space.s),
-        SecondaryActionButton(icon: Icons.receipt_long_outlined, label: 'Scan another receipt', onPressed: () => context.pushReplacement('/receipt/capture')),
+        SecondaryActionButton(icon: Icons.receipt_long_outlined, label: l10n.receiptsScanAnother, onPressed: () => context.pushReplacement('/receipt/capture')),
       ],
     );
   }
@@ -915,7 +928,7 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: '$value $label',
+    label: [value, label].join(' '),
     excludeSemantics: true,
     child: Column(
       children: [
@@ -933,17 +946,18 @@ class ReceiptsListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final receipts = ref.watch(receiptsProvider).value ?? const <PurchaseReceipt>[];
+    final l10n = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Kitchen', title: 'Receipts'),
-      primaryAction: PrimaryActionButton(label: 'Scan a receipt', onPressed: () => context.push('/receipt/capture')),
+      header: EditorialPageHeader(eyebrow: l10n.receiptsListEyebrow, title: l10n.receiptsListTitle),
+      primaryAction: PrimaryActionButton(label: l10n.receiptsCaptureTitle, onPressed: () => context.push('/receipt/capture')),
       children: [
-        if (receipts.isEmpty) const EmptyState(icon: Icons.receipt_long_outlined, title: 'No receipts yet', message: 'Scanned receipts appear here.'),
+        if (receipts.isEmpty) EmptyState(icon: Icons.receipt_long_outlined, title: l10n.receiptsListEmptyTitle, message: l10n.receiptsListEmptyMessage),
         for (final r in receipts)
           Card(
             margin: const EdgeInsets.only(bottom: Space.xs),
             child: ListTile(
-              title: Text(r.merchant ?? 'Receipt'),
-              subtitle: Text('${formatDay(context, r.createdAt)} · ${r.status.label}${r.total == null ? '' : ' · ${r.total!.format()}'}'),
+              title: Text(r.merchant ?? l10n.receiptsEyebrow),
+              subtitle: Text([formatDay(context, r.createdAt), context.labelOf(r.status), if (r.total != null) _formatMoney(context, r.total!)].join(' · ')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push(switch (r.status) {
                 ReceiptStatus.needsReview => '/receipt/${r.id}/review',
@@ -957,6 +971,14 @@ class ReceiptsListScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Money for display: "$4.99" in English, "4,99 $" in French.
+String _formatMoney(BuildContext context, Money m) {
+  if (Localizations.localeOf(context).languageCode != 'fr') return m.format();
+  final sign = m.minorUnits < 0 ? '-' : '';
+  final abs = m.minorUnits.abs();
+  return '$sign${abs ~/ 100},${(abs % 100).toString().padLeft(2, '0')}\u00a0\$';
 }
 
 /// Re-export for screens that offer "Tell Chefii".

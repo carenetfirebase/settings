@@ -45,7 +45,7 @@ dart run tool/export_shared_data.dart --check      # client/server catalogue & a
 | `firestore.rules`, `storage.rules` | Security rules (`rules-tests/`) |
 | `docs/` | Requirements, architecture, data models, AI contracts, security, clinical safety, plan, tests, status, release, costs, decisions |
 
-**Start with [`docs/FEATURE_STATUS.md`](docs/FEATURE_STATUS.md)** for an honest account of what is done, what is limited, and what needs external setup (Firebase project, AI keys, device builds, clinical review) before launch.
+**Launching? Follow [`docs/LAUNCH_STEPS.md`](docs/LAUNCH_STEPS.md).** For details, start with [`docs/FEATURE_STATUS.md`](docs/FEATURE_STATUS.md) for an honest account of what is done, what is limited, and what needs external setup (Firebase project, AI keys, device builds, clinical review) before launch.
 
 ## Licences
 

@@ -300,7 +300,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get labelProfessionalKindNurse =>
-      'Infirmière ou infirmier / éducateur en diabète';
+      'Personnel infirmier / éducation en diabète';
 
   @override
   String get labelShareCategoryJournal => 'Journal alimentaire';
@@ -337,16 +337,16 @@ class AppLocalizationsFr extends AppLocalizations {
   String get labelCookingConfidenceBeginner => 'Je débute';
 
   @override
-  String get labelCookingConfidenceComfortable => 'À l\'aise';
+  String get labelCookingConfidenceComfortable => 'À l’aise';
 
   @override
-  String get labelCookingConfidenceConfident => 'Confiant·e';
+  String get labelCookingConfidenceConfident => 'En confiance';
 
   @override
-  String get labelCookingConfidenceAccomplished => 'Expérimenté·e';
+  String get labelCookingConfidenceAccomplished => 'Très à l’aise';
 
   @override
-  String get labelHouseholdTypeSingle => 'Moi seul·e';
+  String get labelHouseholdTypeSingle => 'Juste moi';
 
   @override
   String get labelHouseholdTypeCouple => 'Nous deux';
@@ -409,7 +409,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String get labelRecipeOriginUser => 'Votre recette';
 
   @override
-  String get labelRecipeOriginProfessional => 'De votre professionnel·le';
+  String get labelRecipeOriginProfessional =>
+      'De votre professionnel de la santé';
 
   @override
   String get labelUnitMg => 'mg';

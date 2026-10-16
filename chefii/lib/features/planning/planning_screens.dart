@@ -213,7 +213,7 @@ class _AssignMealScreenState extends ConsumerState<AssignMealScreen> {
         ]),
         if (recipe != null) ...[
           const SizedBox(height: Space.m),
-          LuxuryRecipeCard(recipe: recipe, compact: true, availabilityLabel: report?.label, canCookNow: report?.canCookNow ?? false, trailing: IconButton(tooltip: l.planningChangeRecipe, onPressed: () => setState(() => _recipeId = null), icon: const Icon(Icons.close))),
+          LuxuryRecipeCard(recipe: recipe, compact: true, availabilityLabel: report == null ? null : context.availabilityLabel(report), canCookNow: report?.canCookNow ?? false, trailing: IconButton(tooltip: l.planningChangeRecipe, onPressed: () => setState(() => _recipeId = null), icon: const Icon(Icons.close))),
           if (report != null && report.missing.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: Space.xs),
@@ -228,7 +228,7 @@ class _AssignMealScreenState extends ConsumerState<AssignMealScreen> {
               margin: const EdgeInsets.only(bottom: Space.xs),
               child: ListTile(
                 title: Text(a.recipe.title),
-                subtitle: Text([formatMinutes(a.recipe.totalMinutes), a.label].join(' · ')),
+                subtitle: Text([formatMinutes(a.recipe.totalMinutes), context.availabilityLabel(a)].join(' · ')),
                 onTap: () => setState(() => _recipeId = a.recipe.id),
               ),
             ),
@@ -308,7 +308,7 @@ class LeftoversScreen extends ConsumerWidget {
         for (final a in batch.take(4))
           Padding(
             padding: const EdgeInsets.only(bottom: Space.s),
-            child: LuxuryRecipeCard(recipe: a.recipe, compact: true, availabilityLabel: a.label, canCookNow: a.canCookNow, onTap: () => context.push('/recipe/${a.recipe.id}')),
+            child: LuxuryRecipeCard(recipe: a.recipe, compact: true, availabilityLabel: context.availabilityLabel(a), canCookNow: a.canCookNow, onTap: () => context.push('/recipe/${a.recipe.id}')),
           ),
       ],
     );

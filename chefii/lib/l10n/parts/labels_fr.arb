@@ -144,5 +144,15 @@
   "intoleranceLactose": "Lactose",
   "intoleranceGluten": "Gluten",
   "intoleranceEgg": "Œufs",
-  "intoleranceSoy": "Soya"
+  "intoleranceSoy": "Soya",
+  "tag15Minute": "15 minutes",
+  "tagHighProtein": "Riche en protéines",
+  "tagVegan": "Végétalien",
+  "tagVegetarian": "Végétarien",
+  "tagBatch": "Cuisine en lot",
+  "tagComfort": "Réconfortant",
+  "tagMakeAhead": "À préparer d’avance",
+  "tagNoCook": "Sans cuisson",
+  "availabilityAllOnHand": "Tout est à portée de main",
+  "availabilityToBuy": "{count, plural, =1{1 ingrédient à acheter} other{{count} ingrédients à acheter}}"
 }

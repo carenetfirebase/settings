@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/services/analytics.dart';
@@ -21,6 +22,8 @@ import '../domain/models/profile.dart';
 import '../domain/models/receipt.dart';
 import '../domain/models/recipe.dart';
 import '../domain/recipes/curated_recipes.dart';
+import '../domain/recipes/curated_recipes_fr.dart';
+import '../domain/recipes/recipe_french.dart';
 import 'config.dart';
 
 // ---------------------------------------------------------------- platform
@@ -194,15 +197,30 @@ class RecipeCache extends Notifier<Map<String, Recipe>> {
 
 final recipeCacheProvider = NotifierProvider<RecipeCache, Map<String, Recipe>>(RecipeCache.new);
 
+/// True when content (recipes, evidence) should be shown in French: the
+/// language setting, or the device language when set to 'system'.
+final frenchContentProvider = Provider<bool>((ref) {
+  final language = ref.watch(settingsProvider).value?.language ?? 'system';
+  if (language == 'fr-CA') return true;
+  if (language == 'en-CA') return false;
+  return WidgetsBinding.instance.platformDispatcher.locale.languageCode == 'fr';
+});
+
+/// The curated library in the current content language.
+final localizedCuratedProvider = Provider<Map<String, Recipe>>((ref) {
+  final french = ref.watch(frenchContentProvider);
+  return {for (final r in curatedRecipes) r.id: french ? applyFrench(r, curatedFrench[r.id]) : r};
+});
+
 final allRecipesProvider = Provider<List<Recipe>>((ref) {
   final saved = ref.watch(savedRecipesProvider).value ?? const <Recipe>[];
-  final ids = {for (final r in curatedRecipes) r.id};
-  return [...curatedRecipes, ...saved.where((r) => !ids.contains(r.id))];
+  final curated = ref.watch(localizedCuratedProvider);
+  return [...curated.values, ...saved.where((r) => !curated.containsKey(r.id))];
 });
 
 /// Looks a recipe up across curated, saved and this session's AI results.
 final recipeByIdProvider = Provider.family<Recipe?, String>((ref, id) {
-  return curatedById[id] ??
+  return ref.watch(localizedCuratedProvider)[id] ??
       ref.watch(recipeCacheProvider)[id] ??
       (ref.watch(savedRecipesProvider).value ?? const <Recipe>[]).where((r) => r.id == id).firstOrNull;
 });

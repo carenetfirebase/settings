@@ -390,7 +390,7 @@ class _RecipeResultsScreenState extends ConsumerState<RecipeResultsScreen> {
               return LuxuryRecipeCard(
                 recipe: s.recipe,
                 rationale: s.rationale,
-                availabilityLabel: report.label,
+                availabilityLabel: context.availabilityLabel(report),
                 canCookNow: report.canCookNow,
                 showNutrition: ref.watch(wellnessProvider).value?.showNutritionOnRecipes ?? true,
                 onTap: () => context.push('/recipe/${s.recipe.id}'),
@@ -488,7 +488,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
             Wrap(spacing: Space.xs, runSpacing: Space.xs, children: [
               TagPill(l.chefTotalTime(formatMinutes(recipe.totalMinutes)), icon: Icons.schedule),
               TagPill(context.labelOf(recipe.difficulty), icon: Icons.restaurant),
-              for (final t in recipe.tags.take(4)) TagPill(t),
+              for (final t in recipe.tags.take(4)) TagPill(context.recipeTag(t)),
             ]),
             if (isAi) ...[
               const SizedBox(height: Space.s),

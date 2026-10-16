@@ -15,6 +15,7 @@ import '../domain/models/recipe.dart';
 import '../domain/units/units.dart';
 import '../domain/catalog/catalog.dart';
 import '../domain/catalog/catalog_fr.dart';
+import '../domain/recipes/recipe_availability.dart';
 import 'l10n.dart';
 
 /// Translated display names for domain values. Use `context.labelOf(x)`
@@ -31,6 +32,24 @@ extension LocalizedLabels on BuildContext {
     final en = catalogById[productId]?.product.name;
     return fr != null && en != null && en.toLowerCase() == storedName.toLowerCase() ? fr.name : storedName;
   }
+
+  /// Display name for a recipe tag key ('vegan', 'make-ahead'); unknown tags
+  /// (for example from AI recipes) are shown as they are.
+  String recipeTag(String key) => switch (key) {
+        '15-minute' => l10n.tag15Minute,
+        'high-protein' => l10n.tagHighProtein,
+        'vegan' => l10n.tagVegan,
+        'vegetarian' => l10n.tagVegetarian,
+        'batch' => l10n.tagBatch,
+        'comfort' => l10n.tagComfort,
+        'make-ahead' => l10n.tagMakeAhead,
+        'no-cook' => l10n.tagNoCook,
+        _ => key,
+      };
+
+  /// "Everything on hand" / "2 ingredients to buy".
+  String availabilityLabel(AvailabilityReport report) =>
+      report.missing.isEmpty ? l10n.availabilityAllOnHand : l10n.availabilityToBuy(report.missing.length);
 
   /// Allergen key from AllergenGuard ('peanut', 'tree_nut', ...).
   String allergenLabel(String key) => localizedAllergen(l10n, key);

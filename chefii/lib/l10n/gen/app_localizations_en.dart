@@ -3761,6 +3761,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get intoleranceSoy => 'Soy';
 
   @override
+  String get tag15Minute => '15 minutes';
+
+  @override
+  String get tagHighProtein => 'High protein';
+
+  @override
+  String get tagVegan => 'Vegan';
+
+  @override
+  String get tagVegetarian => 'Vegetarian';
+
+  @override
+  String get tagBatch => 'Batch cooking';
+
+  @override
+  String get tagComfort => 'Comfort';
+
+  @override
+  String get tagMakeAhead => 'Make ahead';
+
+  @override
+  String get tagNoCook => 'No cooking';
+
+  @override
+  String get availabilityAllOnHand => 'Everything on hand';
+
+  @override
+  String availabilityToBuy(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ingredients to buy',
+      one: '1 ingredient to buy',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get morningStepWake => 'Wake';
 
   @override

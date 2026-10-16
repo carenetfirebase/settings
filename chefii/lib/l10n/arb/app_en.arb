@@ -2242,6 +2242,23 @@
   "intoleranceGluten": "Gluten",
   "intoleranceEgg": "Eggs",
   "intoleranceSoy": "Soy",
+  "tag15Minute": "15 minutes",
+  "tagHighProtein": "High protein",
+  "tagVegan": "Vegan",
+  "tagVegetarian": "Vegetarian",
+  "tagBatch": "Batch cooking",
+  "tagComfort": "Comfort",
+  "tagMakeAhead": "Make ahead",
+  "tagNoCook": "No cooking",
+  "availabilityAllOnHand": "Everything on hand",
+  "availabilityToBuy": "{count, plural, =1{1 ingredient to buy} other{{count} ingredients to buy}}",
+  "@availabilityToBuy": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "morningStepWake": "Wake",
   "morningStepGetReady": "Get ready",
   "morningStepMake": "Make {recipe}",

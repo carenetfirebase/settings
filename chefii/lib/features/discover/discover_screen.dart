@@ -79,7 +79,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           padding: const EdgeInsets.only(bottom: Space.m),
           child: LuxuryRecipeCard(
             recipe: a.recipe,
-            availabilityLabel: a.label,
+            availabilityLabel: context.availabilityLabel(a),
             canCookNow: a.canCookNow,
             showNutrition: showNutrition,
             rationale: a.usesExpiringItems ? l.discoverUsesExpiring : null,

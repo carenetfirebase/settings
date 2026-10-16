@@ -179,7 +179,7 @@ class _StatTile extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, size: 20, color: context.colors.primary),
           const SizedBox(height: Space.xs),
-          Text(value, style: context.metric),
+          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: context.metric, maxLines: 1)),
           Text(label, style: context.text.bodySmall),
         ]),
       );

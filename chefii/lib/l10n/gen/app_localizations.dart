@@ -6294,6 +6294,66 @@ abstract class AppLocalizations {
   /// **'Soy'**
   String get intoleranceSoy;
 
+  /// No description provided for @tag15Minute.
+  ///
+  /// In en, this message translates to:
+  /// **'15 minutes'**
+  String get tag15Minute;
+
+  /// No description provided for @tagHighProtein.
+  ///
+  /// In en, this message translates to:
+  /// **'High protein'**
+  String get tagHighProtein;
+
+  /// No description provided for @tagVegan.
+  ///
+  /// In en, this message translates to:
+  /// **'Vegan'**
+  String get tagVegan;
+
+  /// No description provided for @tagVegetarian.
+  ///
+  /// In en, this message translates to:
+  /// **'Vegetarian'**
+  String get tagVegetarian;
+
+  /// No description provided for @tagBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch cooking'**
+  String get tagBatch;
+
+  /// No description provided for @tagComfort.
+  ///
+  /// In en, this message translates to:
+  /// **'Comfort'**
+  String get tagComfort;
+
+  /// No description provided for @tagMakeAhead.
+  ///
+  /// In en, this message translates to:
+  /// **'Make ahead'**
+  String get tagMakeAhead;
+
+  /// No description provided for @tagNoCook.
+  ///
+  /// In en, this message translates to:
+  /// **'No cooking'**
+  String get tagNoCook;
+
+  /// No description provided for @availabilityAllOnHand.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything on hand'**
+  String get availabilityAllOnHand;
+
+  /// No description provided for @availabilityToBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 ingredient to buy} other{{count} ingredients to buy}}'**
+  String availabilityToBuy(int count);
+
   /// No description provided for @morningStepWake.
   ///
   /// In en, this message translates to:

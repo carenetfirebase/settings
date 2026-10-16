@@ -3822,6 +3822,44 @@ class AppLocalizationsFr extends AppLocalizations {
   String get intoleranceSoy => 'Soya';
 
   @override
+  String get tag15Minute => '15 minutes';
+
+  @override
+  String get tagHighProtein => 'Riche en protéines';
+
+  @override
+  String get tagVegan => 'Végétalien';
+
+  @override
+  String get tagVegetarian => 'Végétarien';
+
+  @override
+  String get tagBatch => 'Cuisine en lot';
+
+  @override
+  String get tagComfort => 'Réconfortant';
+
+  @override
+  String get tagMakeAhead => 'À préparer d’avance';
+
+  @override
+  String get tagNoCook => 'Sans cuisson';
+
+  @override
+  String get availabilityAllOnHand => 'Tout est à portée de main';
+
+  @override
+  String availabilityToBuy(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ingrédients à acheter',
+      one: '1 ingrédient à acheter',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get morningStepWake => 'Se lever';
 
   @override

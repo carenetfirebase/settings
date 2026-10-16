@@ -3,6 +3,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../../domain/models/health.dart';
 import '../../../domain/models/professional.dart';
 import '../../../domain/models/recipe.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/labels.dart';
 import '../../format.dart';
 import '../theme.dart';
 import '../tokens.dart';
@@ -39,13 +41,13 @@ class ChefConversationBubble extends StatelessWidget {
           Text(text, style: context.text.bodyMedium?.copyWith(color: fromUser ? context.colors.onPrimary : p.ink)),
           if (isDemo && !fromUser) ...[
             const SizedBox(height: 4),
-            Text('Demo · curated suggestions, no AI', style: context.text.bodySmall?.copyWith(fontSize: 11)),
+            Text(context.l10n.coreChefDemoNote, style: context.text.bodySmall?.copyWith(fontSize: 11)),
           ],
         ],
       ),
     );
     return Semantics(
-      label: '${fromUser ? 'You' : 'Chef'}: $text',
+      label: fromUser ? context.l10n.coreSaidByYou(text) : context.l10n.coreSaidByChef(text),
       excludeSemantics: recipes.isEmpty,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: Space.xxs),
@@ -96,7 +98,7 @@ class EvidenceReferenceCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(child: Text(claim.topic.toUpperCase(), style: context.text.labelSmall?.copyWith(color: p.accent))),
-                  TagPill('${claim.strength.label} evidence', icon: Icons.fact_check_outlined, color: fg, background: bg),
+                  TagPill(context.l10n.coreEvidenceStrength(context.labelOf(claim.strength)), icon: Icons.fact_check_outlined, color: fg, background: bg),
                 ],
               ),
               const SizedBox(height: Space.xs),
@@ -105,12 +107,12 @@ class EvidenceReferenceCard extends StatelessWidget {
               for (final s in sources)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: Text('${s.publisher} · ${s.studyType.label} · ${s.year}', style: context.text.bodySmall),
+                  child: Text([s.publisher, context.labelOf(s.studyType), '${s.year}'].join(' · '), style: context.text.bodySmall),
                 ),
               Text(
                 claim.professionallyReviewed
-                    ? 'Reviewed ${claim.reviewedOn.toIso()}'
-                    : 'Internal summary, ${claim.reviewedOn.toIso()} · awaiting professional review',
+                    ? context.l10n.coreReviewed(claim.reviewedOn.toIso())
+                    : context.l10n.coreInternalSummary(claim.reviewedOn.toIso()),
                 style: context.text.bodySmall?.copyWith(fontStyle: FontStyle.italic),
               ),
             ],
@@ -134,13 +136,13 @@ class DentalExposureCard extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: Icon(protective ? Icons.water_drop_outlined : Icons.local_drink_outlined, color: protective ? p.success : p.warning),
-        title: Text(event.kind.label),
+        title: Text(context.labelOf(event.kind)),
         subtitle: Text([
           formatTime(context, event.occurredAt),
-          if (event.durationMinutes != null) 'over ${event.durationMinutes} min',
-          if (protective) 'helpful habit',
+          if (event.durationMinutes != null) context.l10n.coreOverMinutes(event.durationMinutes!),
+          if (protective) context.l10n.coreHelpfulHabit,
         ].join(' · ')),
-        trailing: onDelete == null ? null : IconButton(tooltip: 'Delete', onPressed: onDelete, icon: const Icon(Icons.delete_outline)),
+        trailing: onDelete == null ? null : IconButton(tooltip: context.l10n.coreDelete, onPressed: onDelete, icon: const Icon(Icons.delete_outline)),
       ),
     );
   }
@@ -154,13 +156,13 @@ class PermissionSelector extends StatelessWidget {
   final ValueChanged<Set<ShareCategory>> onChanged;
   final List<ShareCategory> available;
 
-  static String describe(ShareCategory c) => switch (c) {
-        ShareCategory.journal => 'Meals you logged, portions and times',
-        ShareCategory.nutrition => 'Estimated nutrients from your journal',
-        ShareCategory.glucose => 'Glucose readings you entered',
-        ShareCategory.oral => 'Sugar and acid exposure log',
-        ShareCategory.concerns => 'Hair, skin & nail notes',
-        ShareCategory.dietary => 'Allergies, intolerances and preferences',
+  static String describe(AppLocalizations l, ShareCategory c) => switch (c) {
+        ShareCategory.journal => l.coreShareJournal,
+        ShareCategory.nutrition => l.coreShareNutrition,
+        ShareCategory.glucose => l.coreShareGlucose,
+        ShareCategory.oral => l.coreShareOral,
+        ShareCategory.concerns => l.coreShareConcerns,
+        ShareCategory.dietary => l.coreShareDietary,
       };
 
   @override
@@ -173,8 +175,8 @@ class PermissionSelector extends StatelessWidget {
             child: CheckboxListTile(
               value: selected.contains(c),
               onChanged: (v) => onChanged(v == true ? {...selected, c} : ({...selected}..remove(c))),
-              title: Text(c.label),
-              subtitle: Text(describe(c)),
+              title: Text(context.labelOf(c)),
+              subtitle: Text(describe(context.l10n, c)),
               controlAffinity: ListTileControlAffinity.trailing,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.l)),
             ),
@@ -193,12 +195,13 @@ class ProfessionalReviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final l = context.l10n;
     final status = switch (assessment.status) {
-      AssessmentStatus.sharedWithClient => ('New', p.info, p.infoSoft),
-      AssessmentStatus.acknowledged => ('Read', p.muted, p.hairline),
-      AssessmentStatus.accepted => ('Accepted', p.success, p.successSoft),
-      AssessmentStatus.declined => ('Declined', p.muted, p.hairline),
-      AssessmentStatus.draft => ('Draft', p.warning, p.warningSoft),
+      AssessmentStatus.sharedWithClient => (l.coreAssessmentNew, p.info, p.infoSoft),
+      AssessmentStatus.acknowledged => (l.coreAssessmentRead, p.muted, p.hairline),
+      AssessmentStatus.accepted => (l.coreAssessmentAccepted, p.success, p.successSoft),
+      AssessmentStatus.declined => (l.coreAssessmentDeclined, p.muted, p.hairline),
+      AssessmentStatus.draft => (l.coreAssessmentDraft, p.warning, p.warningSoft),
     };
     return Card(
       child: InkWell(
@@ -231,7 +234,7 @@ class ProfessionalReviewCard extends StatelessWidget {
               const SizedBox(height: Space.s),
               Text(assessment.summary, maxLines: 3, overflow: TextOverflow.ellipsis, style: context.text.bodyMedium),
               const SizedBox(height: Space.xs),
-              Text('Reviewed ${formatDay(context, assessment.createdAt)}', style: context.text.bodySmall),
+              Text(l.coreReviewed(formatDay(context, assessment.createdAt)), style: context.text.bodySmall),
             ],
           ),
         ),

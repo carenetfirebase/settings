@@ -40,7 +40,7 @@ class FirebaseAiGateway implements AiGateway {
       return Map<String, dynamic>.from(res.data);
     } on FirebaseFunctionsException catch (e) {
       final retryable = e.code == 'unavailable' || e.code == 'deadline-exceeded' || e.code == 'resource-exhausted';
-      throw AiUnavailableException(e.message ?? 'The kitchen assistant is unavailable right now.', retryable: retryable);
+      throw AiUnavailableException(e.message ?? 'The kitchen assistant is unavailable right now.', retryable: retryable, detail: e.message);
     }
   }
 

@@ -2,6 +2,8 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../domain/units/units.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/labels.dart';
 import '../theme.dart';
 import '../tokens.dart';
 
@@ -38,7 +40,7 @@ class PrimaryActionButton extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: onPressed != null && !loading,
-      label: loading ? '$label, in progress' : null,
+      label: loading ? context.l10n.coreInProgress(label) : null,
       child: expand ? SizedBox(width: double.infinity, child: button) : button,
     );
   }
@@ -114,9 +116,9 @@ class QuantityStepper extends StatelessWidget {
     final canInc = max == null || value.amount + _step <= max! + 1e-9;
     return Semantics(
       label: label,
-      value: value.format(),
-      increasedValue: Quantity(value.amount + _step, value.unit).format(),
-      decreasedValue: Quantity((value.amount - _step).clamp(min, double.infinity), value.unit).format(),
+      value: context.formatQty(value),
+      increasedValue: context.formatQty(Quantity(value.amount + _step, value.unit)),
+      decreasedValue: context.formatQty(Quantity((value.amount - _step).clamp(min, double.infinity), value.unit)),
       onIncrease: canInc ? () => _set(value.amount + _step) : null,
       onDecrease: canDec ? () => _set(value.amount - _step) : null,
       child: Container(
@@ -130,7 +132,7 @@ class QuantityStepper extends StatelessWidget {
           children: [
             ExcludeSemantics(
               child: IconButton(
-                tooltip: 'Less',
+                tooltip: context.l10n.coreLess,
                 onPressed: canDec ? () => _set(value.amount - _step) : null,
                 icon: const Icon(Icons.remove),
               ),
@@ -138,12 +140,12 @@ class QuantityStepper extends StatelessWidget {
             ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 64),
               child: ExcludeSemantics(
-                child: Text(value.format(), textAlign: TextAlign.center, style: context.text.titleMedium),
+                child: Text(context.formatQty(value), textAlign: TextAlign.center, style: context.text.titleMedium),
               ),
             ),
             ExcludeSemantics(
               child: IconButton(
-                tooltip: 'More',
+                tooltip: context.l10n.coreMore,
                 onPressed: canInc ? () => _set(value.amount + _step) : null,
                 icon: const Icon(Icons.add),
               ),
@@ -162,7 +164,7 @@ Future<bool> showConfirmActionSheet(
   required String title,
   required String message,
   required String confirmLabel,
-  String cancelLabel = 'Cancel',
+  String? cancelLabel,
   bool destructive = false,
   Widget? extra,
 }) async {
@@ -187,7 +189,7 @@ class ConfirmActionSheet extends StatelessWidget {
     required this.title,
     required this.message,
     required this.confirmLabel,
-    this.cancelLabel = 'Cancel',
+    this.cancelLabel,
     this.destructive = false,
     this.extra,
   });
@@ -195,7 +197,9 @@ class ConfirmActionSheet extends StatelessWidget {
   final String title;
   final String message;
   final String confirmLabel;
-  final String cancelLabel;
+
+  /// Defaults to "Cancel" in the current language.
+  final String? cancelLabel;
   final bool destructive;
   final Widget? extra;
 
@@ -225,7 +229,7 @@ class ConfirmActionSheet extends StatelessWidget {
             const SizedBox(height: Space.xs),
             SizedBox(
               width: double.infinity,
-              child: TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(cancelLabel)),
+              child: TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(cancelLabel ?? context.l10n.commonCancel)),
             ),
           ],
         ),
@@ -241,7 +245,7 @@ void showUndoSnack(BuildContext context, String message, {VoidCallback? onUndo})
   m.showSnackBar(SnackBar(
     content: Text(message),
     duration: const Duration(seconds: 6),
-    action: onUndo == null ? null : SnackBarAction(label: 'Undo', onPressed: onUndo),
+    action: onUndo == null ? null : SnackBarAction(label: context.l10n.commonUndo, onPressed: onUndo),
   ));
 }
 

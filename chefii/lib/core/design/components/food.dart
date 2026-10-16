@@ -7,6 +7,8 @@ import '../../../domain/models/inventory.dart';
 import '../../../domain/models/nutrition.dart';
 import '../../../domain/models/planning.dart';
 import '../../../domain/models/recipe.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/labels.dart';
 import '../../format.dart';
 import '../theme.dart';
 import '../tokens.dart';
@@ -49,7 +51,7 @@ class FoodArtwork extends StatelessWidget {
     final key = artKey != null && palettes.containsKey(artKey) ? artKey! : keyFor(label ?? 'chefii');
     return Semantics(
       image: true,
-      label: label == null ? 'Illustration' : 'Illustration for $label',
+      label: label == null ? context.l10n.coreIllustration : context.l10n.coreIllustrationFor(label!),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: SizedBox(
@@ -135,7 +137,7 @@ class InventoryStatusBadge extends StatelessWidget {
       InventoryStatus.pastRecordedDate => (Icons.event_busy_outlined, p.error, p.errorSoft),
     };
     return Semantics(
-      label: 'Status: ${status.label}',
+      label: context.l10n.coreStatus(context.labelOf(status)),
       child: ExcludeSemantics(
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: compact ? 6 : Space.xs, vertical: 3),
@@ -147,7 +149,7 @@ class InventoryStatusBadge extends StatelessWidget {
               if (!compact) ...[
                 const SizedBox(width: 4),
                 Flexible(
-                  child: Text(status.label, overflow: TextOverflow.ellipsis, style: context.text.labelMedium?.copyWith(color: fg, fontSize: 12)),
+                  child: Text(context.labelOf(status), overflow: TextOverflow.ellipsis, style: context.text.labelMedium?.copyWith(color: fg, fontSize: 12)),
                 ),
               ],
             ],
@@ -208,10 +210,11 @@ class LuxuryRecipeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final kcal = recipe.nutritionPerServing[Nutrient.energyKcal];
+    final l = context.l10n;
     final semantics = [
       recipe.title,
-      '${recipe.totalMinutes} minutes',
-      recipe.difficulty.label,
+      l.coreMinutesSpoken(recipe.totalMinutes),
+      context.labelOf(recipe.difficulty),
       ?availabilityLabel,
     ].join(', ');
     return Semantics(
@@ -252,8 +255,8 @@ class LuxuryRecipeCard extends StatelessWidget {
                       spacing: Space.xs,
                       runSpacing: Space.xs,
                       children: [
-                        TagPill('${recipe.totalMinutes} min', icon: Icons.schedule),
-                        TagPill(recipe.difficulty.label, icon: Icons.restaurant),
+                        TagPill(l.coreMinutesShort(recipe.totalMinutes), icon: Icons.schedule),
+                        TagPill(context.labelOf(recipe.difficulty), icon: Icons.restaurant),
                         if (availabilityLabel != null)
                           TagPill(
                             availabilityLabel!,
@@ -261,7 +264,7 @@ class LuxuryRecipeCard extends StatelessWidget {
                             color: canCookNow ? p.success : p.ink,
                             background: canCookNow ? p.successSoft : p.accentSoft,
                           ),
-                        if (showNutrition && kcal > 0) TagPill('≈ ${kcal.round()} kcal', icon: Icons.local_fire_department_outlined),
+                        if (showNutrition && kcal > 0) TagPill(l.coreKcalApprox(kcal.round()), icon: Icons.local_fire_department_outlined),
                       ],
                     ),
                   ],
@@ -296,16 +299,20 @@ class IngredientCard extends StatelessWidget {
     final p = context.palette;
     final status = lot.statusOn(today);
     final days = lot.daysLeft(today);
+    final l = context.l10n;
+    final qty = context.formatQty(lot.quantity);
     final freshness = days == null
         ? null
         : days < 0
-            ? (lot.daysLeftIsEstimate ? 'Likely past best' : 'Past recorded date')
+            ? (lot.daysLeftIsEstimate ? l.coreLikelyPastBest : l.corePastRecordedDate)
             : days == 0
-                ? 'Today'
-                : '${lot.daysLeftIsEstimate ? '~' : ''}$days day${days == 1 ? '' : 's'} left';
+                ? l.commonToday
+                : lot.daysLeftIsEstimate
+                    ? l.coreDaysLeftApprox(days)
+                    : l.coreDaysLeft(days);
     return Semantics(
       button: onTap != null,
-      label: '${lot.productName}, ${lot.quantity.format()}, ${status.label}${freshness == null ? '' : ', $freshness'}',
+      label: [lot.productName, qty, context.labelOf(status), ?freshness].join(', '),
       excludeSemantics: true,
       child: Card(
         child: InkWell(
@@ -333,9 +340,9 @@ class IngredientCard extends StatelessWidget {
                         runSpacing: 4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Text(lot.quantity.format(), style: context.text.bodySmall?.copyWith(color: p.ink)),
-                          if (freshness != null) Text('· $freshness', style: context.text.bodySmall),
-                          if (locationName != null) Text('· $locationName', style: context.text.bodySmall),
+                          Text(qty, style: context.text.bodySmall?.copyWith(color: p.ink)),
+                          if (freshness != null) Text('· $freshness', style: context.text.bodySmall), // l10n-ignore: separator before translated text
+                          if (locationName != null) Text('· $locationName', style: context.text.bodySmall), // l10n-ignore: separator before a place name
                           if (status != InventoryStatus.confirmed) InventoryStatusBadge(status: status),
                         ],
                       ),
@@ -343,7 +350,7 @@ class IngredientCard extends StatelessWidget {
                   ),
                 ),
                 if (onQuickUse != null)
-                  IconButton(tooltip: 'Use some', onPressed: onQuickUse, icon: const Icon(Icons.remove_circle_outline)),
+                  IconButton(tooltip: l.coreUseSome, onPressed: onQuickUse, icon: const Icon(Icons.remove_circle_outline)),
               ],
             ),
           ),
@@ -373,11 +380,15 @@ IconData categoryIcon(FoodCategory c) => switch (c) {
 
 /// Nutrition with explicit "estimate" labelling and data completeness.
 class NutritionSummaryCard extends StatelessWidget {
-  const NutritionSummaryCard({super.key, required this.nutrition, this.title = 'Nutrition', this.subtitle = 'per serving', this.showCalories = true});
+  const NutritionSummaryCard({super.key, required this.nutrition, this.title, this.subtitle, this.showCalories = true});
 
   final NutrientProfile nutrition;
-  final String title;
-  final String subtitle;
+
+  /// Defaults to "Nutrition" in the current language.
+  final String? title;
+
+  /// Defaults to "per serving" in the current language.
+  final String? subtitle;
   final bool showCalories;
 
   @override
@@ -392,6 +403,7 @@ class NutritionSummaryCard extends StatelessWidget {
       (Nutrient.sodium, nutrition[Nutrient.sodium]),
     ];
     final incomplete = nutrition.completeness < 0.9;
+    final l = context.l10n;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Space.m),
@@ -400,11 +412,11 @@ class NutritionSummaryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(title, style: context.text.titleMedium)),
-                TagPill('Estimate', icon: Icons.info_outline, background: p.infoSoft, color: p.info),
+                Expanded(child: Text(title ?? l.coreNutritionTitle, style: context.text.titleMedium)),
+                TagPill(l.coreEstimate, icon: Icons.info_outline, background: p.infoSoft, color: p.info),
               ],
             ),
-            Text(subtitle, style: context.text.bodySmall),
+            Text(subtitle ?? l.corePerServing, style: context.text.bodySmall),
             const SizedBox(height: Space.m),
             LayoutBuilder(builder: (context, c) {
               final cols = c.maxWidth > 420 ? 6 : 3;
@@ -417,13 +429,13 @@ class NutritionSummaryCard extends StatelessWidget {
                     SizedBox(
                       width: w,
                       child: Semantics(
-                        label: '${n.label} about ${formatNutrient(n, v)}',
+                        label: l.coreNutrientAbout(context.labelOf(n), formatNutrientFor(context, n, v)),
                         excludeSemantics: true,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(formatNutrient(n, v), style: context.text.titleLarge),
-                            Text(n.label, style: context.text.bodySmall),
+                            Text(formatNutrientFor(context, n, v), style: context.text.titleLarge),
+                            Text(context.labelOf(n), style: context.text.bodySmall),
                           ],
                         ),
                       ),
@@ -435,8 +447,8 @@ class NutritionSummaryCard extends StatelessWidget {
               const SizedBox(height: Space.s),
               Text(
                 nutrition.completeness == 0
-                    ? 'We don\'t have nutrition data for these ingredients yet.'
-                    : 'Based on ${(nutrition.completeness * 100).round()}% of ingredients — some couldn\'t be estimated.',
+                    ? l.coreNutritionNoData
+                    : l.coreNutritionPartial((nutrition.completeness * 100).round()),
                 style: context.text.bodySmall,
               ),
             ],
@@ -463,7 +475,9 @@ class MealTimelineItem extends StatelessWidget {
     final p = context.palette;
     return Semantics(
       button: onTap != null,
-      label: '${mealType.label} at ${formatTime(context, time)}: $title${done ? ', done' : ''}',
+      label: done
+          ? context.l10n.coreMealAtDone(context.labelOf(mealType), formatTime(context, time), title)
+          : context.l10n.coreMealAt(context.labelOf(mealType), formatTime(context, time), title),
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
@@ -501,7 +515,7 @@ class MealTimelineItem extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(mealType.label.toUpperCase(), style: context.text.labelSmall),
+                      Text(context.labelOf(mealType).toUpperCase(), style: context.text.labelSmall),
                       Text(title, style: context.text.titleMedium?.copyWith(decoration: done ? TextDecoration.lineThrough : null)),
                       if (subtitle != null) Text(subtitle!, style: context.text.bodySmall),
                       const SizedBox(height: Space.s),
@@ -527,6 +541,14 @@ class MorningRoutineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final l = context.l10n;
+    // "06:45" as stored; French shows "6 h 45".
+    String clock(String hhmm) {
+      if (!localeTag(context).startsWith('fr')) return hhmm;
+      final parts = hhmm.split(':');
+      final h = int.tryParse(parts.first), m = parts.length > 1 ? int.tryParse(parts[1]) : 0;
+      return h == null || m == null ? hhmm : formatTime(context, DateTime(2000, 1, 1, h, m));
+    }
     return Card(
       color: p.surfaceSoft,
       child: InkWell(
@@ -542,17 +564,17 @@ class MorningRoutineCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(routine.enabled ? 'Morning routine' : 'Set up your mornings', style: context.text.titleMedium),
+                    Text(routine.enabled ? l.coreMorningRoutine : l.coreSetUpMornings, style: context.text.titleMedium),
                     const SizedBox(height: 2),
                     Text(
                       routine.enabled
-                          ? 'Up ${routine.wakeTime} · out by ${routine.departureTime} · ${routine.availableMinutes} min free'
-                          : 'A calm plan from alarm to door, with breakfast decided.',
+                          ? l.coreMorningSummary(clock(routine.wakeTime), clock(routine.departureTime), routine.availableMinutes)
+                          : l.coreMorningPitch,
                       style: context.text.bodySmall,
                     ),
                     if (routine.enabled && breakfastTitle != null) ...[
                       const SizedBox(height: 4),
-                      Text('Breakfast: $breakfastTitle', style: context.text.bodySmall?.copyWith(color: p.ink)),
+                      Text(l.coreBreakfastLine(breakfastTitle!), style: context.text.bodySmall?.copyWith(color: p.ink)),
                     ],
                   ],
                 ),

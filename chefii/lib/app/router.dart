@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/design/design.dart';
 import '../domain/models/nutrition.dart';
+import '../l10n/l10n.dart';
 import '../features/account/account_screens.dart';
 import '../features/chef/chef_screens.dart';
 import '../features/cooking/cooking_screens.dart';
@@ -74,7 +75,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     errorBuilder: (context, state) => Scaffold(
       appBar: AppBar(),
-      body: EmptyState(icon: Icons.explore_off_outlined, title: 'Page not found', message: 'That link doesn\'t lead anywhere in Chefii.', actionLabel: 'Go to Today', onAction: () => context.go('/today')),
+      body: EmptyState(
+        icon: Icons.explore_off_outlined,
+        title: context.l10n.corePageNotFound,
+        message: context.l10n.corePageNotFoundMessage,
+        actionLabel: context.l10n.coreGoToToday,
+        onAction: () => context.go('/today'),
+      ),
     ),
     routes: [
       GoRoute(path: '/', builder: (_, _) => const _Splash()),
@@ -198,8 +205,9 @@ class _Splash extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         body: Center(
           child: Semantics(
-            label: 'Chefii is loading',
-            child: Text('CHEFII', style: context.text.labelSmall?.copyWith(color: context.palette.accent, letterSpacing: 6, fontSize: 14)),
+            label: context.l10n.coreAppLoading,
+            child: Text('CHEFII', // l10n-ignore: brand wordmark
+                style: context.text.labelSmall?.copyWith(color: context.palette.accent, letterSpacing: 6, fontSize: 14)),
           ),
         ),
       );

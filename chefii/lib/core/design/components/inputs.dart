@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../theme.dart';
 import '../tokens.dart';
 
@@ -56,7 +57,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                   suffixIcon: _controller.text.isEmpty
                       ? null
                       : IconButton(
-                          tooltip: 'Clear search',
+                          tooltip: context.l10n.coreClearSearch,
                           icon: const Icon(Icons.close),
                           onPressed: () {
                             _controller.clear();
@@ -97,10 +98,12 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
 
 /// Framing guide drawn over a camera preview or picked image.
 class PhotoCaptureOverlay extends StatelessWidget {
-  const PhotoCaptureOverlay({super.key, required this.child, this.hint = 'Fit the whole receipt inside the frame', this.aspectRatio = 0.62});
+  const PhotoCaptureOverlay({super.key, required this.child, this.hint, this.aspectRatio = 0.62});
 
   final Widget child;
-  final String hint;
+
+  /// Defaults to "Fit the whole receipt inside the frame" in the current language.
+  final String? hint;
   final double aspectRatio;
 
   @override
@@ -121,7 +124,7 @@ class PhotoCaptureOverlay extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: Space.m, vertical: Space.s),
               decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(Radii.m)),
-              child: Text(hint, textAlign: TextAlign.center, style: context.text.bodyMedium?.copyWith(color: Colors.white)),
+              child: Text(hint ?? context.l10n.corePhotoFrameHint, textAlign: TextAlign.center, style: context.text.bodyMedium?.copyWith(color: Colors.white)),
             ),
           ),
         ),

@@ -7,13 +7,18 @@ import '../../domain/catalog/product_matcher.dart';
 import '../../domain/models/codec.dart';
 import '../../domain/models/inventory.dart';
 import '../../domain/models/receipt.dart';
+import '../errors.dart';
 import '../paths.dart';
 import '../store/doc_store.dart';
 import 'inventory_repository.dart';
 
-class ReceiptValidationException implements Exception {
-  ReceiptValidationException(this.message);
+class ReceiptValidationException implements Exception, CodedError {
+  ReceiptValidationException(this.message, {this.code, this.args = const {}});
   final String message;
+  @override
+  final AppErrorCode? code;
+  @override
+  final Map<String, Object?> args;
   @override
   String toString() => message;
 }
@@ -24,11 +29,21 @@ class ReceiptImageRules {
   static const maxPages = 5;
   static const allowedMime = {'image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'};
 
-  static String? validate(Uint8List bytes, String? mimeType) {
-    if (bytes.isEmpty) return 'That image appears to be empty.';
-    if (bytes.length > maxBytes) return 'That image is too large (over 12 MB). Try a closer, single-page photo.';
+  /// English problem text, or null when the image is acceptable.
+  /// UI code should translate [check]'s code instead.
+  static String? validate(Uint8List bytes, String? mimeType) => switch (check(bytes, mimeType)) {
+        AppErrorCode.receiptImageEmpty => 'That image appears to be empty.',
+        AppErrorCode.receiptImageTooLarge => 'That image is too large (over 12 MB). Try a closer, single-page photo.',
+        null => null,
+        _ => 'Please use a JPEG, PNG, HEIC or WebP photo.',
+      };
+
+  /// The problem with an image as a translatable code, or null when it is acceptable.
+  static AppErrorCode? check(Uint8List bytes, String? mimeType) {
+    if (bytes.isEmpty) return AppErrorCode.receiptImageEmpty;
+    if (bytes.length > maxBytes) return AppErrorCode.receiptImageTooLarge;
     final mime = mimeType ?? sniffMime(bytes);
-    if (mime == null || !allowedMime.contains(mime)) return 'Please use a JPEG, PNG, HEIC or WebP photo.';
+    if (mime == null || !allowedMime.contains(mime)) return AppErrorCode.receiptImageFormat;
     return null;
   }
 
@@ -123,10 +138,10 @@ class ReceiptRepository {
   /// Saves user corrections. Refused once the receipt has been imported.
   Future<void> saveLines(String householdId, String id, List<ReceiptLineItem> lines) => _store.transaction((tx) async {
         final d = await tx.get(HouseholdPaths(householdId).receipt(id));
-        if (d == null) throw ReceiptValidationException('Receipt not found.');
+        if (d == null) throw ReceiptValidationException('Receipt not found.', code: AppErrorCode.receiptNotFound);
         final r = PurchaseReceipt.fromMap(d.id, d.data);
         if (r.status != ReceiptStatus.needsReview) {
-          throw ReceiptValidationException('This receipt can no longer be edited.');
+          throw ReceiptValidationException('This receipt can no longer be edited.', code: AppErrorCode.receiptNotEditable);
         }
         tx.set(HouseholdPaths(householdId).receipt(id), {'lines': lines.map((l) => l.toMap()).toList(), 'updatedAt': _clock()},
             merge: true);
@@ -176,15 +191,17 @@ class ReceiptImportService {
       }
     }
     if (receipt.status != ReceiptStatus.needsReview && receipt.status != ReceiptStatus.imported) {
-      throw ReceiptValidationException('This receipt is not ready to import.');
+      throw ReceiptValidationException('This receipt is not ready to import.', code: AppErrorCode.receiptNotReady);
     }
     final blocking = blockingLines(receipt);
     if (blocking.isNotEmpty) {
       throw ReceiptValidationException(
-          '${blocking.length} item${blocking.length == 1 ? ' needs' : 's need'} a name and quantity before importing.');
+          '${blocking.length} item${blocking.length == 1 ? ' needs' : 's need'} a name and quantity before importing.',
+          code: AppErrorCode.receiptLinesIncomplete,
+          args: {'count': blocking.length});
     }
     final lines = receipt.lines.where((l) => !l.excluded && l.isFood).toList();
-    if (lines.isEmpty) throw ReceiptValidationException('There are no food items to add.');
+    if (lines.isEmpty) throw ReceiptValidationException('There are no food items to add.', code: AppErrorCode.receiptNoFoodItems);
 
     final householdProducts = await _inventory.products(receipt.householdId);
     final matcher = ProductMatcher([...householdProducts, ...catalog.map((e) => e.product)]);

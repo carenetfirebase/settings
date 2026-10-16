@@ -2,6 +2,7 @@ import '../../domain/inventory/consumption_planner.dart';
 import '../../domain/models/codec.dart';
 import '../../domain/models/inventory.dart';
 import '../../domain/units/units.dart';
+import '../errors.dart';
 import '../paths.dart';
 import '../store/doc_store.dart';
 
@@ -64,9 +65,13 @@ class OperationResult {
   List<String> get discrepancies => operation.discrepancies;
 }
 
-class InventoryException implements Exception {
-  InventoryException(this.message);
+class InventoryException implements Exception, CodedError {
+  InventoryException(this.message, {this.code, this.args = const {}});
   final String message;
+  @override
+  final AppErrorCode? code;
+  @override
+  final Map<String, Object?> args;
   @override
   String toString() => message;
 }
@@ -159,11 +164,11 @@ class InventoryRepository {
   /// estimates and FIFO (freezer stock is used last).
   Future<StorageLocation> addLocation(String householdId, {required String name, required StorageKind kind}) async {
     final trimmed = name.trim();
-    if (trimmed.isEmpty || trimmed.length > 30) throw InventoryException('Give the place a name of up to 30 characters.');
+    if (trimmed.isEmpty || trimmed.length > 30) throw InventoryException('Give the place a name of up to 30 characters.', code: AppErrorCode.inventoryPlaceNameLength);
     final existing = await _store.query(HouseholdPaths(householdId).locations);
     final all = mergeLocations(existing.map((d) => StorageLocation.fromMap(d.id, d.data)));
-    if (all.any((l) => l.name.toLowerCase() == trimmed.toLowerCase())) throw InventoryException('You already have a place called $trimmed.');
-    if (all.length >= 12) throw InventoryException('You can have up to 12 places.');
+    if (all.any((l) => l.name.toLowerCase() == trimmed.toLowerCase())) throw InventoryException('You already have a place called $trimmed.', code: AppErrorCode.inventoryPlaceNameTaken, args: {'name': trimmed});
+    if (all.length >= 12) throw InventoryException('You can have up to 12 places.', code: AppErrorCode.inventoryPlaceLimit);
     final slug = trimmed.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_').replaceAll(RegExp(r'^_|_$'), '');
     var id = 'loc_${slug.isEmpty ? 'place' : slug}';
     for (var n = 2; all.any((l) => l.id == id); n++) {
@@ -175,19 +180,19 @@ class InventoryRepository {
   }
 
   Future<void> renameLocation(String householdId, StorageLocation location, String name) async {
-    if (StorageLocation.defaults.any((d) => d.id == location.id)) throw InventoryException('The built-in places can\'t be renamed.');
+    if (StorageLocation.defaults.any((d) => d.id == location.id)) throw InventoryException('The built-in places can\'t be renamed.', code: AppErrorCode.inventoryBuiltInRename);
     final trimmed = name.trim();
-    if (trimmed.isEmpty || trimmed.length > 30) throw InventoryException('Give the place a name of up to 30 characters.');
+    if (trimmed.isEmpty || trimmed.length > 30) throw InventoryException('Give the place a name of up to 30 characters.', code: AppErrorCode.inventoryPlaceNameLength);
     await _store.set('${HouseholdPaths(householdId).locations}/${location.id}', {'name': trimmed}, merge: true);
   }
 
   /// Removes a custom place. Refuses while anything is still stored there, so
   /// no stock is ever orphaned.
   Future<void> removeLocation(String householdId, String locationId) async {
-    if (StorageLocation.defaults.any((d) => d.id == locationId)) throw InventoryException('The built-in places can\'t be removed.');
+    if (StorageLocation.defaults.any((d) => d.id == locationId)) throw InventoryException('The built-in places can\'t be removed.', code: AppErrorCode.inventoryBuiltInRemove);
     final p = HouseholdPaths(householdId);
     final inUse = await _store.query(p.lots, QuerySpec(where: [const Where.eq('depleted', false), Where.eq('locationId', locationId)], limit: 1));
-    if (inUse.isNotEmpty) throw InventoryException('Move or use up what\'s stored there first.');
+    if (inUse.isNotEmpty) throw InventoryException('Move or use up what\'s stored there first.', code: AppErrorCode.inventoryPlaceNotEmpty);
     await _store.delete('${p.locations}/$locationId');
   }
 
@@ -215,10 +220,11 @@ class InventoryRepository {
     OperationKind kind = OperationKind.manualAdd,
     String? summary,
   }) {
-    if (inputs.isEmpty) throw InventoryException('Nothing to add.');
+    if (inputs.isEmpty) throw InventoryException('Nothing to add.', code: AppErrorCode.inventoryNothingToAdd);
     for (final i in inputs) {
       if (i.quantity.isNegative || i.quantity.isZero) {
-        throw InventoryException('${i.product.name}: quantity must be greater than zero.');
+        throw InventoryException('${i.product.name}: quantity must be greater than zero.',
+            code: AppErrorCode.inventoryQuantityNotPositive, args: {'product': i.product.name});
       }
     }
     final p = HouseholdPaths(householdId);
@@ -317,7 +323,7 @@ class InventoryRepository {
     String? reason,
     String? summary,
   }) async {
-    if (requests.isEmpty) throw InventoryException('Nothing to deduct.');
+    if (requests.isEmpty) throw InventoryException('Nothing to deduct.', code: AppErrorCode.inventoryNothingToDeduct);
     final p = HouseholdPaths(householdId);
     // Queries cannot run inside client transactions; find candidates first,
     // then re-read each lot transactionally so we act on fresh values.
@@ -432,9 +438,9 @@ class InventoryRepository {
     OperationKind kind = OperationKind.correction,
     String reason = 'Corrected count',
   }) {
-    if (newQuantities.isEmpty) throw InventoryException('Nothing to correct.');
+    if (newQuantities.isEmpty) throw InventoryException('Nothing to correct.', code: AppErrorCode.inventoryNothingToCorrect);
     for (final q in newQuantities.values) {
-      if (q.isNegative) throw InventoryException('Counts cannot be negative.');
+      if (q.isNegative) throw InventoryException('Counts cannot be negative.', code: AppErrorCode.inventoryNegativeCount);
     }
     final p = HouseholdPaths(householdId);
     return _store.transaction((tx) async {
@@ -445,7 +451,7 @@ class InventoryRepository {
       final lots = <InventoryLot>[];
       for (final id in newQuantities.keys) {
         final d = await tx.get(p.lot(id));
-        if (d == null) throw InventoryException('That item no longer exists.');
+        if (d == null) throw InventoryException('That item no longer exists.', code: AppErrorCode.inventoryItemGone);
         lots.add(InventoryLot.fromMap(d.id, d.data));
       }
       final now = _clock();
@@ -455,7 +461,8 @@ class InventoryRepository {
         final target = newQuantities[lot.id]!;
         final converted = target.tryConvert(lot.quantity.unit);
         if (converted == null) {
-          throw InventoryException('${lot.productName}: use ${lot.quantity.unit.symbol} for this item.');
+          throw InventoryException('${lot.productName}: use ${lot.quantity.unit.symbol} for this item.',
+              code: AppErrorCode.inventoryWrongUnit, args: {'product': lot.productName, 'unit': lot.quantity.unit});
         }
         final after = converted.quantity;
         final delta = after - lot.quantity;
@@ -526,7 +533,7 @@ class InventoryRepository {
         return OperationResult(InventoryOperation.fromMap(existing.id, existing.data), alreadyApplied: true);
       }
       final d = await tx.get(p.lot(lotId));
-      if (d == null) throw InventoryException('That item no longer exists.');
+      if (d == null) throw InventoryException('That item no longer exists.', code: AppErrorCode.inventoryItemGone);
       final lot = InventoryLot.fromMap(d.id, d.data);
       final now = _clock();
       final zero = Quantity(0, lot.quantity.unit);
@@ -581,7 +588,7 @@ class InventoryRepository {
         return OperationResult(InventoryOperation.fromMap(existing.id, existing.data), alreadyApplied: true);
       }
       final d = await tx.get(p.lot(lotId));
-      if (d == null) throw InventoryException('That item no longer exists.');
+      if (d == null) throw InventoryException('That item no longer exists.', code: AppErrorCode.inventoryItemGone);
       final lot = InventoryLot.fromMap(d.id, d.data);
       final now = _clock();
       final from = lot.locationId;
@@ -636,13 +643,13 @@ class InventoryRepository {
         return OperationResult(InventoryOperation.fromMap(existing.id, existing.data), alreadyApplied: true);
       }
       final targetDoc = await tx.get(p.operation(targetOperationId));
-      if (targetDoc == null) throw InventoryException('Nothing to undo.');
+      if (targetDoc == null) throw InventoryException('Nothing to undo.', code: AppErrorCode.inventoryNothingToUndo);
       final target = InventoryOperation.fromMap(targetDoc.id, targetDoc.data);
       if (target.isUndone) {
-        throw InventoryException('This change has already been undone.');
+        throw InventoryException('This change has already been undone.', code: AppErrorCode.inventoryAlreadyUndone);
       }
       if (target.kind == OperationKind.undo) {
-        throw InventoryException('An undo cannot itself be undone.');
+        throw InventoryException('An undo cannot itself be undone.', code: AppErrorCode.inventoryUndoOfUndo);
       }
       final adjustments = <InventoryAdjustment>[];
       for (final id in target.adjustmentIds) {

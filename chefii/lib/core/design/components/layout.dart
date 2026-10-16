@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../theme.dart';
 import '../tokens.dart';
 
@@ -135,12 +136,15 @@ class SectionHeader extends StatelessWidget {
 
 /// Honest labelling for sample/demo content.
 class DemoBanner extends StatelessWidget {
-  const DemoBanner({super.key, this.message = 'Demo mode — sample data, no AI used.'});
-  final String message;
+  const DemoBanner({super.key, this.message});
+
+  /// Defaults to "Demo mode — sample data, no AI used." in the current language.
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final message = this.message ?? context.l10n.coreDemoBanner;
     return Semantics(
       container: true,
       label: message,
@@ -166,13 +170,13 @@ class BottomNavigationShell extends StatelessWidget {
 
   final StatefulNavigationShell shell;
 
-  static const destinations = [
-    (Icons.wb_sunny_outlined, Icons.wb_sunny, 'Today'),
-    (Icons.kitchen_outlined, Icons.kitchen, 'Kitchen'),
-    (Icons.explore_outlined, Icons.explore, 'Discover'),
-    (Icons.menu_book_outlined, Icons.menu_book, 'Journal'),
-    (Icons.person_outline, Icons.person, 'You'),
-  ];
+  static List<(IconData, IconData, String)> destinations(AppLocalizations l) => [
+        (Icons.wb_sunny_outlined, Icons.wb_sunny, l.coreTabToday),
+        (Icons.kitchen_outlined, Icons.kitchen, l.coreTabKitchen),
+        (Icons.explore_outlined, Icons.explore, l.coreTabDiscover),
+        (Icons.menu_book_outlined, Icons.menu_book, l.coreTabJournal),
+        (Icons.person_outline, Icons.person, l.coreTabYou),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -185,7 +189,7 @@ class BottomNavigationShell extends StatelessWidget {
           onDestinationSelected: (i) => shell.goBranch(i, initialLocation: i == shell.currentIndex),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: [
-            for (final (icon, selected, label) in destinations)
+            for (final (icon, selected, label) in destinations(context.l10n))
               NavigationDestination(icon: Icon(icon), selectedIcon: Icon(selected), label: label),
           ],
         ),

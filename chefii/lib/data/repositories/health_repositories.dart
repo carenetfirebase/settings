@@ -1,5 +1,6 @@
 import '../../domain/models/health.dart';
 import '../../domain/models/professional.dart';
+import '../errors.dart';
 import '../paths.dart';
 import '../store/doc_store.dart';
 
@@ -122,8 +123,8 @@ class SharingRepository {
     required DateTime rangeStart,
     required Duration duration,
   }) async {
-    if (!professional.isVerified) throw StateError('Only verified professionals can be granted access.');
-    if (categories.isEmpty) throw ArgumentError('Choose at least one category to share.');
+    if (!professional.isVerified) throw CodedStateError('Only verified professionals can be granted access.', AppErrorCode.sharingProfessionalNotVerified);
+    if (categories.isEmpty) throw CodedArgumentError('Choose at least one category to share.', AppErrorCode.sharingNoCategories);
     final now = _clock();
     final g = ShareGrant(
       id: shareGrantId(ownerUid, professional.uid),
@@ -206,7 +207,7 @@ class SharingRepository {
   Future<List<Map<String, dynamic>>> readClientCategory(ShareGrant g, ShareCategory c, {required String viewerUid}) async {
     final now = _clock();
     if (!g.isActiveAt(now) || !g.categories.contains(c) || g.professionalUid != viewerUid) {
-      throw StateError('No active permission for ${c.label}.');
+      throw CodedStateError('No active permission for ${c.label}.', AppErrorCode.sharingNoActivePermission, {'category': c});
     }
     final base = UserPaths(g.ownerUid);
     final (String path, String timeField) = switch (c) {

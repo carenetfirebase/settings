@@ -14,7 +14,7 @@
 ## Controls
 
 - **Authentication:** Firebase Auth (Apple, Google, email). Sensitive actions (export, account deletion, session revocation) reauthenticate; `deleteAccountData` additionally requires `auth_time` within 5 minutes.
-- **Authorisation:** `firestore.rules` and `storage.rules` (deny by default). Covered by 13 emulator tests in `rules-tests/` — membership, append-only ledger, one-time undo marker, no negative stock, no lot deletion, owner-only membership removal, private health data invisible to household members, no self-granted professional status, server-only collections, grant id/verification requirements, category + time-range scoping, immediate effect of revocation/expiry, client-only response to assessments, access logs.
+- **Authorisation:** `firestore.rules` and `storage.rules` (deny by default). Covered by Firestore and Storage emulator tests in `rules-tests/` and callable integration tests (`functions/src/callables.int.test.ts`) — membership, append-only ledger, one-time undo marker, no negative stock, no lot deletion, owner-only membership removal, private health data invisible to household members, no self-granted professional status, server-only collections, grant id/verification requirements, category + time-range scoping, immediate effect of revocation/expiry, client-only response to assessments, access logs.
 - **App Check:** enforced on all callables (Play Integrity / App Attest with DeviceCheck fallback; debug provider via `CHEFII_APPCHECK_DEBUG`).
 - **Secrets:** AI keys in Secret Manager, bound only to functions that need them. No secrets in the app bundle or repo (`.env.example` only).
 - **Input validation:** client sniffs image magic bytes and limits size/pages; server re-checks paths, content type, size; all callable inputs are type/length-checked; model output schema-validated.
@@ -33,8 +33,6 @@ Firestore, Functions and (configured) Storage in `northamerica-northeast1` (Mont
 
 ## Known gaps (tracked in FEATURE_STATUS)
 
-- Storage rules are not yet emulator-tested.
-- Callable handlers are unit-tested at the logic level but not yet integration-tested against the emulators.
 - No field-level encryption of glucose/journal beyond Google Cloud encryption at rest.
 - Professional verification is a manual admin process (`verifyProfessional`), with no automated registry lookup.
 - No penetration test yet.

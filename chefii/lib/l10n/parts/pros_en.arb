@@ -1,0 +1,310 @@
+{
+  "prosEyebrow": "Professionals",
+  "prosCircleTitle": "My nutrition circle",
+  "prosCircleSubtitle": "Share exactly what you choose, for as long as you choose, with verified dietitians and dental professionals.",
+  "prosInvite": "Invite a professional",
+  "prosCodeHint": "Their Chefii code",
+  "prosFind": "Find",
+  "prosNoMatch": "No verified professional has that code. Check it with them.",
+  "prosDemoSample": "Demo: use a sample dietitian",
+  "prosWhoCanSee": "Who can see what",
+  "prosNothingShared": "You haven't shared anything. Nothing is visible to anyone.",
+  "prosGrantUntil": "{categories}\nUntil {date}",
+  "@prosGrantUntil": {
+    "placeholders": {
+      "categories": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRevokedOn": "Access revoked {date}",
+  "@prosRevokedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRevoked": "Access revoked",
+  "prosExpired": "Access expired",
+  "prosActive": "Active",
+  "prosEnded": "Ended",
+  "prosReviews": "Reviews",
+  "prosReadOnlyNote": "Professionals see read-only copies of what you share. They can't change your meals, kitchen or plans.",
+  "prosCredentialsVerified": "{body} · #{number} · verified",
+  "@prosCredentialsVerified": {
+    "placeholders": {
+      "body": {
+        "type": "String"
+      },
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "prosCredentialsNotVerified": "{body} · #{number} · not verified",
+  "@prosCredentialsNotVerified": {
+    "placeholders": {
+      "body": {
+        "type": "String"
+      },
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "prosUpdateSharing": "Update sharing",
+  "prosShareWith": "Share with {name}",
+  "@prosShareWith": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prosShareWithQuestion": "Share with {name}?",
+  "@prosShareWithQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prosShareConfirm": "{categories} from the last {days} days, until {date}. You can revoke any time.",
+  "@prosShareConfirm": {
+    "placeholders": {
+      "categories": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosShare": "Share",
+  "prosSharedWith": "Shared with {name}",
+  "@prosSharedWith": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prosWhatToShare": "What to share",
+  "prosHowFarBack": "How far back",
+  "prosOneYear": "1 year",
+  "prosDays": "{count, plural, =1{1 day} other{{count} days}}",
+  "@prosDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "prosAccessEndsAfter": "Access ends after",
+  "prosRevokeNow": "Revoke access now",
+  "prosRevokeQuestion": "Revoke access?",
+  "prosRevokeMessage": "{name} will immediately lose access to everything you shared.",
+  "@prosRevokeMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRevoke": "Revoke",
+  "prosAccessHistory": "Access history",
+  "prosNotViewedYet": "{name} hasn't viewed anything yet.",
+  "@prosNotViewedYet": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prosViewed": "Viewed {what}",
+  "@prosViewed": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "prosProfessionalReview": "Professional review",
+  "prosAcceptRecommendations": "Accept recommendations",
+  "prosRecommendations": "Recommendations",
+  "prosAcceptNote": "Accepting keeps these on your profile. Nothing in your plan or kitchen changes unless you change it.",
+  "prosDecline": "Decline",
+  "prosOpenPlanner": "Open meal planner",
+  "prosPortal": "Professional portal",
+  "prosVerificationPending": "Verification pending",
+  "prosVerificationPendingBody": "We're confirming your registration with {body}. You'll be able to see clients' shared records once verified.",
+  "@prosVerificationPendingBody": {
+    "placeholders": {
+      "body": {
+        "type": "String"
+      }
+    }
+  },
+  "prosDemoVerify": "Demo: simulate verification",
+  "prosClients": "Clients",
+  "prosClientCode": "Your client code: {code}",
+  "@prosClientCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "prosNoClients": "No active clients",
+  "prosNoClientsMessage": "Clients who share with you appear here while their access is active.",
+  "prosClientAccessUntil": "{categories}\nAccess until {date}",
+  "@prosClientAccessUntil": {
+    "placeholders": {
+      "categories": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRecordsNote": "Records are read-only and every view is logged for your client to see.",
+  "prosJoinTitle": "Join as a professional",
+  "prosJoinSubtitle": "For regulated health professionals. We verify every registration.",
+  "prosSubmit": "Submit for verification",
+  "prosProfession": "Profession",
+  "prosRegulatoryCollege": "Regulatory college",
+  "prosRegulatoryCollegeHint": "e.g. College of Dietitians of Ontario",
+  "prosRegistrationNumber": "Registration number",
+  "prosProvince": "Province",
+  "prosAccessEnded": "Access has ended",
+  "prosAccessEndedMessage": "This client's sharing has expired or been revoked.",
+  "prosClient": "Client",
+  "prosSharedSince": "Shared since {date} · read-only",
+  "@prosSharedSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosWriteAssessment": "Write assessment",
+  "prosChooseCategory": "Choose a category to view.",
+  "prosNoRecords": "No records in the shared range.",
+  "prosRecordMeal": "{title} · {meal} · {portions} portion(s)",
+  "@prosRecordMeal": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "meal": {
+        "type": "String"
+      },
+      "portions": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRecordMealKcal": "{title} · {meal} · {portions} portion(s) · ≈ {kcal} kcal",
+  "@prosRecordMealKcal": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "meal": {
+        "type": "String"
+      },
+      "portions": {
+        "type": "String"
+      },
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRecordGlucose": "{value} mmol/L · {context}",
+  "@prosRecordGlucose": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "context": {
+        "type": "String"
+      }
+    }
+  },
+  "prosGlucoseContext": "{context, select, other{{context}}}",
+  "@prosGlucoseContext": {
+    "placeholders": {
+      "context": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRecordConcern": "{area}: {description} ({severity}/5)",
+  "@prosRecordConcern": {
+    "placeholders": {
+      "area": {
+        "type": "String"
+      },
+      "description": {
+        "type": "String"
+      },
+      "severity": {
+        "type": "String"
+      }
+    }
+  },
+  "prosConcernArea": "{area, select, other{{area}}}",
+  "@prosConcernArea": {
+    "placeholders": {
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRecordDietary": "Allergies: {allergies} · Restrictions: {restrictions}",
+  "@prosRecordDietary": {
+    "placeholders": {
+      "allergies": {
+        "type": "String"
+      },
+      "restrictions": {
+        "type": "String"
+      }
+    }
+  },
+  "prosAssessment": "Assessment",
+  "prosReviewing": "Reviewing {date} – today",
+  "@prosReviewing": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosShareWithClient": "Share with client",
+  "prosSummary": "Summary",
+  "prosAddRecommendation": "Add a recommendation",
+  "prosAdd": "Add",
+  "prosSignedNote": "Your client must accept before anything changes. Signed as {name}, {kind}.",
+  "@prosSignedNote": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "prosSaveDraft": "Save as draft",
+  "prosDraftSaved": "Draft saved"
+}

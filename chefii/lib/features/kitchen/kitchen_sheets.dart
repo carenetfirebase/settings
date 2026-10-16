@@ -10,11 +10,13 @@ import '../../domain/catalog/product_matcher.dart';
 import '../../domain/inventory/inventory_command_parser.dart';
 import '../../domain/models/inventory.dart';
 import '../../domain/units/units.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 
 /// Shows the result of an inventory operation with Undo.
 void reportOperation(BuildContext context, WidgetRef ref, OperationResult r) {
   if (r.alreadyApplied) {
-    showMessage(context, 'Already done — nothing changed.');
+    showMessage(context, context.l10n.kitchenAlreadyDone);
     return;
   }
   final note = r.discrepancies.isEmpty ? '' : ' · ${r.discrepancies.first}';
@@ -25,6 +27,14 @@ void reportOperation(BuildContext context, WidgetRef ref, OperationResult r) {
       if (context.mounted) showMessage(context, ErrorState.describe(e), error: true);
     }
   });
+}
+
+/// Display name for a storage place: built-in places that still have their
+/// default name show the translated kind ("Réfrigérateur"); user-named places
+/// show what the household typed.
+String placeName(BuildContext context, StorageLocation l) {
+  final d = StorageLocation.defaults.where((d) => d.id == l.id).firstOrNull;
+  return d != null && d.name == l.name ? context.labelOf(l.kind) : l.name;
 }
 
 // ---------------------------------------------------------------- 24 Quick adjust
@@ -93,15 +103,15 @@ class _QuickAdjustSheetState extends ConsumerState<QuickAdjustSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(lot.productName, style: context.text.headlineSmall),
-            Text('Recorded: ${lot.quantity.format()}', style: context.text.bodySmall),
+            Text(context.l10n.kitchenRecorded(context.formatQty(lot.quantity)), style: context.text.bodySmall),
             const SizedBox(height: Space.m),
             SegmentedButton<AdjustMode>(
               showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: AdjustMode.used, label: Text('Used')),
-                ButtonSegment(value: AdjustMode.added, label: Text('Added')),
-                ButtonSegment(value: AdjustMode.discarded, label: Text('Tossed')),
-                ButtonSegment(value: AdjustMode.correct, label: Text('Count')),
+              segments: [
+                ButtonSegment(value: AdjustMode.used, label: Text(context.l10n.kitchenModeUsed)),
+                ButtonSegment(value: AdjustMode.added, label: Text(context.l10n.kitchenModeAdded)),
+                ButtonSegment(value: AdjustMode.discarded, label: Text(context.l10n.kitchenModeTossed)),
+                ButtonSegment(value: AdjustMode.correct, label: Text(context.l10n.kitchenModeCount)),
               ],
               selected: {_mode},
               onSelectionChanged: (s) => setState(() {
@@ -112,7 +122,7 @@ class _QuickAdjustSheetState extends ConsumerState<QuickAdjustSheet> {
             const SizedBox(height: Space.l),
             Center(
               child: QuantityStepper(
-                label: _mode == AdjustMode.correct ? 'Amount you have now' : 'Amount',
+                label: _mode == AdjustMode.correct ? context.l10n.kitchenAmountYouHaveNow : context.l10n.kitchenAmount,
                 value: _amount,
                 min: _mode == AdjustMode.correct ? 0 : 0.001,
                 max: _mode == AdjustMode.used || _mode == AdjustMode.discarded ? lot.quantity.amount : null,
@@ -122,22 +132,22 @@ class _QuickAdjustSheetState extends ConsumerState<QuickAdjustSheet> {
             if (_mode == AdjustMode.correct)
               Padding(
                 padding: const EdgeInsets.only(top: Space.xs),
-                child: Center(child: Text('Counting confirms this item as accurate.', style: context.text.bodySmall)),
+                child: Center(child: Text(context.l10n.kitchenCountingConfirms, style: context.text.bodySmall)),
               ),
             const SizedBox(height: Space.l),
             PrimaryActionButton(
               label: switch (_mode) {
-                AdjustMode.used => 'Use ${_amount.format()}',
-                AdjustMode.added => 'Add ${_amount.format()}',
-                AdjustMode.discarded => 'Discard ${_amount.format()}',
-                AdjustMode.correct => 'Set to ${_amount.format()}',
+                AdjustMode.used => context.l10n.kitchenUseAmount(context.formatQty(_amount)),
+                AdjustMode.added => context.l10n.kitchenAddAmount(context.formatQty(_amount)),
+                AdjustMode.discarded => context.l10n.kitchenDiscardAmount(context.formatQty(_amount)),
+                AdjustMode.correct => context.l10n.kitchenSetToAmount(context.formatQty(_amount)),
               },
               loading: _busy,
               onPressed: _amount.isZero && _mode != AdjustMode.correct ? null : _apply,
             ),
             const SizedBox(height: Space.xs),
             SecondaryActionButton(
-              label: 'Mark as finished',
+              label: context.l10n.kitchenMarkFinished,
               onPressed: _busy
                   ? null
                   : () async {
@@ -217,14 +227,14 @@ class _KitchenCommandSheetState extends ConsumerState<KitchenCommandSheet> {
       _quantity = needs
           ? Quantity(c.product!.defaultUnit.dimension == Dimension.count ? 1 : 100, c.product!.defaultUnit)
           : c?.quantity;
-      _hint = c == null && text.trim().isNotEmpty ? 'Try "I used two eggs" or "add 1 kg flour".' : null;
+      _hint = c == null && text.trim().isNotEmpty ? context.l10n.kitchenCommandTryHint : null;
     });
   }
 
   Future<void> _listen() async {
     final voice = ref.read(voiceInputProvider);
     if (!await voice.available()) {
-      if (mounted) setState(() => _hint = 'Voice isn\'t available. You can type instead — or use your keyboard\'s dictation.');
+      if (mounted) setState(() => _hint = context.l10n.kitchenVoiceUnavailable);
       return;
     }
     setState(() => _listening = true);
@@ -258,6 +268,18 @@ class _KitchenCommandSheetState extends ConsumerState<KitchenCommandSheet> {
     }
   }
 
+  /// What the command will do, in the user's language.
+  String _describe(InventoryCommand c) {
+    final l = context.l10n;
+    final what = c.product?.name ?? l.kitchenQuoted(c.productQuery);
+    final amount = c.quantity == null ? '' : context.formatQty(c.quantity!);
+    return switch (c.action) {
+      InventoryCommandAction.markEmpty => l.kitchenCommandMarkEmpty(what),
+      InventoryCommandAction.setCount => l.kitchenCommandSetCount(what, c.quantity == null ? '?' : amount),
+      _ => l.kitchenCommandAction(context.labelOf(c.action), amount, what).replaceAll(RegExp(r'\s+'), ' '),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = _parsed;
@@ -268,8 +290,8 @@ class _KitchenCommandSheetState extends ConsumerState<KitchenCommandSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Tell Chefii', style: context.text.headlineSmall),
-            Text('"I used two eggs" · "we\'re out of milk" · "add 1 kg flour"', style: context.text.bodySmall),
+            Text(context.l10n.kitchenTellChefii, style: context.text.headlineSmall),
+            Text(context.l10n.kitchenCommandExamples, style: context.text.bodySmall),
             const SizedBox(height: Space.m),
             TextField(
               controller: _text,
@@ -278,9 +300,9 @@ class _KitchenCommandSheetState extends ConsumerState<KitchenCommandSheet> {
               onChanged: _parse,
               onSubmitted: (_) => c?.isActionable == true ? _apply() : null,
               decoration: InputDecoration(
-                hintText: 'What happened in the kitchen?',
+                hintText: context.l10n.kitchenCommandFieldHint,
                 suffixIcon: IconButton(
-                  tooltip: _listening ? 'Listening' : 'Speak',
+                  tooltip: _listening ? context.l10n.kitchenListening : context.l10n.kitchenSpeak,
                   onPressed: _listening ? () => ref.read(voiceInputProvider).stop() : _listen,
                   icon: Icon(_listening ? Icons.graphic_eq : Icons.mic_none),
                 ),
@@ -295,17 +317,17 @@ class _KitchenCommandSheetState extends ConsumerState<KitchenCommandSheet> {
                 child: Padding(
                   padding: const EdgeInsets.all(Space.m),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(c.product == null ? 'We couldn\'t find "${c.productQuery}"' : 'Here\'s what will happen', style: context.text.labelMedium),
+                    Text(c.product == null ? context.l10n.kitchenCouldNotFind(c.productQuery) : context.l10n.kitchenHereIsWhatWillHappen, style: context.text.labelMedium),
                     const SizedBox(height: Space.xxs),
                     Text(
                       c.product == null
-                          ? 'Try a simpler name, or add it from the Kitchen tab.'
-                          : InventoryCommand(action: c.action, productQuery: c.productQuery, product: c.product, quantity: _quantity).describe(),
+                          ? context.l10n.kitchenTrySimplerName
+                          : _describe(InventoryCommand(action: c.action, productQuery: c.productQuery, product: c.product, quantity: _quantity)),
                       style: context.text.titleMedium,
                     ),
                     if (_quantity != null) ...[
                       const SizedBox(height: Space.s),
-                      if (_assumedAmount) Text('You didn\'t say how much — check the amount:', style: context.text.bodySmall),
+                      if (_assumedAmount) Text(context.l10n.kitchenNoAmountSaid, style: context.text.bodySmall),
                       const SizedBox(height: Space.xs),
                       QuantityStepper(
                         value: _quantity!,
@@ -322,7 +344,7 @@ class _KitchenCommandSheetState extends ConsumerState<KitchenCommandSheet> {
             ],
             const SizedBox(height: Space.m),
             PrimaryActionButton(
-              label: 'Confirm',
+              label: context.l10n.kitchenConfirm,
               loading: _busy,
               onPressed: c != null && c.product != null && (_quantity != null || c.action == InventoryCommandAction.markEmpty || c.action == InventoryCommandAction.discard)
                   ? _apply
@@ -381,11 +403,11 @@ class _StorageLocationsSheetState extends ConsumerState<StorageLocationsSheet> {
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rename place'),
+        title: Text(context.l10n.kitchenRenamePlace),
         content: TextField(controller: controller, autofocus: true, maxLength: 30, textCapitalization: TextCapitalization.sentences),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Save')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.commonCancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text), child: Text(context.l10n.commonSave)),
         ],
       ),
     );
@@ -406,8 +428,8 @@ class _StorageLocationsSheetState extends ConsumerState<StorageLocationsSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Places in your kitchen', style: context.text.headlineSmall),
-              Text('Add spots like a garage freezer or a wine fridge.', style: context.text.bodySmall),
+              Text(context.l10n.kitchenPlacesTitle, style: context.text.headlineSmall),
+              Text(context.l10n.kitchenPlacesSubtitle, style: context.text.bodySmall),
               const SizedBox(height: Space.s),
               for (final l in locations)
                 ListTile(
@@ -418,15 +440,15 @@ class _StorageLocationsSheetState extends ConsumerState<StorageLocationsSheet> {
                     StorageKind.pantry => Icons.shelves,
                     StorageKind.custom => Icons.inventory_2_outlined,
                   }),
-                  title: Text(l.name),
-                  subtitle: Text(builtIn.contains(l.id) ? 'Built in' : 'Kept like a ${l.kind.label.toLowerCase()}'),
+                  title: Text(placeName(context, l)),
+                  subtitle: Text(builtIn.contains(l.id) ? context.l10n.kitchenBuiltIn : context.l10n.kitchenKeptLike(l.kind.name)),
                   trailing: builtIn.contains(l.id)
                       ? null
                       : Row(mainAxisSize: MainAxisSize.min, children: [
-                          IconButton(tooltip: 'Rename ${l.name}', onPressed: _busy ? null : () => _rename(l), icon: const Icon(Icons.edit_outlined)),
+                          IconButton(tooltip: context.l10n.kitchenRenameTooltip(l.name), onPressed: _busy ? null : () => _rename(l), icon: const Icon(Icons.edit_outlined)),
                           IconButton(
-                            tooltip: 'Remove ${l.name}',
-                            onPressed: _busy ? null : () => _run((hid) => ref.read(inventoryRepoProvider).removeLocation(hid, l.id), done: 'Removed ${l.name}.'),
+                            tooltip: context.l10n.kitchenRemoveTooltip(l.name),
+                            onPressed: _busy ? null : () => _run((hid) => ref.read(inventoryRepoProvider).removeLocation(hid, l.id), done: context.l10n.kitchenRemovedPlace(l.name)),
                             icon: const Icon(Icons.delete_outline),
                           ),
                         ]),
@@ -436,25 +458,25 @@ class _StorageLocationsSheetState extends ConsumerState<StorageLocationsSheet> {
                 controller: _name,
                 maxLength: 30,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(labelText: 'New place', hintText: 'e.g. Garage freezer'),
+                decoration: InputDecoration(labelText: context.l10n.kitchenNewPlace, hintText: context.l10n.kitchenNewPlaceHint),
                 onChanged: (_) => setState(() {}),
               ),
-              Text('Kept like a…', style: context.text.labelLarge),
+              Text(context.l10n.kitchenKeptLikeHeader, style: context.text.labelLarge),
               const SizedBox(height: Space.xxs),
               Wrap(spacing: Space.xs, children: [
                 for (final k in [StorageKind.fridge, StorageKind.freezer, StorageKind.pantry])
-                  ChoiceChip(label: Text(k.label), selected: _kind == k, onSelected: (_) => setState(() => _kind = k)),
+                  ChoiceChip(label: Text(context.labelOf(k)), selected: _kind == k, onSelected: (_) => setState(() => _kind = k)),
               ]),
               const SizedBox(height: Space.m),
               PrimaryActionButton(
-                label: 'Add place',
+                label: context.l10n.kitchenAddPlace,
                 loading: _busy,
                 onPressed: _name.text.trim().isEmpty
                     ? null
                     : () => _run((hid) async {
                           final added = await ref.read(inventoryRepoProvider).addLocation(hid, name: _name.text, kind: _kind);
                           _name.clear();
-                          if (mounted) showMessage(this.context, 'Added ${added.name}.');
+                          if (mounted) showMessage(this.context, this.context.l10n.kitchenAddedPlace(added.name));
                         }),
               ),
             ],

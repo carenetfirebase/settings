@@ -138,3 +138,20 @@ Important : Chefii fournit des estimations et de l'information générale. Ce n'
 - Terms of use: `https://<chefii-project>.web.app/legal/terms.html` (fr: `terms-fr.html`)
 - Support: `support@<your-domain>` and/or a support page
 - Marketing URL: optional
+
+## Screenshots and graphics (ready to upload)
+
+| Store | Files | Size |
+|---|---|---|
+| App Store (iPhone 6.9") | `store/screenshots/ios/{en,fr}/01…06.jpg` | 1320 × 2868 |
+| Google Play (phone) | `store/screenshots/android/{en,fr}/01…06.jpg` | 1080 × 1920 |
+| Google Play feature graphic | `store/feature_graphic_{en,fr}.png` | 1024 × 500 |
+| Google Play icon | `store/play_icon_512.png` | 512 × 512 |
+
+Order: Today · Receipt review · Kitchen · Recipe · Guided cooking · Allergies.
+Regenerate after UI changes: build the web app with
+`--dart-define=CHEFII_SCREENSHOTS=true` (hides demo labels), capture the six
+screens at 440 × 956 @3x in each language, then run
+`python3 tool/make_store_screenshots.py <raw_en> <raw_fr>`.
+The screens show sample data; that is normal for store screenshots and is
+real app UI (no mock-ups).

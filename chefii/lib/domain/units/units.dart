@@ -221,6 +221,17 @@ class Quantity implements Comparable<Quantity> {
   /// `context.formatQty(q)` (lib/l10n/labels.dart) for translated units.
   String format({String Function(Unit unit)? unitLabel, String decimalSeparator = '.'}) {
     final a = amount;
+    // Counted items read like a cook writes them: "½ onion", "1½ cloves".
+    if (unit.dimension == Dimension.count) {
+      final whole = a.floor();
+      final frac = a - whole;
+      const glyphs = [(0.25, '¼'), (0.5, '½'), (0.75, '¾')];
+      for (final (value, glyph) in glyphs) {
+        if ((frac - value).abs() < 0.01) {
+          return '${whole == 0 ? '' : whole}$glyph ${unitLabel?.call(unit) ?? unit.symbol}';
+        }
+      }
+    }
     final text = (a - a.roundToDouble()).abs() < 0.005
         ? a.round().toString()
         : a.toStringAsFixed(a.abs() < 10 ? 2 : 1).replaceFirst(RegExp(r'\.?0+$'), '');

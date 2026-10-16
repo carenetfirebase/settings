@@ -54,6 +54,14 @@ void main() {
     });
   }
 
+  test('counted items use kitchen fractions', () {
+    expect(const Quantity(0.5, Unit.piece).format(), '½ pc');
+    expect(const Quantity(1.5, Unit.piece).format(), '1½ pc');
+    expect(const Quantity(2, Unit.piece).format(), '2 pc');
+    expect(const Quantity(0.4, Unit.piece).format(), '0.4 pc');
+    expect(const Quantity(1.5, Unit.kg).format(), '1.5 kg');
+  });
+
   test('French labels are actually French for common values', () {
     final fr = AppLocalizationsFr();
     expect(localizedLabel(fr, MealType.dinner), 'Souper');

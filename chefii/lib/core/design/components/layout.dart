@@ -141,8 +141,13 @@ class DemoBanner extends StatelessWidget {
   /// Defaults to "Demo mode — sample data, no AI used." in the current language.
   final String? message;
 
+  /// Store-screenshot builds (`--dart-define=CHEFII_SCREENSHOTS=true`) hide
+  /// demo labels. Production builds never run in demo mode.
+  static const _screenshots = bool.fromEnvironment('CHEFII_SCREENSHOTS');
+
   @override
   Widget build(BuildContext context) {
+    if (_screenshots) return const SizedBox.shrink();
     final p = context.palette;
     final message = this.message ?? context.l10n.coreDemoBanner;
     return Semantics(

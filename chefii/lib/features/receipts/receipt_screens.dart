@@ -448,7 +448,7 @@ class _LineTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l.name.isEmpty ? l10n.receiptsUnknownItem : l.name,
+                      l.name.isEmpty ? l10n.receiptsUnknownItem : context.productName(l.matchedProductId ?? '', l.name),
                       style: context.text.titleMedium?.copyWith(decoration: l.excluded ? TextDecoration.lineThrough : null, color: l.excluded ? p.muted : null),
                     ),
                     Text(l.rawText, style: context.text.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: 12)),
@@ -670,8 +670,8 @@ class UnknownItemsScreen extends ConsumerWidget {
                     l.name.isEmpty
                         ? l10n.receiptsCouldntTell
                         : l.quantity == null
-                        ? l10n.receiptsLooksLikeUnknownAmount(l.name)
-                        : l10n.receiptsLooksLikeWithAmount(l.name, context.formatQty(l.quantity!)),
+                        ? l10n.receiptsLooksLikeUnknownAmount(context.productName(l.matchedProductId ?? '', l.name))
+                        : l10n.receiptsLooksLikeWithAmount(context.productName(l.matchedProductId ?? '', l.name), context.formatQty(l.quantity!)),
                     style: context.text.titleMedium,
                   ),
                   for (final issue in l.issues) Text(issue, style: context.text.bodySmall),
@@ -756,7 +756,7 @@ class _StorageAssignmentScreenState extends ConsumerState<StorageAssignmentScree
                 padding: const EdgeInsets.symmetric(horizontal: Space.m, vertical: Space.s),
                 child: Row(
                   children: [
-                    Expanded(child: Text([l.name, if (l.quantity != null) context.formatQty(l.quantity!)].join(' · '), style: context.text.bodyLarge)),
+                    Expanded(child: Text([context.productName(l.matchedProductId ?? '', l.name), if (l.quantity != null) context.formatQty(l.quantity!)].join(' · '), style: context.text.bodyLarge)),
                     PopupMenuButton<StorageKind>(
                       tooltip: l10n.receiptsChangeStorage,
                       initialValue: l.storage,
@@ -777,7 +777,7 @@ class _StorageAssignmentScreenState extends ConsumerState<StorageAssignmentScree
         if (food.any((l) => l.storage == StorageKind.custom))
           for (final l in food.where((l) => l.storage == StorageKind.custom))
             ListTile(
-              title: Text(l.name),
+              title: Text(context.productName(l.matchedProductId ?? '', l.name)),
               trailing: TextButton(
                 onPressed: () => _saveLine(ref, r, l.copyWith(storage: StorageKind.pantry)),
                 child: Text(context.labelOf(StorageKind.pantry)),

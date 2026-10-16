@@ -79,7 +79,8 @@ class DemoAiGateway implements AiGateway {
       'progress': 1.0,
       'isDemo': true,
       'aiModel': demoModel,
-      'merchant': 'Maison Market (sample)',
+      // Store screenshots omit the sample marker; the demo banner is hidden there too.
+      'merchant': const bool.fromEnvironment('CHEFII_SCREENSHOTS') ? 'Maison Market' : 'Maison Market (sample)',
       'purchaseDate': CalendarDate.fromDateTime(DateTime.now()).toIso(),
       'subtotal': const Money(5978).toMap(),
       'tax': const Money(45).toMap(),

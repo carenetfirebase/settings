@@ -12,6 +12,7 @@ import '../../domain/models/recipe.dart';
 import '../../domain/nutrition/nutrition_calculator.dart';
 import '../../domain/recipes/recipe_availability.dart';
 import '../../domain/recipes/substitutions.dart';
+import '../../domain/recipes/substitutions_fr.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/labels.dart';
 import '../shared/ai_consent.dart';
@@ -670,6 +671,7 @@ class SubstitutionsSheet extends ConsumerWidget {
       rows.addAll(finder.optionsFor(i, dietary).where((o) => o.isSafe));
     }
     final baseProtein = recipe.nutritionPerServing[Nutrient.protein];
+    final french = ref.watch(frenchContentProvider);
     final l = context.l10n;
     return SafeArea(
       child: ConstrainedBox(
@@ -689,7 +691,7 @@ class SubstitutionsSheet extends ConsumerWidget {
                   padding: const EdgeInsets.all(Space.m),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text('${o.original.name} → ${o.replacement.display}', style: context.text.titleMedium), // l10n-ignore
-                    Text(o.note, style: context.text.bodySmall),
+                    Text(substitutionNoteFor(o.original.productId ?? '', o.replacement.productId ?? '', o.note, french), style: context.text.bodySmall),
                     const SizedBox(height: Space.xs),
                     Wrap(spacing: Space.xs, children: [
                       if (stock.containsKey(o.replacement.productId)) TagPill(l.chefInYourKitchen, icon: Icons.check, color: context.palette.success, background: context.palette.successSoft),

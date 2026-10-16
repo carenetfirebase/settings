@@ -198,13 +198,14 @@ class Quantity implements Comparable<Quantity> {
   @override
   int get hashCode => Object.hash(unit.dimension, (inBase * 1000).round());
 
-  /// Human-friendly formatting: "2 pc", "1.5 kg", "250 ml".
-  String format() {
+  /// Human-friendly formatting: "2 pc", "1.5 kg", "250 ml". UI code uses
+  /// `context.formatQty(q)` (lib/l10n/labels.dart) for translated units.
+  String format({String Function(Unit unit)? unitLabel, String decimalSeparator = '.'}) {
     final a = amount;
     final text = (a - a.roundToDouble()).abs() < 0.005
         ? a.round().toString()
         : a.toStringAsFixed(a.abs() < 10 ? 2 : 1).replaceFirst(RegExp(r'\.?0+$'), '');
-    return '$text ${unit.symbol}';
+    return '${text.replaceAll('.', decimalSeparator)} ${unitLabel?.call(unit) ?? unit.symbol}';
   }
 
   @override

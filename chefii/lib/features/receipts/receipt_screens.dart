@@ -798,7 +798,7 @@ class ReceiptErrorScreen extends ConsumerWidget {
           EmptyState(
             icon: Icons.copy_all_outlined,
             title: 'This looks like a receipt you\'ve already added',
-            message: 'To avoid counting groceries twice, we stopped here.${r == null ? '' : ' Earlier scan: ${formatDay(r.createdAt)}.'}',
+            message: 'To avoid counting groceries twice, we stopped here.${r == null ? '' : ' Earlier scan: ${formatDay(context, r.createdAt)}.'}',
             secondaryLabel: 'It\'s a different receipt — continue',
             onSecondary: () async {
               final pages = ref.read(receiptDraftProvider);
@@ -943,7 +943,7 @@ class ReceiptsListScreen extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: Space.xs),
             child: ListTile(
               title: Text(r.merchant ?? 'Receipt'),
-              subtitle: Text('${formatDay(r.createdAt)} · ${r.status.label}${r.total == null ? '' : ' · ${r.total!.format()}'}'),
+              subtitle: Text('${formatDay(context, r.createdAt)} · ${r.status.label}${r.total == null ? '' : ' · ${r.total!.format()}'}'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push(switch (r.status) {
                 ReceiptStatus.needsReview => '/receipt/${r.id}/review',

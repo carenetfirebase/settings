@@ -246,7 +246,7 @@ class LeftoversScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(Space.m),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(l.productName, style: context.text.titleMedium),
-                Text('${l.quantity.amount.round()} portion${l.quantity.amount == 1 ? '' : 's'} · made ${formatDay(l.acquiredAt)}${l.daysLeft(today) == null ? '' : ' · eat within ~${l.daysLeft(today)} day${l.daysLeft(today) == 1 ? '' : 's'}'}', style: context.text.bodySmall),
+                Text('${l.quantity.amount.round()} portion${l.quantity.amount == 1 ? '' : 's'} · made ${formatDay(context, l.acquiredAt)}${l.daysLeft(today) == null ? '' : ' · eat within ~${l.daysLeft(today)} day${l.daysLeft(today) == 1 ? '' : 's'}'}', style: context.text.bodySmall),
                 const SizedBox(height: Space.xs),
                 Wrap(spacing: Space.xs, children: [
                   ActionChip(
@@ -558,7 +558,7 @@ class SpendingWasteScreen extends ConsumerWidget {
             ),
         const SectionHeader('Recently discarded'),
         if (discards.isEmpty) Text('Nothing thrown out recently. Lovely.', style: context.text.bodyMedium),
-        for (final o in discards.take(10)) ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.delete_outline), title: Text(o.summary), subtitle: Text(formatDay(o.createdAt))),
+        for (final o in discards.take(10)) ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.delete_outline), title: Text(o.summary), subtitle: Text(formatDay(context, o.createdAt))),
         const SizedBox(height: Space.m),
         Text('Spending comes from scanned receipts only. Waste counts items you marked as discarded.', style: context.text.bodySmall),
       ],

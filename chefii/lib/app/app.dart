@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../core/design/theme.dart';
+import '../l10n/l10n.dart';
 import '../domain/models/profile.dart';
 import 'providers.dart';
 import 'router.dart';
@@ -37,6 +38,12 @@ class _ChefiiAppState extends ConsumerState<ChefiiApp> {
       themeMode: ThemeMode.system,
       restorationScopeId: 'chefii',
       routerConfig: router,
+      localizationsDelegates: const [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
+      supportedLocales: supportedAppLocales,
+      locale: localeForSetting(settings.language),
+      // Any French variant gets Canadian French; everything else English (Canada).
+      localeResolutionCallback: (device, supported) =>
+          device?.languageCode == 'fr' ? const Locale('fr', 'CA') : const Locale('en', 'CA'),
       builder: (context, child) {
         final mq = MediaQuery.of(context);
         // Respect the device setting and multiply by the in-app preference,

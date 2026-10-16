@@ -107,9 +107,9 @@ class _NutritionCircleScreenState extends ConsumerState<NutritionCircleScreen> {
               title: Text(g.professionalName),
               subtitle: Text(
                 g.isActiveAt(now)
-                    ? '${g.categories.map((c) => c.label).join(', ')}\nUntil ${formatDay(g.expiresAt)}'
+                    ? '${g.categories.map((c) => c.label).join(', ')}\nUntil ${formatDay(context, g.expiresAt)}'
                     : g.status == GrantStatus.revoked
-                    ? 'Access revoked ${g.revokedAt == null ? '' : formatDay(g.revokedAt!)}'
+                    ? 'Access revoked ${g.revokedAt == null ? '' : formatDay(context, g.revokedAt!)}'
                     : 'Access expired',
               ),
               isThreeLine: g.isActiveAt(now),
@@ -181,7 +181,7 @@ class _SharingPermissionsScreenState extends ConsumerState<SharingPermissionsScr
                   context,
                   title: 'Share with ${pro.displayName}?',
                   message:
-                      '${cats.map((c) => c.label).join(', ')} from the last $_historyDays days, until ${formatDay(DateTime.now().add(Duration(days: _durationDays)))}. You can revoke any time.',
+                      '${cats.map((c) => c.label).join(', ')} from the last $_historyDays days, until ${formatDay(context, DateTime.now().add(Duration(days: _durationDays)))}. You can revoke any time.',
                   confirmLabel: 'Share',
                 );
                 if (!ok) return;
@@ -261,7 +261,7 @@ class _SharingPermissionsScreenState extends ConsumerState<SharingPermissionsScr
             dense: true,
             leading: const Icon(Icons.visibility_outlined, size: 20),
             title: Text('Viewed ${e['what']}'),
-            subtitle: Text(e['at'] is DateTime ? '${formatDay(e['at'] as DateTime)} ${formatTime(context, e['at'] as DateTime)}' : ''),
+            subtitle: Text(e['at'] is DateTime ? '${formatDay(context, e['at'] as DateTime)} ${formatTime(context, e['at'] as DateTime)}' : ''),
           ),
       ],
     );
@@ -284,7 +284,7 @@ class AssessmentDetailScreen extends ConsumerWidget {
       header: EditorialPageHeader(
         eyebrow: 'Professional review',
         title: a.professionalName,
-        subtitle: '${a.professionalCredentials} · ${formatDay(a.createdAt)}',
+        subtitle: '${a.professionalCredentials} · ${formatDay(context, a.createdAt)}',
       ),
       primaryAction: pending ? PrimaryActionButton(label: 'Accept recommendations', onPressed: () => ref.read(sharingRepoProvider).respond(a, true)) : null,
       children: [
@@ -352,7 +352,7 @@ class ProfessionalDashboardScreen extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: Space.xs),
             child: ListTile(
               title: Text(g.ownerName),
-              subtitle: Text('${g.categories.map((c) => c.label).join(', ')}\nAccess until ${formatDay(g.expiresAt)}'),
+              subtitle: Text('${g.categories.map((c) => c.label).join(', ')}\nAccess until ${formatDay(context, g.expiresAt)}'),
               isThreeLine: true,
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/pro/client/${g.id}'),
@@ -489,7 +489,7 @@ class _ClientRecordsScreenState extends ConsumerState<ClientRecordsScreen> {
       );
     }
     return PremiumAppScaffold(
-      header: EditorialPageHeader(eyebrow: 'Client', title: g.ownerName, subtitle: 'Shared since ${formatDay(g.rangeStart)} · read-only'),
+      header: EditorialPageHeader(eyebrow: 'Client', title: g.ownerName, subtitle: 'Shared since ${formatDay(context, g.rangeStart)} · read-only'),
       primaryAction: PrimaryActionButton(label: 'Write assessment', onPressed: () => context.push('/pro/assess/${g.id}')),
       children: [
         Wrap(
@@ -518,7 +518,7 @@ class _ClientRecordsScreenState extends ConsumerState<ClientRecordsScreen> {
                           r['measuredAt'],
                           r['occurredAt'],
                           r['recordedAt'],
-                        ].whereType<DateTime>().map((t) => '${formatDay(t)} ${formatTime(context, t)}').join(),
+                        ].whereType<DateTime>().map((t) => '${formatDay(context, t)} ${formatTime(context, t)}').join(),
                       ),
                     ),
                 ],
@@ -589,7 +589,7 @@ class _ProfessionalAssessmentScreenState extends ConsumerState<ProfessionalAsses
     final me = ref.watch(myProfessionalProfileProvider).value;
     if (g == null || me == null) return const Scaffold(body: LoadingState());
     return PremiumAppScaffold(
-      header: EditorialPageHeader(eyebrow: 'Assessment', title: g.ownerName, subtitle: 'Reviewing ${formatDay(g.rangeStart)} – today'),
+      header: EditorialPageHeader(eyebrow: 'Assessment', title: g.ownerName, subtitle: 'Reviewing ${formatDay(context, g.rangeStart)} – today'),
       primaryAction: PrimaryActionButton(label: 'Share with client', loading: _busy, onPressed: () => _save(g, me, share: true)),
       children: [
         TextField(

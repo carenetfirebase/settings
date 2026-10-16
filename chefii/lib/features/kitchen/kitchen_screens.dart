@@ -284,7 +284,7 @@ class IngredientDetailScreen extends ConsumerWidget {
           child: Column(children: [
             row('Recorded amount', lot.quantity.format()),
             row('Originally', lot.initialQuantity.format()),
-            row('Added', formatDay(lot.acquiredAt)),
+            row('Added', formatDay(context, lot.acquiredAt)),
             row('Source', switch (lot.source) {
               LotSource.receipt => 'Receipt${lot.provenance.raw == null ? '' : ' · "${lot.provenance.raw}"'}',
               LotSource.scan => 'Photo scan',
@@ -361,7 +361,7 @@ class IngredientDetailScreen extends ConsumerWidget {
               _ => Icons.swap_horiz,
             }),
             title: Text('${a.type.label} ${a.delta.isZero ? '' : a.delta.format().replaceFirst('-', '')}'),
-            subtitle: Text('${formatDay(a.createdAt)} · ${formatTime(context, a.createdAt)}${a.reason == null ? '' : ' · ${a.reason}'}'),
+            subtitle: Text('${formatDay(context, a.createdAt)} · ${formatTime(context, a.createdAt)}${a.reason == null ? '' : ' · ${a.reason}'}'),
           ),
       ],
     );

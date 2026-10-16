@@ -31,6 +31,8 @@ jobs:
       - run: flutter analyze
       - run: flutter test
       - run: dart run tool/export_shared_data.dart --check
+      - name: Every English string has a French translation
+        run: dart run tool/merge_arb.dart --check
       - name: Deploy guard blocks non-Chefii projects
         run: |
           for p in referai Referai-prod some-other-app ""; do

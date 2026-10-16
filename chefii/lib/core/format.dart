@@ -2,6 +2,10 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../domain/models/nutrition.dart';
+import '../l10n/l10n.dart';
+
+/// Locale tag for intl formatters ('en_CA', 'fr_CA').
+String localeTag(BuildContext context) => Localizations.localeOf(context).toString();
 
 String formatNutrient(Nutrient n, double v) {
   final rounded = switch (n) {
@@ -13,30 +17,36 @@ String formatNutrient(Nutrient n, double v) {
 
 String formatTime(BuildContext context, DateTime t) {
   final local = t.toLocal();
-  return MediaQuery.alwaysUse24HourFormatOf(context)
-      ? DateFormat.Hm().format(local)
-      : DateFormat.jm().format(local).replaceAll(' AM', ' am').replaceAll(' PM', ' pm');
+  final tag = localeTag(context);
+  // French Canada uses the 24-hour clock ("7 h 30").
+  if (MediaQuery.alwaysUse24HourFormatOf(context) || tag.startsWith('fr')) {
+    return tag.startsWith('fr') ? DateFormat("H 'h' mm", tag).format(local) : DateFormat.Hm(tag).format(local);
+  }
+  return DateFormat.jm(tag).format(local).replaceAll(' AM', ' am').replaceAll(' PM', ' pm');
 }
 
-String formatDay(DateTime t, {DateTime? now}) {
+String formatDay(BuildContext context, DateTime t, {DateTime? now}) {
+  final l = context.l10n;
+  final tag = localeTag(context);
   final local = t.toLocal();
   final n = (now ?? DateTime.now()).toLocal();
   final d = DateTime(local.year, local.month, local.day);
   final today = DateTime(n.year, n.month, n.day);
   final diff = d.difference(today).inDays;
-  if (diff == 0) return 'Today';
-  if (diff == -1) return 'Yesterday';
-  if (diff == 1) return 'Tomorrow';
-  if (diff.abs() < 7) return DateFormat.EEEE().format(local);
-  return DateFormat.MMMd().format(local);
+  if (diff == 0) return l.commonToday;
+  if (diff == -1) return l.commonYesterday;
+  if (diff == 1) return l.commonTomorrow;
+  if (diff.abs() < 7) return DateFormat.EEEE(tag).format(local);
+  return DateFormat.MMMd(tag).format(local);
 }
 
-String greetingFor(DateTime now) {
+String greetingFor(BuildContext context, DateTime now) {
+  final l = context.l10n;
   final h = now.hour;
-  if (h < 5) return 'Good evening';
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 5) return l.commonGoodEvening;
+  if (h < 12) return l.commonGoodMorning;
+  if (h < 17) return l.commonGoodAfternoon;
+  return l.commonGoodEvening;
 }
 
 String formatMinutes(int minutes) {

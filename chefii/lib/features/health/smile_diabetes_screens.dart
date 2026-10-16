@@ -128,7 +128,7 @@ class DentalHistoryScreen extends ConsumerWidget {
       children: [
         if (events.isEmpty) const EmptyState(icon: Icons.history, title: 'Nothing logged yet', message: 'Your log will appear here.'),
         for (final d in days) ...[
-          SectionHeader(formatDay(DateTime.parse(d)), topSpacing: Space.m),
+          SectionHeader(formatDay(context, DateTime.parse(d)), topSpacing: Space.m),
           for (final e in byDay[d]!..sort((a, b) => a.occurredAt.compareTo(b.occurredAt)))
             DentalExposureCard(event: e, onDelete: () => ref.read(healthRepoProvider).deleteOral(e.uid, e.id)),
         ],
@@ -311,7 +311,7 @@ class _GlucoseJournalScreenState extends ConsumerState<GlucoseJournalScreen> {
           margin: const EdgeInsets.only(top: Space.s),
           child: ListTile(
             leading: const Icon(Icons.schedule),
-            title: Text('${formatDay(_at)} at ${formatTime(context, _at)}'),
+            title: Text('${formatDay(context, _at)} at ${formatTime(context, _at)}'),
             trailing: const Icon(Icons.edit_outlined),
             onTap: () async {
               final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_at));
@@ -326,7 +326,7 @@ class _GlucoseJournalScreenState extends ConsumerState<GlucoseJournalScreen> {
             margin: const EdgeInsets.only(bottom: Space.xs),
             child: ListTile(
               title: Text(fmt(e), style: context.text.titleMedium),
-              subtitle: Text('${formatDay(e.measuredAt)} ${formatTime(context, e.measuredAt)} · ${e.context.name} · ${switch (e.source) { GlucoseSource.manual => 'entered by you', GlucoseSource.healthIntegration => 'from Health app', GlucoseSource.device => 'from ${e.deviceName ?? 'device'}' }}'
+              subtitle: Text('${formatDay(context, e.measuredAt)} ${formatTime(context, e.measuredAt)} · ${e.context.name} · ${switch (e.source) { GlucoseSource.manual => 'entered by you', GlucoseSource.healthIntegration => 'from Health app', GlucoseSource.device => 'from ${e.deviceName ?? 'device'}' }}'
                   '${e.enteredUnit != _unit ? ' · entered as ${e.valueIn(e.enteredUnit).toStringAsFixed(1)} ${e.enteredUnit.label}' : ''}'),
               trailing: IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete_outline), onPressed: () => ref.read(healthRepoProvider).deleteGlucose(e.uid, e.id)),
             ),
@@ -373,7 +373,7 @@ class _GlucoseTimelineScreenState extends ConsumerState<GlucoseTimelineScreen> {
     return PremiumAppScaffold(
       header: EditorialPageHeader(
         eyebrow: 'Glucose',
-        title: formatDay(_day),
+        title: formatDay(context, _day),
         subtitle: 'Meals and readings in order. No interpretation.',
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
           IconButton(tooltip: 'Previous day', onPressed: () => setState(() => _day = _day.subtract(const Duration(days: 1))), icon: const Icon(Icons.chevron_left)),

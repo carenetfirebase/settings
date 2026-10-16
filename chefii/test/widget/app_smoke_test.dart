@@ -17,7 +17,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<(ProviderContainer, MemoryDocStore)> pumpApp(WidgetTester tester, {double textScale = 1, Brightness brightness = Brightness.light}) async {
+Future<(ProviderContainer, MemoryDocStore)> pumpApp(WidgetTester tester, {double textScale = 1, Brightness brightness = Brightness.light, Locale locale = const Locale('en', 'CA')}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   final store = MemoryDocStore();
@@ -40,6 +40,8 @@ Future<(ProviderContainer, MemoryDocStore)> pumpApp(WidgetTester tester, {double
   tester.view.devicePixelRatio = 3;
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   tester.platformDispatcher.platformBrightnessTestValue = brightness;
+  tester.platformDispatcher.localesTestValue = [locale];
+  addTearDown(tester.platformDispatcher.clearLocalesTestValue);
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
   addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
@@ -60,10 +62,24 @@ Future<void> settle(WidgetTester tester, [int frames = 8]) async {
   }
 }
 
+const allRoutes = [
+  '/today', '/today/briefing', '/today/notifications',
+  '/kitchen', '/kitchen/location/fridge', '/kitchen/add', '/kitchen/scan', '/kitchen/freshness',
+  '/kitchen/reconcile', '/kitchen/shopping', '/kitchen/spending', '/kitchen/receipts',
+  '/discover', '/discover?filter=expiring', '/journal', '/journal/add', '/journal/history', '/journal/reminders', '/journal/patterns',
+  '/you', '/you/dietary', '/you/culinary', '/you/wellness', '/you/nutrition', '/you/nutrition/intelligence',
+  '/you/nutrition/hair-skin-nails', '/you/nutrition/evidence', '/you/nutrition/nutrient/fibre', '/you/smile', '/you/smile/history',
+  '/you/diabetes', '/you/glucose', '/you/glucose/timeline', '/you/circle', '/you/household', '/you/privacy', '/you/connected',
+  '/you/membership', '/you/accessibility', '/you/security', '/you/help', '/you/legal', '/you/data',
+  '/receipt/capture', '/receipt/preview', '/chef', '/chef/preferences', '/chef/results', '/recipe/red-lentil-dal',
+  '/cook/timers', '/morning/setup', '/morning/alarm', '/morning/evening', '/morning/wake', '/morning/checklist', '/morning/late',
+  '/plan', '/plan/assign', '/plan/leftovers', '/pro',
+];
+
 /// Signs a demo user in and onboards through the repositories (the UI flow
 /// is covered by the first test), with an example kitchen.
-Future<GoRouter> pumpSignedIn(WidgetTester tester, {double textScale = 1, Brightness brightness = Brightness.light}) async {
-  final (container, _) = await pumpApp(tester, textScale: textScale, brightness: brightness);
+Future<GoRouter> pumpSignedIn(WidgetTester tester, {double textScale = 1, Brightness brightness = Brightness.light, Locale locale = const Locale('en', 'CA')}) async {
+  final (container, _) = await pumpApp(tester, textScale: textScale, brightness: brightness, locale: locale);
   await settle(tester);
   final auth = container.read(authServiceProvider) as DemoAuthService;
   final user = await auth.signInDemo('Alexandra');
@@ -141,19 +157,7 @@ void main() {
     // Render every route; any build exception fails the test.
     final router = container.read(routerProvider);
     final lot = (await container.read(inventoryRepoProvider).activeLots(hid)).first;
-    final routes = [
-      '/today', '/today/briefing', '/today/notifications',
-      '/kitchen', '/kitchen/location/fridge', '/kitchen/item/${lot.id}', '/kitchen/add', '/kitchen/scan', '/kitchen/freshness',
-      '/kitchen/reconcile', '/kitchen/shopping', '/kitchen/spending', '/kitchen/receipts',
-      '/discover', '/discover?filter=expiring', '/journal', '/journal/add', '/journal/history', '/journal/reminders', '/journal/patterns',
-      '/you', '/you/dietary', '/you/culinary', '/you/wellness', '/you/nutrition', '/you/nutrition/intelligence',
-      '/you/nutrition/hair-skin-nails', '/you/nutrition/evidence', '/you/nutrition/nutrient/fibre', '/you/smile', '/you/smile/history',
-      '/you/diabetes', '/you/glucose', '/you/glucose/timeline', '/you/circle', '/you/household', '/you/privacy', '/you/connected',
-      '/you/membership', '/you/accessibility', '/you/security', '/you/help', '/you/legal', '/you/data',
-      '/receipt/capture', '/receipt/preview', '/chef', '/chef/preferences', '/chef/results', '/recipe/red-lentil-dal',
-      '/cook/timers', '/morning/setup', '/morning/alarm', '/morning/evening', '/morning/wake', '/morning/checklist', '/morning/late',
-      '/plan', '/plan/assign', '/plan/leftovers', '/pro',
-    ];
+    final routes = [...allRoutes, '/kitchen/item/${lot.id}'];
     for (final r in routes) {
       router.go(r);
       await settle(tester, 4);
@@ -226,4 +230,26 @@ void main() {
     router.go('/today');
     await settle(tester, 2);
   });
+
+  for (final scale in [1.0, 1.6]) {
+    testWidgets('every route renders in Canadian French at ${(scale * 100).round()}% text', (tester) async {
+      final router = await pumpSignedIn(tester, textScale: scale, locale: const Locale('fr', 'CA'));
+      router.go('/today');
+      await settle(tester, 4);
+      expect(find.textContaining(RegExp('Bonjour|Bon après-midi|Bonsoir')), findsWidgets);
+      for (final r in allRoutes) {
+        router.go(r);
+        await settle(tester, 4);
+        final e = tester.takeException();
+        if (e != null) {
+          for (final ro in tester.allRenderObjects.whereType<RenderFlex>()) {
+            if (ro.toStringShort().contains('OVERFLOWING')) debugPrint('OVERFLOW_DETAIL ${ro.debugCreator}');
+          }
+        }
+        expect(e, isNull, reason: 'route $r overflowed or threw in French at ${scale}x');
+      }
+      router.go('/today');
+      await settle(tester, 2);
+    });
+  }
 }

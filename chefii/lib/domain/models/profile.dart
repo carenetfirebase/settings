@@ -242,7 +242,7 @@ class AppSettings {
     this.reduceMotion = false,
     this.textScale = 1.0,
     this.voiceGuidance = true,
-    this.language = 'en-CA',
+    this.language = 'system',
     this.aiProcessingConsent = false,
     this.allowOptionalAiProvider = true,
     this.analyticsConsent = false,
@@ -254,6 +254,7 @@ class AppSettings {
   final bool reduceMotion;
   final double textScale;
   final bool voiceGuidance;
+  /// 'system' (follow the device), 'en-CA' or 'fr-CA'.
   final String language;
 
   /// Consent to send images/text to third-party AI processors.
@@ -312,7 +313,7 @@ class AppSettings {
       reduceMotion: m['reduceMotion'] as bool? ?? false,
       textScale: (m['textScale'] as num?)?.toDouble() ?? 1.0,
       voiceGuidance: m['voiceGuidance'] as bool? ?? true,
-      language: m['language'] as String? ?? 'en-CA',
+      language: m['language'] as String? ?? 'system',
       aiProcessingConsent: m['aiProcessingConsent'] as bool? ?? false,
       allowOptionalAiProvider: m['allowOptionalAiProvider'] as bool? ?? true,
       analyticsConsent: m['analyticsConsent'] as bool? ?? false,

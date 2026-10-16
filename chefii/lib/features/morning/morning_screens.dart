@@ -348,7 +348,7 @@ class MorningAlarmScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(Space.gutter),
           child: Column(children: [
             const Spacer(),
-            Text(greetingFor(now), style: context.text.headlineMedium),
+            Text(greetingFor(context, now), style: context.text.headlineMedium),
             const SizedBox(height: Space.s),
             Semantics(
               label: 'It is ${formatTime(context, now)}',

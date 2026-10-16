@@ -138,7 +138,7 @@ class HouseholdMembersScreen extends ConsumerWidget {
             child: ListTile(
               leading: CircleAvatar(child: Text(m.displayName.isEmpty ? '?' : m.displayName[0])),
               title: Text(m.uid == uid ? '${m.displayName} (you)' : m.displayName),
-              subtitle: Text('${m.role.name[0].toUpperCase()}${m.role.name.substring(1)} · since ${formatDay(m.joinedAt)}'),
+              subtitle: Text('${m.role.name[0].toUpperCase()}${m.role.name.substring(1)} · since ${formatDay(context, m.joinedAt)}'),
               trailing: isOwner && m.uid != uid
                   ? IconButton(
                       tooltip: 'Remove',
@@ -219,7 +219,7 @@ class PrivacyScreen extends ConsumerWidget {
             dense: true,
             leading: Icon(c.granted ? Icons.check_circle_outline : Icons.cancel_outlined, size: 20),
             title: Text('${c.purpose} · ${c.granted ? 'granted' : 'withdrawn'}'),
-            subtitle: Text('${formatDay(c.recordedAt)} · version ${c.version}'),
+            subtitle: Text('${formatDay(context, c.recordedAt)} · version ${c.version}'),
           ),
         const SizedBox(height: Space.m),
         Text('Data is stored in Canada (Google Cloud, Montréal region) where supported. See the Privacy Policy for details.', style: context.text.bodySmall),
@@ -347,8 +347,10 @@ class AccessibilityScreen extends ConsumerWidget {
           groupValue: s.language,
           onChanged: (v) => v == null ? null : save(s.copyWith(language: v)),
           child: const Column(children: [
+            RadioListTile(value: 'system', title: Text('Same as my device')),
+            // Language names are always shown in their own language.
             RadioListTile(value: 'en-CA', title: Text('English (Canada)')),
-            RadioListTile(value: 'fr-CA', title: Text('Français (Canada)'), subtitle: Text('Coming soon — the app will remain in English for now'), enabled: false),
+            RadioListTile(value: 'fr-CA', title: Text('Français (Canada)')),
           ]),
         ),
       ],

@@ -264,7 +264,7 @@ class _HairSkinNailsScreenState extends ConsumerState<HairSkinNailsScreen> {
               margin: const EdgeInsets.only(bottom: Space.xs),
               child: ListTile(
                 title: Text(c.description),
-                subtitle: Text('${c.area.name} · ${formatDay(c.recordedAt)} · ${c.severity}/5'),
+                subtitle: Text('${c.area.name} · ${formatDay(context, c.recordedAt)} · ${c.severity}/5'),
                 trailing: IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete_outline), onPressed: () => ref.read(healthRepoProvider).deleteConcern(c.uid, c.id)),
               ),
             ),

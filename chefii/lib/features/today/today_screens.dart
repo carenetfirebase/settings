@@ -74,7 +74,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       ],
       header: EditorialPageHeader(
         eyebrow: DateFormat('EEEE, MMMM d').format(now),
-        title: '${greetingFor(now)}${profile == null ? '' : ',\n${profile.firstName}'}.',
+        title: '${greetingFor(context, now)}${profile == null ? '' : ',\n${profile.firstName}'}.',
       ),
       primaryAction: featured == null
           ? PrimaryActionButton(icon: Icons.receipt_long_outlined, label: 'Scan a receipt', onPressed: () => context.push('/receipt/capture'))
@@ -296,7 +296,7 @@ class NotificationCentreScreen extends ConsumerWidget {
                 NotificationKind.system => Icons.info_outline,
               }),
               title: Text(n.title, style: n.read ? null : context.text.titleSmall),
-              subtitle: Text('${n.body}\n${formatDay(n.createdAt)}'),
+              subtitle: Text('${n.body}\n${formatDay(context, n.createdAt)}'),
               isThreeLine: true,
               onTap: () {
                 if (uid != null) ref.read(profileRepoProvider).markNotificationRead(uid, n.id);

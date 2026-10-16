@@ -77,7 +77,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
       ],
       header: EditorialPageHeader(
         eyebrow: 'Journal',
-        title: formatDay(_day),
+        title: formatDay(context, _day),
         subtitle: DateFormat.yMMMMd().format(_day),
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
           IconButton(tooltip: 'Previous day', onPressed: () => setState(() => _day = _day.subtract(const Duration(days: 1))), icon: const Icon(Icons.chevron_left)),
@@ -160,7 +160,7 @@ class FoodJournalScreen extends ConsumerWidget {
       children: [
         if (meals.isEmpty) const EmptyState(icon: Icons.history, title: 'No history yet', message: 'Your meals will build up here.'),
         for (final d in days) ...[
-          SectionHeader(formatDay(DateTime.parse(d)), topSpacing: Space.m),
+          SectionHeader(formatDay(context, DateTime.parse(d)), topSpacing: Space.m),
           for (final m in byDay[d]!)
             Card(
               margin: const EdgeInsets.only(bottom: Space.xs),
@@ -230,7 +230,7 @@ class _JournalEntryScreenState extends ConsumerState<JournalEntryScreen> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.schedule),
-            title: Text('${formatDay(m.eatenAt)} at ${formatTime(context, m.eatenAt)}'),
+            title: Text('${formatDay(context, m.eatenAt)} at ${formatTime(context, m.eatenAt)}'),
             trailing: const Icon(Icons.edit_outlined),
             onTap: () async {
               final local = m.eatenAt.toLocal();
@@ -425,7 +425,7 @@ class _QuickMealEntryScreenState extends ConsumerState<QuickMealEntryScreen> {
           margin: const EdgeInsets.only(top: Space.s),
           child: ListTile(
             leading: const Icon(Icons.schedule),
-            title: Text('${formatDay(_at)} at ${formatTime(context, _at)}'),
+            title: Text('${formatDay(context, _at)} at ${formatTime(context, _at)}'),
             trailing: const Icon(Icons.edit_outlined),
             onTap: () async {
               final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_at));

@@ -1,0 +1,29 @@
+{
+  "commonContinue": "Continue",
+  "commonCancel": "Cancel",
+  "commonSave": "Save",
+  "commonDone": "Done",
+  "commonBack": "Back",
+  "commonTryAgain": "Try again",
+  "commonUndo": "Undo",
+  "commonRemove": "Remove",
+  "commonEdit": "Edit",
+  "commonClose": "Close",
+  "commonYes": "Yes",
+  "commonNo": "No",
+  "commonLoading": "Loading",
+  "commonItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@commonItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonToday": "Today",
+  "commonYesterday": "Yesterday",
+  "commonTomorrow": "Tomorrow",
+  "commonGoodMorning": "Good morning",
+  "commonGoodAfternoon": "Good afternoon",
+  "commonGoodEvening": "Good evening"
+}

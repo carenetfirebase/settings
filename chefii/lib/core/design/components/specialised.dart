@@ -231,7 +231,7 @@ class ProfessionalReviewCard extends StatelessWidget {
               const SizedBox(height: Space.s),
               Text(assessment.summary, maxLines: 3, overflow: TextOverflow.ellipsis, style: context.text.bodyMedium),
               const SizedBox(height: Space.xs),
-              Text('Reviewed ${formatDay(assessment.createdAt)}', style: context.text.bodySmall),
+              Text('Reviewed ${formatDay(context, assessment.createdAt)}', style: context.text.bodySmall),
             ],
           ),
         ),

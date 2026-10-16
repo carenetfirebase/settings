@@ -10,6 +10,8 @@ import '../../domain/models/meals.dart';
 import '../../domain/models/nutrition.dart';
 import '../../domain/models/profile.dart';
 import '../../domain/nutrition/evidence_library.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 import '../journal/journal_screens.dart';
 import '../shared/recipe_logic.dart';
 
@@ -28,7 +30,7 @@ import '../shared/recipe_logic.dart';
 
 Future<void> openSource(BuildContext context, String url) async {
   final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-  if (!ok && context.mounted) showMessage(context, 'Couldn\'t open the link.', error: true);
+  if (!ok && context.mounted) showMessage(context, context.l10n.healthOpenLinkError, error: true);
 }
 
 // ---------------------------------------------------------------- 50 Nutrition dashboard
@@ -48,33 +50,37 @@ class _NutritionDashboardScreenState extends ConsumerState<NutritionDashboardScr
     final meals = ref.watch(journalProvider(lastDays(_days))).value ?? const <MealConsumption>[];
     final wellness = ref.watch(wellnessProvider).value ?? const WellnessPreferences();
     final stats = dailyAverage(meals, _days);
+    final l = context.l10n;
     final nutrients = [
       if (wellness.calorieTracking) Nutrient.energyKcal,
       Nutrient.protein, Nutrient.carbohydrate, Nutrient.fat, Nutrient.fibre, Nutrient.sodium, Nutrient.sugars, Nutrient.saturatedFat,
     ];
     return PremiumAppScaffold(
       header: EditorialPageHeader(
-        eyebrow: 'Nutrition',
-        title: 'Your nutrition',
-        subtitle: stats.loggedDays == 0 ? null : 'Daily average across ${stats.loggedDays} logged day${stats.loggedDays == 1 ? '' : 's'}',
+        eyebrow: l.healthNutritionEyebrow,
+        title: l.healthYourNutrition,
+        subtitle: stats.loggedDays == 0 ? null : l.healthDailyAverageSubtitle(stats.loggedDays),
       ),
-      actions: [IconButton(tooltip: 'Insights', onPressed: () => context.push('/you/nutrition/intelligence'), icon: const Icon(Icons.lightbulb_outline))],
+      actions: [IconButton(tooltip: l.healthInsights, onPressed: () => context.push('/you/nutrition/intelligence'), icon: const Icon(Icons.lightbulb_outline))],
       children: [
         SegmentedButton<int>(
-          segments: const [ButtonSegment(value: 1, label: Text('Today')), ButtonSegment(value: 7, label: Text('7 days')), ButtonSegment(value: 30, label: Text('30 days'))],
+          segments: [ButtonSegment(value: 1, label: Text(l.commonToday)), ButtonSegment(value: 7, label: Text(l.healthDaysSegment(7))), ButtonSegment(value: 30, label: Text(l.healthDaysSegment(30)))],
           selected: {_days},
           onSelectionChanged: (s) => setState(() => _days = s.first),
         ),
         const SizedBox(height: Space.m),
         if (stats.loggedDays == 0)
-          EmptyState(icon: Icons.insights_outlined, title: 'No meals logged yet', message: 'Cook with Chefii or log meals in your journal to see estimates here.', actionLabel: 'Log a meal', onAction: () => context.push('/journal/add'))
+          EmptyState(icon: Icons.insights_outlined, title: l.healthNoMealsTitle, message: l.healthNoMealsMessage, actionLabel: l.healthLogMeal, onAction: () => context.push('/journal/add'))
         else ...[
           for (final n in nutrients)
             _NutrientBar(nutrient: n, value: stats.avg[n], onTap: () => context.push('/you/nutrition/nutrient/${n.name}')),
           const SizedBox(height: Space.m),
           Text(
-            'Estimates from recipes and reference data. ${stats.completeness < 0.9 ? 'Some meals had no nutrition data (${((1 - stats.completeness) * 100).round()}%), so totals are likely low. ' : ''}'
-            'Daily Values are Health Canada\'s label reference — a yardstick, not a personal target.',
+            [
+              l.healthEstimatesNote,
+              if (stats.completeness < 0.9) l.healthMissingDataNote(((1 - stats.completeness) * 100).round()),
+              l.healthDailyValueNote,
+            ].join(' '),
             style: context.text.bodySmall,
           ),
         ],
@@ -93,9 +99,12 @@ class _NutrientBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final dv = dailyReferences[nutrient];
     final pct = dv == null ? null : value / dv.amount;
+    final l = context.l10n;
+    final name = context.labelOf(nutrient);
+    final amount = formatNutrient(nutrient, value);
     return Semantics(
       button: onTap != null,
-      label: '${nutrient.label}: about ${formatNutrient(nutrient, value)}${pct == null ? '' : ', ${(pct * 100).round()} percent of the Daily Value'}',
+      label: pct == null ? l.healthNutrientBarSemantics(name, amount) : l.healthNutrientBarSemanticsDv(name, amount, (pct * 100).round()),
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
@@ -104,9 +113,9 @@ class _NutrientBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: Space.s),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Expanded(child: Text(nutrient.label, style: context.text.titleSmall)),
-              Text('≈ ${formatNutrient(nutrient, value)}', style: context.text.titleSmall),
-              if (pct != null) Text('  ${(pct * 100).round()}% DV', style: context.text.bodySmall),
+              Expanded(child: Text(name, style: context.text.titleSmall)),
+              Text('≈ $amount', style: context.text.titleSmall), // l10n-ignore: symbol + formatted amount
+              if (pct != null) Text('  ${l.healthPercentDv((pct * 100).round())}', style: context.text.bodySmall), // l10n-ignore: only translated values
             ]),
             if (pct != null) ...[
               const SizedBox(height: 6),
@@ -149,33 +158,35 @@ class NutritionIntelligenceScreen extends ConsumerWidget {
         .where((a) => a.recipe.nutritionPerServing[Nutrient.fibre] >= 8)
         .take(3)
         .toList();
+    final l = context.l10n;
 
     String trend(Nutrient n) {
-      if (before.loggedDays == 0 || now.loggedDays == 0) return 'Not enough history yet';
+      if (before.loggedDays == 0 || now.loggedDays == 0) return l.healthNotEnoughHistory;
       final a = now.avg[n], b = before.avg[n];
-      if (b == 0) return '≈ ${formatNutrient(n, a)} a day';
+      if (b == 0) return l.healthPerDay(formatNutrient(n, a));
       final change = (a - b) / b;
-      if (change.abs() < 0.1) return 'Steady at ≈ ${formatNutrient(n, a)} a day';
-      return '${change > 0 ? 'Up' : 'Down'} ${(change.abs() * 100).round()}% vs the week before';
+      if (change.abs() < 0.1) return l.healthSteadyAt(formatNutrient(n, a));
+      final pct = (change.abs() * 100).round();
+      return change > 0 ? l.healthTrendUp(pct) : l.healthTrendDown(pct);
     }
 
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Nutrition', title: 'Insights', subtitle: 'Patterns from your journal, explained with evidence.'),
-      actions: [IconButton(tooltip: 'Evidence library', onPressed: () => context.push('/you/nutrition/evidence'), icon: const Icon(Icons.library_books_outlined))],
+      header: EditorialPageHeader(eyebrow: l.healthNutritionEyebrow, title: l.healthInsights, subtitle: l.healthInsightsSubtitle),
+      actions: [IconButton(tooltip: l.healthEvidenceLibrary, onPressed: () => context.push('/you/nutrition/evidence'), icon: const Icon(Icons.library_books_outlined))],
       children: [
         if (now.loggedDays == 0)
-          const EmptyState(compact: true, icon: Icons.insights_outlined, title: 'Insights need a few days of meals', message: 'Keep cooking and logging — we\'ll look for patterns after a few days.'),
-        const SectionHeader('Trends', topSpacing: 0),
+          EmptyState(compact: true, icon: Icons.insights_outlined, title: l.healthInsightsEmptyTitle, message: l.healthInsightsEmptyMessage),
+        SectionHeader(l.healthTrends, topSpacing: 0),
         for (final n in [Nutrient.fibre, Nutrient.protein, Nutrient.sodium, Nutrient.sugars])
-          ListTile(contentPadding: EdgeInsets.zero, title: Text(n.label), subtitle: Text(trend(n)), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/nutrition/nutrient/${n.name}')),
-        const SectionHeader('Variety this week'),
+          ListTile(contentPadding: EdgeInsets.zero, title: Text(context.labelOf(n)), subtitle: Text(trend(n)), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/nutrition/nutrient/${n.name}')),
+        SectionHeader(l.healthVarietyThisWeek),
         Row(children: [
-          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('$variety', style: context.metric), Text('different meals', style: context.text.bodySmall)]))),
+          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('$variety', style: context.metric), Text(l.healthDifferentMeals(variety), style: context.text.bodySmall)]))), // l10n-ignore: only translated values
           const SizedBox(width: Space.xs),
-          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${plants.length}', style: context.metric), Text('plant foods in Chefii recipes', style: context.text.bodySmall)]))),
+          Expanded(child: SoftCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${plants.length}', style: context.metric), Text(l.healthPlantFoods(plants.length), style: context.text.bodySmall)]))), // l10n-ignore: only translated values
         ]),
         if (fibreLow) ...[
-          const SectionHeader('Something to try'),
+          SectionHeader(l.healthSomethingToTry),
           EvidenceReferenceCard(
             claim: claimById('fibre_foods')!,
             sources: [for (final s in claimById('fibre_foods')!.sourceIds) evidenceSources[s]!],
@@ -187,17 +198,17 @@ class NutritionIntelligenceScreen extends ConsumerWidget {
               margin: const EdgeInsets.only(bottom: Space.xs),
               child: ListTile(
                 title: Text(a.recipe.title),
-                subtitle: Text('≈ ${a.recipe.nutritionPerServing[Nutrient.fibre].round()} g fibre per serving · ${a.label}'),
+                subtitle: Text('${l.healthFibrePerServing(a.recipe.nutritionPerServing[Nutrient.fibre].round())} · ${l.healthAvailabilityLabel(a.missing.length)}'), // l10n-ignore: only translated values
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/recipe/${a.recipe.id}'),
               ),
             ),
         ],
-        const SectionHeader('More to explore'),
-        ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.spa_outlined), title: const Text('Hair, skin & nails'), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/nutrition/hair-skin-nails')),
-        ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.sentiment_satisfied_alt_outlined), title: const Text('Smile & Food'), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/smile')),
+        SectionHeader(l.healthMoreToExplore),
+        ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.spa_outlined), title: Text(l.healthHairSkinNails), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/nutrition/hair-skin-nails')),
+        ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.sentiment_satisfied_alt_outlined), title: Text(l.healthSmileAndFood), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/smile')),
         const SizedBox(height: Space.m),
-        Text('Chefii provides general nutrition education, not medical advice. For personal guidance, talk to a registered dietitian.', style: context.text.bodySmall),
+        Text(l.healthEducationDisclaimer, style: context.text.bodySmall),
       ],
     );
   }
@@ -226,57 +237,57 @@ class _HairSkinNailsScreenState extends ConsumerState<HairSkinNailsScreen> {
   @override
   Widget build(BuildContext context) {
     final concerns = ref.watch(concernsProvider).value ?? const <UserConcern>[];
-    final claims = evidenceClaims.where((c) => c.topic == 'Hair, skin & nails').toList();
+    final claims = evidenceClaims.where((c) => c.topic == 'Hair, skin & nails').toList(); // l10n-ignore: content topic key
+    final l = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Nutrition', title: 'Hair, skin & nails', subtitle: 'A private notebook, plus what the evidence does — and doesn\'t — say.'),
+      header: EditorialPageHeader(eyebrow: l.healthNutritionEyebrow, title: l.healthHairSkinNails, subtitle: l.healthHairSubtitle),
       children: [
         SoftCard(
           color: context.palette.infoSoft,
           child: Text(
-            'Changes in hair, skin and nails have many causes besides diet — hormones, thyroid, stress, medications, skin conditions and genetics. '
-            'Sudden hair loss, rashes, or nail changes that don\'t settle are worth seeing a doctor, dermatologist or pharmacist about.',
+            l.healthHairCausesNote,
             style: context.text.bodySmall?.copyWith(color: context.palette.ink),
           ),
         ),
-        const SectionHeader('Note a concern'),
+        SectionHeader(l.healthNoteAConcern),
         Wrap(spacing: Space.xs, children: [
           for (final a in [ConcernArea.hair, ConcernArea.skin, ConcernArea.nails, ConcernArea.energy, ConcernArea.other])
-            ChoiceChip(label: Text(a.name[0].toUpperCase() + a.name.substring(1)), selected: _area == a, onSelected: (_) => setState(() => _area = a)),
+            ChoiceChip(label: Text(_concernLabel(l, a)), selected: _area == a, onSelected: (_) => setState(() => _area = a)),
         ]),
         const SizedBox(height: Space.s),
-        TextField(controller: _text, maxLines: 2, decoration: const InputDecoration(hintText: 'What have you noticed?')),
+        TextField(controller: _text, maxLines: 2, decoration: InputDecoration(hintText: l.healthWhatHaveYouNoticed)),
         const SizedBox(height: Space.xs),
-        Text('How much is it bothering you? ($_severity of 5)', style: context.text.bodySmall),
-        Semantics(label: 'How much it bothers you, 1 to 5', child: Slider(value: _severity.toDouble(), min: 1, max: 5, divisions: 4, label: '$_severity', onChanged: (v) => setState(() => _severity = v.round()))),
+        Text(l.healthBotherLevel(_severity), style: context.text.bodySmall),
+        Semantics(label: l.healthBotherSemantics, child: Slider(value: _severity.toDouble(), min: 1, max: 5, divisions: 4, label: '$_severity', onChanged: (v) => setState(() => _severity = v.round()))), // l10n-ignore: number
         SecondaryActionButton(
-          label: 'Save note',
+          label: l.healthSaveNote,
           onPressed: () async {
             if (_text.text.trim().isEmpty) return;
             await ref.read(healthRepoProvider).addConcern(ref.read(uidProvider)!, _area, _text.text.trim(), _severity);
             _text.clear();
-            if (context.mounted) showMessage(context, 'Saved privately');
+            if (context.mounted) showMessage(context, l.healthSavedPrivately);
           },
         ),
         if (concerns.isNotEmpty) ...[
-          const SectionHeader('Your notes'),
+          SectionHeader(l.healthYourNotes),
           for (final c in concerns)
             Card(
               margin: const EdgeInsets.only(bottom: Space.xs),
               child: ListTile(
                 title: Text(c.description),
-                subtitle: Text('${c.area.name} · ${formatDay(context, c.recordedAt)} · ${c.severity}/5'),
-                trailing: IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete_outline), onPressed: () => ref.read(healthRepoProvider).deleteConcern(c.uid, c.id)),
+                subtitle: Text('${_concernLabel(l, c.area).toLowerCase()} · ${formatDay(context, c.recordedAt)} · ${c.severity}/5'), // l10n-ignore: only translated values
+                trailing: IconButton(tooltip: l.healthDelete, icon: const Icon(Icons.delete_outline), onPressed: () => ref.read(healthRepoProvider).deleteConcern(c.uid, c.id)),
               ),
             ),
         ],
-        const SectionHeader('What the evidence says'),
+        SectionHeader(l.healthWhatEvidenceSays),
         for (final c in claims)
           Padding(
             padding: const EdgeInsets.only(bottom: Space.s),
             child: EvidenceReferenceCard(claim: c, sources: [for (final s in c.sourceIds) evidenceSources[s]!], onTap: () => context.push('/you/nutrition/evidence?claim=${c.id}')),
           ),
         const SizedBox(height: Space.s),
-        SecondaryActionButton(icon: Icons.group_add_outlined, label: 'Share with a dietitian', onPressed: () => context.push('/you/circle')),
+        SecondaryActionButton(icon: Icons.group_add_outlined, label: l.healthShareWithDietitian, onPressed: () => context.push('/you/circle')),
       ],
     );
   }
@@ -292,11 +303,12 @@ class EvidenceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final focus = claimId == null ? null : claimById(claimId!);
     final claims = focus == null ? evidenceClaims : [focus];
+    final l = context.l10n;
     return PremiumAppScaffold(
       header: EditorialPageHeader(
-        eyebrow: 'Evidence',
-        title: focus?.topic ?? 'How we know',
-        subtitle: focus == null ? 'Every nutrition statement in Chefii, its sources and its limits.' : null,
+        eyebrow: l.healthEvidence,
+        title: focus?.topic ?? l.healthHowWeKnow,
+        subtitle: focus == null ? l.healthEvidenceSubtitle : null,
       ),
       children: [
         for (final c in claims)
@@ -309,13 +321,13 @@ class EvidenceScreen extends StatelessWidget {
                 const SizedBox(height: Space.xs),
                 Text(c.statement, style: context.text.titleMedium),
                 const SizedBox(height: Space.s),
-                _kv(context, 'Evidence', c.strength.label),
-                _kv(context, 'Review', c.professionallyReviewed ? 'Professionally reviewed ${c.reviewedOn.toIso()}' : 'Internal summary (${c.reviewedOn.toIso()}), awaiting professional review'),
-                _kv(context, 'Limitations', c.limitations),
+                _kv(context, l.healthEvidence, context.labelOf(c.strength)),
+                _kv(context, l.healthReview, c.professionallyReviewed ? l.healthProfessionallyReviewed(c.reviewedOn.toIso()) : l.healthInternalSummary(c.reviewedOn.toIso())),
+                _kv(context, l.healthLimitations, c.limitations),
                 if (c.foodSources.isNotEmpty)
-                  _kv(context, 'Foods', c.foodSources.map((id) => catalogById[id]?.product.name).whereType<String>().join(', ')),
+                  _kv(context, l.healthFoods, c.foodSources.map((id) => catalogById[id]?.product.name).whereType<String>().join(', ')),
                 const SizedBox(height: Space.xs),
-                if (c.sourceIds.isEmpty) Text('Source: citation pending review.', style: context.text.bodySmall),
+                if (c.sourceIds.isEmpty) Text(l.healthCitationPending, style: context.text.bodySmall),
                 for (final id in c.sourceIds)
                   Builder(builder: (context) {
                     final s = evidenceSources[id]!;
@@ -323,7 +335,7 @@ class EvidenceScreen extends StatelessWidget {
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.article_outlined),
                       title: Text(s.title),
-                      subtitle: Text('${s.publisher} · ${s.studyType.label} · ${s.year}'),
+                      subtitle: Text('${s.publisher} · ${context.labelOf(s.studyType)} · ${s.year}'), // l10n-ignore: content + translated label
                       trailing: const Icon(Icons.open_in_new, size: 18),
                       onTap: () => openSource(context, s.url),
                     );
@@ -331,7 +343,7 @@ class EvidenceScreen extends StatelessWidget {
               ]),
             ),
           ),
-        Text('Method: we prefer national guidelines and systematic reviews; single studies are not used for recommendations.', style: context.text.bodySmall),
+        Text(l.healthMethodNote, style: context.text.bodySmall),
       ],
     );
   }
@@ -339,7 +351,7 @@ class EvidenceScreen extends StatelessWidget {
   Widget _kv(BuildContext context, String k, String v) => Padding(
         padding: const EdgeInsets.only(bottom: 4),
         child: Text.rich(TextSpan(children: [
-          TextSpan(text: '$k: ', style: context.text.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: context.palette.ink)),
+          TextSpan(text: '${context.l10n.healthLabelColon(k)} ', style: context.text.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: context.palette.ink)),
           TextSpan(text: v, style: context.text.bodySmall),
         ])),
       );
@@ -359,37 +371,55 @@ class NutrientDetailScreen extends ConsumerWidget {
     final top = [...catalog]..sort((a, b) => b.reference.per100g[nutrient].compareTo(a.reference.per100g[nutrient]));
     final claims = (claimsByNutrient[nutrient] ?? const []).map(claimById).whereType<EvidenceClaim>().toList();
     final topMeals = [...meals]..sort((a, b) => b.nutrition[nutrient].compareTo(a.nutrition[nutrient]));
+    final l = context.l10n;
     return PremiumAppScaffold(
-      header: EditorialPageHeader(eyebrow: 'Nutrient', title: nutrient.label),
+      header: EditorialPageHeader(eyebrow: l.healthNutrientEyebrow, title: context.labelOf(nutrient)),
       children: [
         SoftCard(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(stats.loggedDays == 0 ? 'No data yet' : '≈ ${formatNutrient(nutrient, stats.avg[nutrient])} a day', style: context.text.headlineMedium),
-            Text(stats.loggedDays == 0 ? 'Log meals to see an estimate.' : 'Average over ${stats.loggedDays} logged day${stats.loggedDays == 1 ? '' : 's'} this week', style: context.text.bodySmall),
+            Text(stats.loggedDays == 0 ? l.healthNoDataYet : l.healthPerDay(formatNutrient(nutrient, stats.avg[nutrient])), style: context.text.headlineMedium),
+            Text(stats.loggedDays == 0 ? l.healthLogMealsForEstimate : l.healthAverageThisWeek(stats.loggedDays), style: context.text.bodySmall),
             if (dv != null) ...[
               const SizedBox(height: Space.s),
-              Text('Reference: ${formatNutrient(nutrient, dv.amount)} (${dv.kind}, ${dv.source})', style: context.text.bodySmall),
+              Text(_referenceLine(l, nutrient, dv), style: context.text.bodySmall),
             ],
             const SizedBox(height: Space.xs),
-            Text('Data completeness: ${(stats.completeness * 100).round()}% of meals had nutrition estimates.', style: context.text.bodySmall),
+            Text(l.healthDataCompleteness((stats.completeness * 100).round()), style: context.text.bodySmall),
           ]),
         ),
         if (topMeals.isNotEmpty && topMeals.first.nutrition[nutrient] > 0) ...[
-          const SectionHeader('Biggest contributors this week'),
+          SectionHeader(l.healthBiggestContributors),
           for (final m in topMeals.take(3))
             ListTile(contentPadding: EdgeInsets.zero, title: Text(m.title), trailing: Text(formatNutrient(nutrient, m.nutrition[nutrient]))),
         ],
-        const SectionHeader('Rich sources'),
+        SectionHeader(l.healthRichSources),
         for (final e in top.take(6))
-          ListTile(contentPadding: EdgeInsets.zero, title: Text(e.product.name), trailing: Text('${formatNutrient(nutrient, e.reference.per100g[nutrient])} / 100 g')),
+          ListTile(contentPadding: EdgeInsets.zero, title: Text(e.product.name), trailing: Text(l.healthPer100g(formatNutrient(nutrient, e.reference.per100g[nutrient])))),
         if (claims.isNotEmpty) ...[
-          const SectionHeader('Evidence'),
+          SectionHeader(l.healthEvidence),
           for (final c in claims)
             EvidenceReferenceCard(claim: c, sources: [for (final s in c.sourceIds) evidenceSources[s]!], onTap: () => context.push('/you/nutrition/evidence?claim=${c.id}')),
         ],
         const SizedBox(height: Space.m),
-        Text('Individual needs vary. Estimates can\'t account for exact brands, portions, or added salt.', style: context.text.bodySmall),
+        Text(l.healthIndividualNeeds, style: context.text.bodySmall),
       ],
     );
   }
+}
+
+String _concernLabel(AppLocalizations l, ConcernArea a) => switch (a) {
+      ConcernArea.hair => l.healthConcernHair,
+      ConcernArea.skin => l.healthConcernSkin,
+      ConcernArea.nails => l.healthConcernNails,
+      ConcernArea.energy => l.healthConcernEnergy,
+      ConcernArea.digestion => l.healthConcernDigestion,
+      ConcernArea.other => l.healthConcernOther,
+    };
+
+/// Every reference in [dailyReferences] today is a Health Canada label Daily
+/// Value; anything else falls back to the stored (English) kind and source.
+String _referenceLine(AppLocalizations l, Nutrient n, DailyReference dv) {
+  final amount = formatNutrient(n, dv.amount);
+  if (dv.kind == 'Daily Value' && dv.source == 'Health Canada, Table of Daily Values') return l.healthReferenceDailyValue(amount); // l10n-ignore
+  return l.healthReferenceOther(amount, dv.kind, dv.source);
 }

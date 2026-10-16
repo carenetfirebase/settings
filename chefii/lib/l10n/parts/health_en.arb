@@ -1,0 +1,364 @@
+{
+  "healthOpenLinkError": "Couldn't open the link.",
+  "healthNutritionEyebrow": "Nutrition",
+  "healthYourNutrition": "Your nutrition",
+  "healthDailyAverageSubtitle": "{count, plural, =1{Daily average across 1 logged day} other{Daily average across {count} logged days}}",
+  "@healthDailyAverageSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthInsights": "Insights",
+  "healthDaysSegment": "{count, plural, =1{1 day} other{{count} days}}",
+  "@healthDaysSegment": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthNoMealsTitle": "No meals logged yet",
+  "healthNoMealsMessage": "Cook with Chefii or log meals in your journal to see estimates here.",
+  "healthLogMeal": "Log a meal",
+  "healthEstimatesNote": "Estimates from recipes and reference data.",
+  "healthMissingDataNote": "Some meals had no nutrition data ({percent}%), so totals are likely low.",
+  "@healthMissingDataNote": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthDailyValueNote": "Daily Values are Health Canada's label reference — a yardstick, not a personal target.",
+  "healthNutrientBarSemantics": "{nutrient}: about {amount}",
+  "@healthNutrientBarSemantics": {
+    "placeholders": {
+      "nutrient": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "healthNutrientBarSemanticsDv": "{nutrient}: about {amount}, {percent} percent of the Daily Value",
+  "@healthNutrientBarSemanticsDv": {
+    "placeholders": {
+      "nutrient": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthPercentDv": "{percent}% DV",
+  "@healthPercentDv": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthNotEnoughHistory": "Not enough history yet",
+  "healthPerDay": "≈ {amount} a day",
+  "@healthPerDay": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "healthSteadyAt": "Steady at ≈ {amount} a day",
+  "@healthSteadyAt": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTrendUp": "Up {percent}% vs the week before",
+  "@healthTrendUp": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthTrendDown": "Down {percent}% vs the week before",
+  "@healthTrendDown": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthInsightsSubtitle": "Patterns from your journal, explained with evidence.",
+  "healthEvidenceLibrary": "Evidence library",
+  "healthInsightsEmptyTitle": "Insights need a few days of meals",
+  "healthInsightsEmptyMessage": "Keep cooking and logging — we'll look for patterns after a few days.",
+  "healthTrends": "Trends",
+  "healthVarietyThisWeek": "Variety this week",
+  "healthDifferentMeals": "{count, plural, =1{different meals} other{different meals}}",
+  "@healthDifferentMeals": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthPlantFoods": "{count, plural, =1{plant foods in Chefii recipes} other{plant foods in Chefii recipes}}",
+  "@healthPlantFoods": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthSomethingToTry": "Something to try",
+  "healthFibrePerServing": "≈ {grams} g fibre per serving",
+  "@healthFibrePerServing": {
+    "placeholders": {
+      "grams": {
+        "type": "int"
+      }
+    }
+  },
+  "healthAvailabilityLabel": "{count, plural, =0{Everything on hand} =1{1 ingredient to buy} other{{count} ingredients to buy}}",
+  "@healthAvailabilityLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthMoreToExplore": "More to explore",
+  "healthHairSkinNails": "Hair, skin & nails",
+  "healthSmileAndFood": "Smile & Food",
+  "healthEducationDisclaimer": "Chefii provides general nutrition education, not medical advice. For personal guidance, talk to a registered dietitian.",
+  "healthHairSubtitle": "A private notebook, plus what the evidence does — and doesn't — say.",
+  "healthHairCausesNote": "Changes in hair, skin and nails have many causes besides diet — hormones, thyroid, stress, medications, skin conditions and genetics. Sudden hair loss, rashes, or nail changes that don't settle are worth seeing a doctor, dermatologist or pharmacist about.",
+  "healthNoteAConcern": "Note a concern",
+  "healthConcernHair": "Hair",
+  "healthConcernSkin": "Skin",
+  "healthConcernNails": "Nails",
+  "healthConcernEnergy": "Energy",
+  "healthConcernDigestion": "Digestion",
+  "healthConcernOther": "Other",
+  "healthWhatHaveYouNoticed": "What have you noticed?",
+  "healthBotherLevel": "How much is it bothering you? ({severity} of 5)",
+  "@healthBotherLevel": {
+    "placeholders": {
+      "severity": {
+        "type": "int"
+      }
+    }
+  },
+  "healthBotherSemantics": "How much it bothers you, 1 to 5",
+  "healthSaveNote": "Save note",
+  "healthSavedPrivately": "Saved privately",
+  "healthYourNotes": "Your notes",
+  "healthDelete": "Delete",
+  "healthWhatEvidenceSays": "What the evidence says",
+  "healthShareWithDietitian": "Share with a dietitian",
+  "healthEvidence": "Evidence",
+  "healthHowWeKnow": "How we know",
+  "healthEvidenceSubtitle": "Every nutrition statement in Chefii, its sources and its limits.",
+  "healthReview": "Review",
+  "healthProfessionallyReviewed": "Professionally reviewed {date}",
+  "@healthProfessionallyReviewed": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "healthInternalSummary": "Internal summary ({date}), awaiting professional review",
+  "@healthInternalSummary": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "healthLimitations": "Limitations",
+  "healthFoods": "Foods",
+  "healthLabelColon": "{label}:",
+  "@healthLabelColon": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "healthCitationPending": "Source: citation pending review.",
+  "healthMethodNote": "Method: we prefer national guidelines and systematic reviews; single studies are not used for recommendations.",
+  "healthNutrientEyebrow": "Nutrient",
+  "healthNoDataYet": "No data yet",
+  "healthLogMealsForEstimate": "Log meals to see an estimate.",
+  "healthAverageThisWeek": "{count, plural, =1{Average over 1 logged day this week} other{Average over {count} logged days this week}}",
+  "@healthAverageThisWeek": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthReferenceDailyValue": "Reference: {amount} (Daily Value, Health Canada, Table of Daily Values)",
+  "@healthReferenceDailyValue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "healthReferenceOther": "Reference: {amount} ({kind}, {source})",
+  "@healthReferenceOther": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "kind": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "healthDataCompleteness": "Data completeness: {percent}% of meals had nutrition estimates.",
+  "@healthDataCompleteness": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthBiggestContributors": "Biggest contributors this week",
+  "healthRichSources": "Rich sources",
+  "healthPer100g": "{amount} / 100 g",
+  "@healthPer100g": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "healthIndividualNeeds": "Individual needs vary. Estimates can't account for exact brands, portions, or added salt.",
+  "healthWellnessEyebrow": "Wellness",
+  "healthSmileIntroSubtitle": "Learn how the timing of sugary and acidic foods affects your teeth.",
+  "healthTurnOnSmile": "Turn on Smile & Food",
+  "healthSmileOptionalNote": "This is optional education. It isn't a dental assessment, and your entries stay private unless you choose to share them.",
+  "healthSmileSubtitle": "Tap to log. It's about frequency and timing, not perfection.",
+  "healthHistory": "History",
+  "healthSugarExposuresToday": "sugar exposures today",
+  "healthAcidExposuresToday": "acid exposures today",
+  "healthHelpfulHabits": "helpful habits",
+  "healthLogNow": "Log now",
+  "healthLoggedMessage": "{item} logged",
+  "@healthLoggedMessage": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "healthKinderChoices": "Kinder choices",
+  "healthTipSweetsTitle": "Keep sweets with meals",
+  "healthTipSweetsBody": "One sugar exposure at dinner is gentler on teeth than the same amount spread through the afternoon.",
+  "healthTipFinishTitle": "Finish with water or cheese",
+  "healthTipFinishBody": "Rinsing with water or ending on cheese helps your mouth recover after eating.",
+  "healthTipSipTitle": "Sip, then stop",
+  "healthTipSipBody": "If you enjoy juice or soda, drinking it with a meal rather than over an hour limits acid time.",
+  "healthTipBrushTitle": "Wait to brush after acid",
+  "healthTipBrushBody": "Many dental professionals suggest waiting a while after acidic food or drink before brushing. Ask your dentist what's right for you.",
+  "healthSmileFooter": "Education only. For tooth pain, sensitivity or concerns, see your dentist.",
+  "healthHistoryExposuresPerDay": "About {rate} sugar or acid exposures a day this week",
+  "@healthHistoryExposuresPerDay": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "healthNothingLoggedYet": "Nothing logged yet",
+  "healthLogWillAppear": "Your log will appear here.",
+  "healthDiabetesConsentText": "I choose to store glucose readings I enter in Chefii. I understand Chefii does not diagnose, interpret readings, recommend insulin or medication, or replace my glucose meter's or CGM's alarms. My readings are private and only shared if I grant access.",
+  "healthOptionalEyebrow": "Optional",
+  "healthGlucoseJournal": "Glucose journal",
+  "healthDiabetesSubtitle": "For people who already track glucose and want it alongside their meals.",
+  "healthTurnOffGlucose": "Turn off glucose features",
+  "healthTurnOnGlucose": "Turn on glucose journal",
+  "healthGlucoseOn": "Glucose journal is on.",
+  "healthOpenGlucose": "Open glucose journal",
+  "healthDiabetesPointRecord": "Record readings you take, with the time and context.",
+  "healthDiabetesPointMeals": "See them next to the meals in your journal.",
+  "healthDiabetesPointNoAdvice": "No predictions, scores, diagnoses or dosing advice — ever.",
+  "healthDiabetesPointNotAlarm": "Not an alarm. Keep using your meter or CGM alerts.",
+  "healthDiabetesPointPrivate": "Private to you. Shared only with a professional you choose.",
+  "healthUnits": "Units",
+  "healthUnderstandJournal": "I understand this is a journal, not a medical device",
+  "healthConsentStore": "I consent to Chefii storing my glucose readings",
+  "healthSymptomsWarning": "If you have symptoms of very high or low blood sugar, follow your care plan or seek medical help.",
+  "healthEnterNumber": "Enter a number.",
+  "healthEnterPositive": "Enter a positive value.",
+  "healthValueOutOfRange": "That value looks outside what meters typically report. Please double-check it.",
+  "healthGlucoseOffTitle": "Glucose journal is off",
+  "healthGlucoseOffConsent": "Turn it on with explicit consent first.",
+  "healthSetUp": "Set up",
+  "healthGlucoseEyebrow": "Glucose",
+  "healthGlucoseSubtitle": "Your readings, as you entered them.",
+  "healthTimelineWithMeals": "Timeline with meals",
+  "healthAddReading": "Add reading",
+  "healthReading": "Reading",
+  "healthContextFasting": "Fasting",
+  "healthContextBeforeMeal": "Before meal",
+  "healthContextAfterMeal": "After meal",
+  "healthContextBedtime": "Bedtime",
+  "healthContextOther": "Other",
+  "healthDayAtTime": "{day} at {time}",
+  "@healthDayAtTime": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthReadings": "Readings",
+  "healthNoReadings": "No readings yet.",
+  "healthSourceManual": "entered by you",
+  "healthSourceHealthApp": "from Health app",
+  "healthSourceDevice": "from {device}",
+  "@healthSourceDevice": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "healthDevice": "device",
+  "healthEnteredAs": "entered as {value}",
+  "@healthEnteredAs": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "healthNoHealthImport": "Reading from Apple Health or Health Connect isn't available yet. Chefii never interprets readings.",
+  "healthGlucoseOffShort": "Turn it on first.",
+  "healthTimelineSubtitle": "Meals and readings in order. No interpretation.",
+  "healthPreviousDay": "Previous day",
+  "healthNextDay": "Next day",
+  "healthNothingRecorded": "Nothing recorded",
+  "healthTimelineEmptyMessage": "Meals and readings for this day will appear here.",
+  "healthTimelineFooter": "Discuss patterns with your diabetes care team. Chefii does not replace glucose alarms or medical advice."
+}

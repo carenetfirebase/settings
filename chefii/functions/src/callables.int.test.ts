@@ -231,6 +231,18 @@ describe('chefRecommend', () => {
     expect(seen?.system).toContain('peanut');
   });
 
+  it('asks for Canadian French when the app is in French', async () => {
+    let seen: StructuredRequest | undefined;
+    testHooks.provider = new FakeProvider((req) => {
+      seen = req;
+      return { recipes: [] };
+    });
+    await call(chefRecommend, 'alice', { householdId: 'h1', language: 'fr-CA' });
+    expect(seen?.system).toContain('Canadian French');
+    await call(chefRecommend, 'alice', { householdId: 'h1' });
+    expect(seen?.system).toContain('Canadian English');
+  });
+
   it('enforces the daily limit', async () => {
     testHooks.provider = new FakeProvider(() => ({ recipes: [] }));
     const day = new Date().toISOString().slice(0, 10);

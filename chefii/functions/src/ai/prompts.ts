@@ -3,7 +3,7 @@
  * quantities or items, no medical claims, Canadian English and metric units.
  * Versioned so usage logs can be tied to prompt changes.
  */
-export const PROMPT_VERSION = '2026-10-15.1';
+export const PROMPT_VERSION = '2026-10-16.1';
 
 export const RECEIPT_SYSTEM = `You read photos of Canadian grocery receipts for a kitchen-inventory app.
 Return JSON matching the schema exactly.
@@ -57,4 +57,19 @@ export function kitchenContext(input: {
     input.equipment?.length ? `Equipment available: ${input.equipment.join(', ')}` : '',
     `Kitchen inventory:\n${inv}`,
   ].filter(Boolean).join('\n');
+}
+
+/** 'fr' for Canadian French users; anything else is English. */
+export type ReplyLanguage = 'en' | 'fr';
+
+export const replyLanguage = (value: unknown): ReplyLanguage => (value === 'fr' || (typeof value === 'string' && value.startsWith('fr')) ? 'fr' : 'en');
+
+/**
+ * Appended to user-facing generation prompts. JSON keys and enum values stay
+ * in English (the schema); only human-readable text changes language.
+ */
+export function languageInstruction(lang: ReplyLanguage): string {
+  return lang === 'fr'
+    ? `Write every human-readable text value (titles, summaries, ingredient names, steps, tips, rationale, replies) in Canadian French as used in Québec (déjeuner/dîner/souper, "c. à thé", "c. à soupe", decimal comma in prose). Keep JSON keys and enum values exactly as the schema defines them, and keep units in the schema's unit codes.`
+    : 'Write every human-readable text value in Canadian English.';
 }

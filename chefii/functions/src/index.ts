@@ -2,7 +2,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
-import { CHAT_SYSTEM, CHEF_SYSTEM, kitchenContext, MEAL_SYSTEM, PROMPT_VERSION, RECEIPT_SYSTEM, SCAN_SYSTEM } from './ai/prompts';
+import { CHAT_SYSTEM, CHEF_SYSTEM, kitchenContext, languageInstruction, MEAL_SYSTEM, PROMPT_VERSION, RECEIPT_SYSTEM, replyLanguage, SCAN_SYSTEM } from './ai/prompts';
 import { nutritionForEstimate, screenRecipes } from './chef/recipes';
 import {
   db, enforceRateLimit, FieldValue, fmtQty, householdDietary, makeRouter, mapProviderError, requireAiConsent, requireAuth,
@@ -151,7 +151,7 @@ export const chefRecommend = onCall(opts, async (req) => {
   try {
     const { data, response } = await makeRouter(uid, settings.allowOptionalAiProvider).run<{ recipes: AiRecipe[] }>({
       task: 'chef_recipes',
-      system: `${CHEF_SYSTEM}\n\n${context}`,
+      system: `${CHEF_SYSTEM}\n${languageInstruction(replyLanguage(d.language))}\n\n${context}`,
       messages: [{ role: 'user', text: brief }],
       schema: recipeListSchema,
       schemaName: 'recipe_list',
@@ -166,7 +166,7 @@ export const chefRecommend = onCall(opts, async (req) => {
 
 export const chefChat = onCall(opts, async (req) => {
   const uid = requireAuth(req);
-  const d = (req.data ?? {}) as { householdId?: string; messages?: Array<{ role: string; text: string }> };
+  const d = (req.data ?? {}) as { householdId?: string; messages?: Array<{ role: string; text: string }>; language?: string };
   const hid = await requireMember(d.householdId, uid);
   const settings = await requireAiConsent(uid);
   await enforceRateLimit(uid, 'chat');
@@ -179,7 +179,7 @@ export const chefChat = onCall(opts, async (req) => {
   try {
     const { data, response } = await makeRouter(uid, settings.allowOptionalAiProvider).run<{ text: string; recipes: AiRecipe[] }>({
       task: 'chat',
-      system: `${CHAT_SYSTEM}\n\n${kitchenContext({ inventory: await inventorySummary(hid), dietary })}`,
+      system: `${CHAT_SYSTEM}\n${languageInstruction(replyLanguage(d.language))}\n\n${kitchenContext({ inventory: await inventorySummary(hid), dietary })}`,
       messages,
       schema: chatReplySchema,
       schemaName: 'chef_reply',
@@ -240,7 +240,7 @@ export const scanStorage = onCall(opts, async (req) => {
 
 export const estimateMeal = onCall(opts, async (req) => {
   const uid = requireAuth(req);
-  const d = (req.data ?? {}) as { description?: string; imageBase64?: string };
+  const d = (req.data ?? {}) as { description?: string; imageBase64?: string; language?: string };
   const description = typeof d.description === 'string' ? d.description.slice(0, 500) : '';
   if (!description && !d.imageBase64) throw new HttpsError('invalid-argument', 'Describe the meal or add a photo.');
   const settings = await requireAiConsent(uid);
@@ -248,7 +248,7 @@ export const estimateMeal = onCall(opts, async (req) => {
   try {
     const { data } = await makeRouter(uid, settings.allowOptionalAiProvider).run<MealEstimate>({
       task: 'meal_estimate',
-      system: MEAL_SYSTEM,
+      system: `${MEAL_SYSTEM}\nFood names in "items" stay in English (they are matched to reference data). ${replyLanguage(d.language) === 'fr' ? 'Write the meal "title" in Canadian French.' : ''}`,
       messages: [{ role: 'user', text: description || 'What is in this meal?' }],
       images: d.imageBase64 ? [decodeImage(d.imageBase64)] : undefined,
       schema: mealEstimateSchema,

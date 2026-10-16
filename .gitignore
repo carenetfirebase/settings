@@ -16,3 +16,6 @@ build/
 *.log
 .DS_Store
 pgdata/
+
+# Claude Code agent worktrees
+.claude/worktrees/

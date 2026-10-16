@@ -13,12 +13,16 @@ import '../../domain/models/codec.dart';
 import '../../domain/models/inventory.dart';
 import '../../domain/models/nutrition.dart';
 import '../../domain/units/units.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 import '../shared/ai_consent.dart';
 import '../shared/photo_picker.dart';
 import 'kitchen_sheets.dart';
 
-String locationName(WidgetRef ref, String id) =>
-    ref.read(storageLocationsProvider).where((l) => l.id == id).firstOrNull?.name ?? id;
+String locationName(BuildContext context, WidgetRef ref, String id) {
+  final l = ref.read(storageLocationsProvider).where((l) => l.id == id).firstOrNull;
+  return l == null ? id : placeName(context, l);
+}
 
 // ---------------------------------------------------------------- 21 My Kitchen
 
@@ -45,11 +49,11 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
       return s == InventoryStatus.needsReview || s == InventoryStatus.estimated;
     }).length;
     final dueSoon = lots.where((l) => (l.daysLeft(today) ?? 99) <= 2).length;
-    final categories = {for (final l in lots) l.category.label}.toList()..sort();
+    final categories = {for (final l in lots) context.labelOf(l.category)}.toList()..sort();
 
     final filtered = lots.where((l) {
       if (_location != 'all' && l.locationId != _location) return false;
-      if (_category != null && l.category.label != _category) return false;
+      if (_category != null && context.labelOf(l.category) != _category) return false;
       if (_query.isNotEmpty && !l.productName.toLowerCase().contains(_query.toLowerCase())) return false;
       return true;
     }).toList()
@@ -58,27 +62,27 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     return PremiumAppScaffold(
       showBack: false,
       actions: [
-        IconButton(tooltip: 'Shopping list', onPressed: () => context.push('/kitchen/shopping'), icon: const Icon(Icons.shopping_bag_outlined)),
-        IconButton(tooltip: 'Tell Chefii', onPressed: () => showKitchenCommandSheet(context), icon: const Icon(Icons.mic_none)),
+        IconButton(tooltip: context.l10n.kitchenShoppingList, onPressed: () => context.push('/kitchen/shopping'), icon: const Icon(Icons.shopping_bag_outlined)),
+        IconButton(tooltip: context.l10n.kitchenTellChefii, onPressed: () => showKitchenCommandSheet(context), icon: const Icon(Icons.mic_none)),
       ],
       header: EditorialPageHeader(
-        eyebrow: 'Kitchen',
-        title: 'My kitchen',
-        subtitle: lots.isEmpty ? null : '${lots.length} item${lots.length == 1 ? '' : 's'} across ${locations.length} places',
+        eyebrow: context.l10n.kitchenEyebrow,
+        title: context.l10n.kitchenMyKitchen,
+        subtitle: lots.isEmpty ? null : context.l10n.kitchenItemsAcrossPlaces(lots.length, locations.length),
       ),
-      primaryAction: PrimaryActionButton(icon: Icons.receipt_long_outlined, label: 'Scan a receipt', onPressed: () => context.push('/receipt/capture')),
+      primaryAction: PrimaryActionButton(icon: Icons.receipt_long_outlined, label: context.l10n.kitchenScanReceipt, onPressed: () => context.push('/receipt/capture')),
       children: [
-        if (lotsAsync.isLoading && lots.isEmpty) const LoadingState(message: 'Opening your kitchen…'),
+        if (lotsAsync.isLoading && lots.isEmpty) LoadingState(message: context.l10n.kitchenOpening),
         if (lotsAsync.hasError && lots.isEmpty)
           ErrorState(message: ErrorState.describe(lotsAsync.error!), onRetry: () => ref.invalidate(lotsProvider)),
         if (!lotsAsync.isLoading && lots.isEmpty && !lotsAsync.hasError)
           EmptyState(
             icon: Icons.kitchen_outlined,
-            title: 'Your kitchen is empty',
-            message: 'Scan a grocery receipt and Chefii fills it in for you — or add a few things by hand.',
-            actionLabel: 'Add an item',
+            title: context.l10n.kitchenEmptyTitle,
+            message: context.l10n.kitchenEmptyMessage,
+            actionLabel: context.l10n.kitchenAddAnItem,
             onAction: () => context.push('/kitchen/add'),
-            secondaryLabel: 'Scan the fridge instead',
+            secondaryLabel: context.l10n.kitchenScanFridgeInstead,
             onSecondary: () => context.push('/kitchen/scan'),
           ),
         if (lots.isNotEmpty) ...[
@@ -87,7 +91,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
               child: _StatTile(
                 icon: Icons.schedule,
                 value: '$dueSoon',
-                label: 'Use soon',
+                label: context.l10n.kitchenUseSoon,
                 onTap: () => context.push('/kitchen/freshness'),
               ),
             ),
@@ -96,13 +100,13 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
               child: _StatTile(
                 icon: Icons.fact_check_outlined,
                 value: '$needsReview',
-                label: 'To verify',
+                label: context.l10n.kitchenToVerify,
                 onTap: () => context.push('/kitchen/reconcile'),
               ),
             ),
             const SizedBox(width: Space.xs),
             Expanded(
-              child: _StatTile(icon: Icons.add_circle_outline, value: 'Add', label: 'an item', onTap: () => context.push('/kitchen/add')),
+              child: _StatTile(icon: Icons.add_circle_outline, value: context.l10n.kitchenStatAdd, label: context.l10n.kitchenStatAnItem, onTap: () => context.push('/kitchen/add')),
             ),
           ]),
           const SizedBox(height: Space.m),
@@ -111,8 +115,8 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             child: SegmentedButton<String>(
               showSelectedIcon: false,
               segments: [
-                const ButtonSegment(value: 'all', label: Text('All')),
-                for (final l in locations) ButtonSegment(value: l.id, label: Text(l.name)),
+                ButtonSegment(value: 'all', label: Text(context.l10n.kitchenFilterAll)),
+                for (final l in locations) ButtonSegment(value: l.id, label: Text(placeName(context, l))),
               ],
               selected: {_location},
               onSelectionChanged: (s) => setState(() => _location = s.first),
@@ -123,12 +127,12 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             child: TextButton.icon(
               onPressed: () => showStorageLocationsSheet(context),
               icon: const Icon(Icons.tune, size: 18),
-              label: const Text('Manage places'),
+              label: Text(context.l10n.kitchenManagePlaces),
             ),
           ),
           const SizedBox(height: Space.m),
           SearchFilterBar(
-            hint: 'Search your kitchen',
+            hint: context.l10n.kitchenSearchHint,
             onQuery: (q) => setState(() => _query = q),
             filters: categories,
             selected: _category,
@@ -136,23 +140,23 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
           ),
           const SizedBox(height: Space.m),
           if (filtered.isEmpty)
-            const EmptyState(icon: Icons.search_off, title: 'Nothing matches', message: 'Try a different search or filter.', compact: true),
+            EmptyState(icon: Icons.search_off, title: context.l10n.kitchenNoMatchTitle, message: context.l10n.kitchenNoMatchMessage, compact: true),
           for (final l in filtered)
             Padding(
               padding: const EdgeInsets.only(bottom: Space.xs),
               child: IngredientCard(
                 lot: l,
                 today: today,
-                locationName: _location == 'all' ? locationName(ref, l.locationId) : null,
+                locationName: _location == 'all' ? locationName(context, ref, l.locationId) : null,
                 onTap: () => context.push('/kitchen/item/${l.id}'),
                 onQuickUse: () => showQuickAdjustSheet(context, l),
               ),
             ),
           const SizedBox(height: Space.m),
           Wrap(spacing: Space.xs, runSpacing: Space.xs, children: [
-            ActionChip(avatar: const Icon(Icons.photo_camera_outlined, size: 18), label: const Text('Scan fridge'), onPressed: () => context.push('/kitchen/scan')),
-            ActionChip(avatar: const Icon(Icons.bar_chart, size: 18), label: const Text('Spending & waste'), onPressed: () => context.push('/kitchen/spending')),
-            ActionChip(avatar: const Icon(Icons.receipt_outlined, size: 18), label: const Text('Receipts'), onPressed: () => context.push('/kitchen/receipts')),
+            ActionChip(avatar: const Icon(Icons.photo_camera_outlined, size: 18), label: Text(context.l10n.kitchenScanFridge), onPressed: () => context.push('/kitchen/scan')),
+            ActionChip(avatar: const Icon(Icons.bar_chart, size: 18), label: Text(context.l10n.kitchenSpendingWaste), onPressed: () => context.push('/kitchen/spending')),
+            ActionChip(avatar: const Icon(Icons.receipt_outlined, size: 18), label: Text(context.l10n.kitchenReceipts), onPressed: () => context.push('/kitchen/receipts')),
           ]),
         ],
       ],
@@ -170,7 +174,7 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SoftCard(
         onTap: onTap,
-        semanticLabel: '$label: $value',
+        semanticLabel: context.l10n.kitchenStatSemantics(label, value),
         padding: const EdgeInsets.symmetric(horizontal: Space.s, vertical: Space.m),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, size: 20, color: context.colors.primary),
@@ -195,16 +199,16 @@ class StorageLocationScreen extends ConsumerWidget {
     final confident = lots.where((l) => l.statusOn(today) == InventoryStatus.confirmed).length;
     return PremiumAppScaffold(
       header: EditorialPageHeader(
-        eyebrow: 'Storage',
-        title: locationName(ref, locationId),
-        subtitle: lots.isEmpty ? null : '$confident of ${lots.length} confirmed · soonest first',
+        eyebrow: context.l10n.kitchenStorageEyebrow,
+        title: locationName(context, ref, locationId),
+        subtitle: lots.isEmpty ? null : context.l10n.kitchenConfirmedOfTotal(confident, lots.length),
       ),
       primaryAction: lots.isEmpty
           ? null
-          : SecondaryActionButton(icon: Icons.fact_check_outlined, label: 'Verify these items', onPressed: () => context.push('/kitchen/reconcile?location=$locationId')),
+          : SecondaryActionButton(icon: Icons.fact_check_outlined, label: context.l10n.kitchenVerifyTheseItems, onPressed: () => context.push('/kitchen/reconcile?location=$locationId')),
       children: [
         if (lots.isEmpty)
-          EmptyState(icon: Icons.inventory_2_outlined, title: 'Nothing here yet', message: 'Items you add to ${locationName(ref, locationId).toLowerCase()} appear here.', actionLabel: 'Add an item', onAction: () => context.push('/kitchen/add?location=$locationId')),
+          EmptyState(icon: Icons.inventory_2_outlined, title: context.l10n.kitchenNothingHereTitle, message: context.l10n.kitchenNothingHereMessage(locationName(context, ref, locationId).toLowerCase()), actionLabel: context.l10n.kitchenAddAnItem, onAction: () => context.push('/kitchen/add?location=$locationId')),
         for (final l in lots)
           Padding(
             padding: const EdgeInsets.only(bottom: Space.xs),
@@ -229,7 +233,7 @@ class IngredientDetailScreen extends ConsumerWidget {
       return PremiumAppScaffold(children: [
         lotAsync.isLoading
             ? const LoadingState()
-            : const EmptyState(icon: Icons.inventory_2_outlined, title: 'Item not found', message: 'It may have been removed by someone in your household.'),
+            : EmptyState(icon: Icons.inventory_2_outlined, title: context.l10n.kitchenItemNotFoundTitle, message: context.l10n.kitchenItemNotFoundMessage),
       ]);
     }
     final today = ref.watch(todayProvider);
@@ -250,12 +254,12 @@ class IngredientDetailScreen extends ConsumerWidget {
     return PremiumAppScaffold(
       actions: [
         PopupMenuButton<String>(
-          tooltip: 'More',
+          tooltip: context.l10n.kitchenMore,
           onSelected: (v) async {
             final actions = ref.read(actionsProvider);
             if (v == 'discard') {
               final ok = await showConfirmActionSheet(context,
-                  title: 'Discard ${lot.productName}?', message: 'Records the remaining ${lot.quantity.format()} as food waste.', confirmLabel: 'Discard', destructive: true);
+                  title: context.l10n.kitchenDiscardTitle(lot.productName), message: context.l10n.kitchenDiscardMessage(context.formatQty(lot.quantity)), confirmLabel: context.l10n.kitchenDiscard, destructive: true);
               if (!ok || !context.mounted) return;
               final r = await actions.markEmpty(lot, opId: AppActions.newOpId('discard'), discarded: true);
               if (context.mounted) reportOperation(context, ref, r);
@@ -267,38 +271,38 @@ class IngredientDetailScreen extends ConsumerWidget {
           },
           itemBuilder: (_) => [
             for (final l in ref.read(storageLocationsProvider).where((l) => l.id != lot.locationId))
-              PopupMenuItem(value: l.id, child: Text('Move to ${l.name}')),
-            const PopupMenuItem(value: 'discard', child: Text('Discard')),
+              PopupMenuItem(value: l.id, child: Text(context.l10n.kitchenMoveTo(placeName(context, l)))),
+            PopupMenuItem(value: 'discard', child: Text(context.l10n.kitchenDiscard)),
           ],
         ),
       ],
       header: EditorialPageHeader(
-        eyebrow: lot.category.label,
+        eyebrow: context.labelOf(lot.category),
         title: lot.productName,
-        subtitle: '${lot.quantity.format()} · ${locationName(ref, lot.locationId)}',
+        subtitle: '${context.formatQty(lot.quantity)} · ${locationName(context, ref, lot.locationId)}', // l10n-ignore: joins translated parts
         trailing: InventoryStatusBadge(status: status),
       ),
-      primaryAction: PrimaryActionButton(label: 'Update amount', onPressed: () => showQuickAdjustSheet(context, lot)),
+      primaryAction: PrimaryActionButton(label: context.l10n.kitchenUpdateAmount, onPressed: () => showQuickAdjustSheet(context, lot)),
       children: [
         SoftCard(
           child: Column(children: [
-            row('Recorded amount', lot.quantity.format()),
-            row('Originally', lot.initialQuantity.format()),
-            row('Added', formatDay(context, lot.acquiredAt)),
-            row('Source', switch (lot.source) {
-              LotSource.receipt => 'Receipt${lot.provenance.raw == null ? '' : ' · "${lot.provenance.raw}"'}',
-              LotSource.scan => 'Photo scan',
-              LotSource.barcode => 'Barcode',
-              LotSource.leftover => 'Leftovers you saved',
-              LotSource.demo => 'Example ingredient',
-              _ => 'Added by hand',
+            row(context.l10n.kitchenRecordedAmount, context.formatQty(lot.quantity)),
+            row(context.l10n.kitchenOriginally, context.formatQty(lot.initialQuantity)),
+            row(context.l10n.kitchenAdded, formatDay(context, lot.acquiredAt)),
+            row(context.l10n.kitchenSource, switch (lot.source) {
+              LotSource.receipt => lot.provenance.raw == null ? context.l10n.kitchenSourceReceipt : context.l10n.kitchenSourceReceiptLine(lot.provenance.raw!),
+              LotSource.scan => context.l10n.kitchenSourcePhotoScan,
+              LotSource.barcode => context.l10n.kitchenSourceBarcode,
+              LotSource.leftover => context.l10n.kitchenSourceLeftover,
+              LotSource.demo => context.l10n.kitchenSourceDemo,
+              _ => context.l10n.kitchenSourceManual,
             }),
-            if (lot.packageDescription != null) row('Package', lot.packageDescription!),
+            if (lot.packageDescription != null) row(context.l10n.kitchenPackage, lot.packageDescription!),
             row(
-              lot.useByDate != null ? 'Date on package' : 'Estimated quality',
-              lot.useByDate?.toIso() ?? (lot.estimatedBestBefore == null ? 'Unknown' : '~${lot.estimatedBestBefore!.toIso()}'),
+              lot.useByDate != null ? context.l10n.kitchenDateOnPackage : context.l10n.kitchenEstimatedQuality,
+              lot.useByDate?.toIso() ?? (lot.estimatedBestBefore == null ? context.l10n.kitchenUnknown : '~${lot.estimatedBestBefore!.toIso()}'),
               trailing: IconButton(
-                tooltip: 'Set date from package',
+                tooltip: context.l10n.kitchenSetDateFromPackage,
                 icon: const Icon(Icons.edit_calendar_outlined, size: 20),
                 onPressed: () async {
                   final picked = await showDatePicker(
@@ -306,7 +310,7 @@ class IngredientDetailScreen extends ConsumerWidget {
                     initialDate: (lot.useByDate ?? today).toLocalDateTime(),
                     firstDate: DateTime.now().subtract(const Duration(days: 365)),
                     lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
-                    helpText: 'Date printed on the package',
+                    helpText: context.l10n.kitchenDatePrintedOnPackage,
                   );
                   if (picked == null) return;
                   final hid = ref.read(householdIdProvider)!;
@@ -325,8 +329,10 @@ class IngredientDetailScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(Space.m),
                 child: Text(
                   lot.daysLeftIsEstimate
-                      ? 'Our estimate suggests using this soon. Estimates are a guide only — check how it looks and smells, and follow the package date.'
-                      : 'The date you recorded is ${days < 0 ? 'past' : 'close'}. Follow the package guidance; when in doubt, throw it out.',
+                      ? context.l10n.kitchenEstimateWarning
+                      : days < 0
+                          ? context.l10n.kitchenRecordedDatePast
+                          : context.l10n.kitchenRecordedDateClose,
                   style: context.text.bodySmall?.copyWith(color: context.palette.ink),
                 ),
               ),
@@ -336,7 +342,7 @@ class IngredientDetailScreen extends ConsumerWidget {
           const SizedBox(height: Space.s),
           SecondaryActionButton(
             icon: Icons.check,
-            label: 'This amount is right',
+            label: context.l10n.kitchenThisAmountIsRight,
             onPressed: () async {
               final r = await ref.read(actionsProvider).correct({lot.id: lot.quantity}, opId: AppActions.newOpId('verify'));
               if (context.mounted) reportOperation(context, ref, r);
@@ -344,11 +350,11 @@ class IngredientDetailScreen extends ConsumerWidget {
           ),
         ],
         if (ref100 != null) ...[
-          const SectionHeader('Nutrition reference'),
-          NutritionSummaryCard(nutrition: ref100.per100g, subtitle: 'per 100 g · ${ref100.source}'),
+          SectionHeader(context.l10n.kitchenNutritionReference),
+          NutritionSummaryCard(nutrition: ref100.per100g, subtitle: context.l10n.kitchenPer100g(ref100.source)),
         ],
-        const SectionHeader('Activity'),
-        if (history.isEmpty) Text('No activity yet.', style: context.text.bodySmall),
+        SectionHeader(context.l10n.kitchenActivity),
+        if (history.isEmpty) Text(context.l10n.kitchenNoActivity, style: context.text.bodySmall),
         for (final a in history.take(20))
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -360,8 +366,8 @@ class IngredientDetailScreen extends ConsumerWidget {
               AdjustmentType.reversal => Icons.undo,
               _ => Icons.swap_horiz,
             }),
-            title: Text('${a.type.label} ${a.delta.isZero ? '' : a.delta.format().replaceFirst('-', '')}'),
-            subtitle: Text('${formatDay(context, a.createdAt)} · ${formatTime(context, a.createdAt)}${a.reason == null ? '' : ' · ${a.reason}'}'),
+            title: Text('${context.labelOf(a.type)} ${a.delta.isZero ? '' : context.formatQty(a.delta).replaceFirst('-', '')}'), // l10n-ignore: joins translated parts
+            subtitle: Text('${formatDay(context, a.createdAt)} · ${formatTime(context, a.createdAt)}${a.reason == null ? '' : ' · ${a.reason}'}'), // l10n-ignore: joins translated parts
           ),
       ],
     );
@@ -414,7 +420,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     if (known != null) {
       _select(known);
     } else {
-      showMessage(context, 'New barcode — tell us what it is once and we\'ll remember it.');
+      showMessage(context, context.l10n.kitchenNewBarcode);
     }
   }
 
@@ -465,9 +471,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         : ProductMatcher(_allProducts()).search(_search.text, limit: 6, minScore: 0.3);
     final locations = ref.watch(storageLocationsProvider);
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Kitchen', title: 'Add an item'),
+      header: EditorialPageHeader(eyebrow: context.l10n.kitchenEyebrow, title: context.l10n.kitchenAddAnItem),
       primaryAction: PrimaryActionButton(
-        label: _product == null && _search.text.trim().isEmpty ? 'Choose an item' : 'Add to kitchen',
+        label: _product == null && _search.text.trim().isEmpty ? context.l10n.kitchenChooseAnItem : context.l10n.kitchenAddToKitchen,
         loading: _busy,
         onPressed: (_product != null || _search.text.trim().isNotEmpty) && _qty != null ? _save : null,
       ),
@@ -479,9 +485,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               autofocus: true,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
-                labelText: 'What are you adding?',
+                labelText: context.l10n.kitchenWhatAreYouAdding,
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: _product == null ? null : IconButton(tooltip: 'Change', icon: const Icon(Icons.close), onPressed: () => setState(() => _product = null)),
+                suffixIcon: _product == null ? null : IconButton(tooltip: context.l10n.kitchenChange, icon: const Icon(Icons.close), onPressed: () => setState(() => _product = null)),
               ),
               onChanged: (_) => setState(() {
                 _product = null;
@@ -490,14 +496,14 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             ),
           ),
           const SizedBox(width: Space.xs),
-          IconButton.filledTonal(tooltip: 'Scan barcode', onPressed: _scanBarcode, icon: const Icon(Icons.qr_code_scanner)),
+          IconButton.filledTonal(tooltip: context.l10n.kitchenScanBarcode, onPressed: _scanBarcode, icon: const Icon(Icons.qr_code_scanner)),
         ]),
-        if (_barcode != null) Padding(padding: const EdgeInsets.only(top: Space.xs), child: Text('Barcode $_barcode', style: context.text.bodySmall)),
+        if (_barcode != null) Padding(padding: const EdgeInsets.only(top: Space.xs), child: Text(context.l10n.kitchenBarcodeValue(_barcode!), style: context.text.bodySmall)),
         for (final m in matches)
           ListTile(
             leading: Icon(categoryIcon(m.product.category)),
             title: Text(m.product.name),
-            subtitle: Text(m.product.category.label),
+            subtitle: Text(context.labelOf(m.product.category)),
             onTap: () {
               _search.text = m.product.name;
               _select(m.product);
@@ -506,28 +512,28 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         if (_product == null && _search.text.trim().isNotEmpty && matches.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: Space.s),
-            child: Text('We\'ll add "${_search.text.trim()}" as a new item.', style: context.text.bodySmall),
+            child: Text(context.l10n.kitchenWillAddNew(_search.text.trim()), style: context.text.bodySmall),
           ),
         if (_qty != null) ...[
-          const SectionHeader('How much?'),
+          SectionHeader(context.l10n.kitchenHowMuch),
           Row(children: [
             QuantityStepper(value: _qty!, min: 0.001, onChanged: (q) => setState(() => _qty = q)),
             const SizedBox(width: Space.s),
             DropdownButton<Unit>(
               value: _qty!.unit,
-              items: [for (final u in Unit.values) DropdownMenuItem(value: u, child: Text(u.symbol))],
+              items: [for (final u in Unit.values) DropdownMenuItem(value: u, child: Text(context.labelOf(u)))],
               onChanged: (u) => setState(() => _qty = Quantity(_qty!.amount, u!)),
             ),
           ]),
-          const SectionHeader('Where does it live?'),
+          SectionHeader(context.l10n.kitchenWhereDoesItLive),
           Wrap(spacing: Space.xs, children: [
             for (final l in locations)
-              ChoiceChip(label: Text(l.name), selected: (_location ?? 'pantry') == l.id, onSelected: (_) => setState(() => _location = l.id)),
+              ChoiceChip(label: Text(placeName(context, l)), selected: (_location ?? 'pantry') == l.id, onSelected: (_) => setState(() => _location = l.id)),
           ]),
-          const SectionHeader('Date on the package'),
+          SectionHeader(context.l10n.kitchenDateOnThePackage),
           OutlinedButton.icon(
             icon: const Icon(Icons.event_outlined),
-            label: Text(_useBy == null ? 'Add a best-before or use-by date (optional)' : _useBy!.toIso()),
+            label: Text(_useBy == null ? context.l10n.kitchenAddDateOptional : _useBy!.toIso()),
             onPressed: () async {
               final d = await showDatePicker(context: context, firstDate: DateTime.now().subtract(const Duration(days: 30)), lastDate: DateTime.now().add(const Duration(days: 1500)));
               if (d != null) setState(() => _useBy = CalendarDate.fromDateTime(d));
@@ -552,9 +558,9 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan a barcode')),
+      appBar: AppBar(title: Text(context.l10n.kitchenScanABarcode)),
       body: PhotoCaptureOverlay(
-        hint: 'Point at the barcode on the package',
+        hint: context.l10n.kitchenPointAtBarcode,
         aspectRatio: 1.6,
         child: MobileScanner(
           onDetect: (capture) {
@@ -564,10 +570,10 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
             Navigator.of(context).pop(v);
           },
           errorBuilder: (context, error) => PermissionDeniedState(
-            permission: 'Camera',
-            why: 'Chefii needs the camera to read barcodes. You can still type the item name.',
+            permission: context.l10n.kitchenCamera,
+            why: context.l10n.kitchenBarcodeCameraWhy,
             onAlternative: () => Navigator.of(context).pop(),
-            alternativeLabel: 'Type it instead',
+            alternativeLabel: context.l10n.kitchenTypeItInstead,
           ),
         ),
       ),
@@ -594,7 +600,7 @@ class _FridgeScanScreenState extends ConsumerState<FridgeScanScreen> {
   final _opId = AppActions.newOpId('scan');
 
   Future<void> _capture(bool camera) async {
-    if (!await ensureAiConsent(context, ref, feature: 'scanning your shelves')) return;
+    if (!await ensureAiConsent(context, ref, feature: context.l10n.kitchenAiFeatureShelfScan)) return;
     if (!mounted) return;
     setState(() {
       _busy = true;
@@ -627,7 +633,7 @@ class _FridgeScanScreenState extends ConsumerState<FridgeScanScreen> {
     final inputs = <(ScanSuggestion, Quantity)>[];
     for (final i in _accepted) {
       final q = _amounts[i];
-      if (q == null) return showMessage(context, 'Enter an amount for ${r.suggestions[i].name}.', error: true);
+      if (q == null) return showMessage(context, context.l10n.kitchenEnterAmountFor(r.suggestions[i].name), error: true);
       inputs.add((r.suggestions[i], q));
     }
     setState(() => _busy = true);
@@ -639,7 +645,7 @@ class _FridgeScanScreenState extends ConsumerState<FridgeScanScreen> {
             operationId: _opId,
             actorUid: ref.read(uidProvider)!,
             kind: OperationKind.scanImport,
-            summary: 'Added ${inputs.length} item${inputs.length == 1 ? '' : 's'} from a photo',
+            summary: context.l10n.kitchenScanSummary(inputs.length),
             inputs: [
               for (final (s, q) in inputs)
                 NewLotInput(
@@ -665,47 +671,47 @@ class _FridgeScanScreenState extends ConsumerState<FridgeScanScreen> {
   Widget build(BuildContext context) {
     final r = _result;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(
-        eyebrow: 'Kitchen',
-        title: 'Scan your shelves',
-        subtitle: 'We\'ll suggest what we can see. Nothing is added until you confirm it.',
+      header: EditorialPageHeader(
+        eyebrow: context.l10n.kitchenEyebrow,
+        title: context.l10n.kitchenScanTitle,
+        subtitle: context.l10n.kitchenScanSubtitle,
       ),
       primaryAction: r == null
-          ? PrimaryActionButton(icon: Icons.photo_camera_outlined, label: 'Take a photo', loading: _busy, onPressed: () => _capture(true))
+          ? PrimaryActionButton(icon: Icons.photo_camera_outlined, label: context.l10n.kitchenTakePhoto, loading: _busy, onPressed: () => _capture(true))
           : PrimaryActionButton(
-              label: _accepted.isEmpty ? 'Select items to add' : 'Add ${_accepted.length} item${_accepted.length == 1 ? '' : 's'}',
+              label: _accepted.isEmpty ? context.l10n.kitchenSelectItemsToAdd : context.l10n.kitchenAddCount(_accepted.length),
               loading: _busy,
               onPressed: _accepted.isEmpty ? null : _addConfirmed,
             ),
       children: [
         if (_denied)
           PermissionDeniedState(
-            permission: 'Camera',
-            why: 'Allow camera access in Settings to scan, or choose a photo from your library.',
-            alternativeLabel: 'Choose from library',
+            permission: context.l10n.kitchenCamera,
+            why: context.l10n.kitchenCameraDeniedWhy,
+            alternativeLabel: context.l10n.kitchenChooseFromLibrary,
             onAlternative: () => _capture(false),
           ),
         if (r == null) ...[
           SegmentedButton<StorageKind>(
-            segments: const [
-              ButtonSegment(value: StorageKind.fridge, label: Text('Fridge')),
-              ButtonSegment(value: StorageKind.freezer, label: Text('Freezer')),
-              ButtonSegment(value: StorageKind.pantry, label: Text('Pantry')),
+            segments: [
+              ButtonSegment(value: StorageKind.fridge, label: Text(context.labelOf(StorageKind.fridge))),
+              ButtonSegment(value: StorageKind.freezer, label: Text(context.labelOf(StorageKind.freezer))),
+              ButtonSegment(value: StorageKind.pantry, label: Text(context.labelOf(StorageKind.pantry))),
             ],
             selected: {_where},
             onSelectionChanged: (s) => setState(() => _where = s.first),
           ),
           const SizedBox(height: Space.l),
-          const FoodArtwork(artKey: 'herb', height: 200, label: 'Open fridge'),
+          FoodArtwork(artKey: 'herb', height: 200, label: context.l10n.kitchenOpenFridgeArt),
           const SizedBox(height: Space.m),
-          Text('Tips: open the door fully, use good light, and take one photo per shelf for best results.', style: context.text.bodySmall),
-          TextButton.icon(onPressed: _busy ? null : () => _capture(false), icon: const Icon(Icons.photo_library_outlined), label: const Text('Choose from library')),
+          Text(context.l10n.kitchenScanTips, style: context.text.bodySmall),
+          TextButton.icon(onPressed: _busy ? null : () => _capture(false), icon: const Icon(Icons.photo_library_outlined), label: Text(context.l10n.kitchenChooseFromLibrary)),
         ],
         if (r != null) ...[
-          if (r.isDemo) const DemoBanner(message: 'Demo: sample suggestions — your photo was not analysed.'),
+          if (r.isDemo) DemoBanner(message: context.l10n.kitchenScanDemo),
           if (r.message != null) Padding(padding: const EdgeInsets.only(bottom: Space.s), child: Text(r.message!, style: context.text.bodySmall)),
           if (r.suggestions.isEmpty)
-            const EmptyState(icon: Icons.visibility_off_outlined, title: 'We couldn\'t spot anything', message: 'Try a brighter, closer photo of one shelf.', compact: true),
+            EmptyState(icon: Icons.visibility_off_outlined, title: context.l10n.kitchenScanNothingTitle, message: context.l10n.kitchenScanNothingMessage, compact: true),
           for (var i = 0; i < r.suggestions.length; i++)
             Card(
               margin: const EdgeInsets.only(bottom: Space.xs),
@@ -718,23 +724,23 @@ class _FridgeScanScreenState extends ConsumerState<FridgeScanScreen> {
                     onChanged: (v) => setState(() => v == true ? _accepted.add(i) : _accepted.remove(i)),
                     title: Text(r.suggestions[i].name),
                     subtitle: Text([
-                      '${(r.suggestions[i].confidence * 100).round()}% sure',
+                      context.l10n.kitchenPercentSure((r.suggestions[i].confidence * 100).round()),
                       ?r.suggestions[i].note,
                     ].join(' · ')),
                   ),
                   if (_accepted.contains(i))
                     Row(children: [
-                      Text('Amount', style: context.text.bodySmall),
+                      Text(context.l10n.kitchenAmount, style: context.text.bodySmall),
                       const SizedBox(width: Space.s),
                       if (_amounts[i] == null)
-                        TextButton(onPressed: () => setState(() => _amounts[i] = const Quantity(1, Unit.piece)), child: const Text('Enter amount'))
+                        TextButton(onPressed: () => setState(() => _amounts[i] = const Quantity(1, Unit.piece)), child: Text(context.l10n.kitchenEnterAmount))
                       else
                         QuantityStepper(value: _amounts[i]!, min: 0.001, onChanged: (q) => setState(() => _amounts[i] = q)),
                     ]),
                 ]),
               ),
             ),
-          TextButton(onPressed: () => setState(() => _result = null), child: const Text('Take another photo')),
+          TextButton(onPressed: () => setState(() => _result = null), child: Text(context.l10n.kitchenTakeAnotherPhoto)),
         ],
       ],
     );
@@ -753,11 +759,11 @@ class FreshnessCentreScreen extends ConsumerWidget {
       ..sort((a, b) => a.daysLeft(today)!.compareTo(b.daysLeft(today)!));
     final freezer = ref.watch(storageLocationsProvider).firstWhere((l) => l.kind == StorageKind.freezer);
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Kitchen', title: 'Use soon', subtitle: 'Things worth cooking, freezing or deciding on.'),
-      primaryAction: lots.isEmpty ? null : PrimaryActionButton(icon: Icons.restaurant_menu, label: 'Find recipes that use these', onPressed: () => context.push('/discover?filter=expiring')),
+      header: EditorialPageHeader(eyebrow: context.l10n.kitchenEyebrow, title: context.l10n.kitchenUseSoon, subtitle: context.l10n.kitchenFreshnessSubtitle),
+      primaryAction: lots.isEmpty ? null : PrimaryActionButton(icon: Icons.restaurant_menu, label: context.l10n.kitchenFindRecipes, onPressed: () => context.push('/discover?filter=expiring')),
       children: [
         if (lots.isEmpty)
-          const EmptyState(icon: Icons.eco_outlined, title: 'Nothing needs attention', message: 'We\'ll let you know when something should be used soon.'),
+          EmptyState(icon: Icons.eco_outlined, title: context.l10n.kitchenNothingNeedsAttentionTitle, message: context.l10n.kitchenNothingNeedsAttentionMessage),
         for (final l in lots)
           Card(
             margin: const EdgeInsets.only(bottom: Space.xs),
@@ -769,14 +775,14 @@ class FreshnessCentreScreen extends ConsumerWidget {
                   InventoryStatusBadge(status: l.statusOn(today)),
                 ]),
                 Text(
-                  '${l.quantity.format()} · ${() {
+                  '${context.formatQty(l.quantity)} · ${() {
                     final d = l.daysLeft(today)!;
-                    final est = l.daysLeftIsEstimate ? ' (estimate)' : '';
-                    return d < 0
-                        ? 'date passed ${-d} day${d == -1 ? '' : 's'} ago$est'
+                    final text = d < 0
+                        ? context.l10n.kitchenDatePassed(-d)
                         : d == 0
-                            ? 'date is today$est'
-                            : '$d day${d == 1 ? '' : 's'} left$est';
+                            ? context.l10n.kitchenDateIsToday
+                            : context.l10n.kitchenDaysLeft(d);
+                    return l.daysLeftIsEstimate ? context.l10n.kitchenWithEstimate(text) : text;
                   }()}',
                   style: context.text.bodySmall,
                 ),
@@ -784,13 +790,13 @@ class FreshnessCentreScreen extends ConsumerWidget {
                 Wrap(spacing: Space.xs, runSpacing: Space.xs, children: [
                   ActionChip(
                     avatar: const Icon(Icons.restaurant, size: 18),
-                    label: const Text('Cook with this'),
+                    label: Text(context.l10n.kitchenCookWithThis),
                     onPressed: () => context.push('/discover?ingredient=${l.productId}'),
                   ),
                   if (l.locationId != freezer.id)
                     ActionChip(
                       avatar: const Icon(Icons.ac_unit, size: 18),
-                      label: const Text('Freeze'),
+                      label: Text(context.l10n.kitchenFreeze),
                       onPressed: () async {
                         final r = await ref.read(actionsProvider).move(l, freezer, opId: AppActions.newOpId('freeze'));
                         if (context.mounted) reportOperation(context, ref, r);
@@ -798,7 +804,7 @@ class FreshnessCentreScreen extends ConsumerWidget {
                     ),
                   ActionChip(
                     avatar: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Discard'),
+                    label: Text(context.l10n.kitchenDiscard),
                     onPressed: () async {
                       final r = await ref.read(actionsProvider).markEmpty(l, opId: AppActions.newOpId('discard'), discarded: true);
                       if (context.mounted) reportOperation(context, ref, r);
@@ -808,12 +814,11 @@ class FreshnessCentreScreen extends ConsumerWidget {
               ]),
             ),
           ),
-        const SectionHeader('Food safety'),
+        SectionHeader(context.l10n.kitchenFoodSafety),
         SoftCard(
           color: context.palette.infoSoft,
           child: Text(
-            'Chefii\'s dates are estimates from typical storage times, not safety guarantees. Follow "use by" and "best before" dates on packages, '
-            'keep your fridge at 4 °C (40 °F) or below, and when in doubt, throw it out. For guidance, see Health Canada\'s food safety pages.',
+            context.l10n.kitchenFoodSafetyBody,
             style: context.text.bodySmall?.copyWith(color: context.palette.ink),
           ),
         ),
@@ -849,13 +854,13 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
 
     if (_summary != null) {
       return PremiumAppScaffold(
-        header: const EditorialPageHeader(eyebrow: 'Kitchen', title: 'All squared away'),
-        primaryAction: PrimaryActionButton(label: 'Back to kitchen', onPressed: () => context.pop()),
+        header: EditorialPageHeader(eyebrow: context.l10n.kitchenEyebrow, title: context.l10n.kitchenAllSquaredAway),
+        primaryAction: PrimaryActionButton(label: context.l10n.kitchenBackToKitchen, onPressed: () => context.pop()),
         children: [
           EmptyState(
             icon: Icons.task_alt,
-            title: '${_summary!.verified} item${_summary!.verified == 1 ? '' : 's'} verified',
-            message: _summary!.changed == 0 ? 'Every amount was already right.' : '${_summary!.changed} amount${_summary!.changed == 1 ? ' was' : 's were'} corrected. You can undo from the kitchen.',
+            title: context.l10n.kitchenItemsVerified(_summary!.verified),
+            message: _summary!.changed == 0 ? context.l10n.kitchenEveryAmountRight : context.l10n.kitchenAmountsCorrected(_summary!.changed),
           ),
         ],
       );
@@ -863,14 +868,14 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
 
     return PremiumAppScaffold(
       header: EditorialPageHeader(
-        eyebrow: 'Kitchen',
-        title: 'Quick check',
-        subtitle: lots.isEmpty ? null : 'Adjust anything that\'s off, then confirm. ${lots.length} item${lots.length == 1 ? '' : 's'}.',
+        eyebrow: context.l10n.kitchenEyebrow,
+        title: context.l10n.kitchenQuickCheck,
+        subtitle: lots.isEmpty ? null : context.l10n.kitchenQuickCheckSubtitle(lots.length),
       ),
       primaryAction: lots.isEmpty
           ? null
           : PrimaryActionButton(
-              label: 'Confirm all',
+              label: context.l10n.kitchenConfirmAll,
               loading: _busy,
               onPressed: () async {
                 setState(() => _busy = true);
@@ -888,7 +893,7 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
             ),
       children: [
         if (lots.isEmpty)
-          const EmptyState(icon: Icons.verified_outlined, title: 'Everything looks accurate', message: 'Nothing needs checking right now.'),
+          EmptyState(icon: Icons.verified_outlined, title: context.l10n.kitchenEverythingAccurateTitle, message: context.l10n.kitchenEverythingAccurateMessage),
         for (final l in lots)
           Card(
             margin: const EdgeInsets.only(bottom: Space.xs),
@@ -903,7 +908,7 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                 Wrap(spacing: Space.s, runSpacing: Space.xs, crossAxisAlignment: WrapCrossAlignment.center, children: [
                   QuantityStepper(value: _counts[l.id] ?? l.quantity, onChanged: (q) => setState(() => _counts[l.id] = q), label: l.productName),
                   if (_counts[l.id] != null && _counts[l.id] != l.quantity)
-                    Text('was ${l.quantity.format()}', style: context.text.bodySmall),
+                    Text(context.l10n.kitchenWasAmount(context.formatQty(l.quantity)), style: context.text.bodySmall),
                 ]),
               ]),
             ),

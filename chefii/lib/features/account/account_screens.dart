@@ -14,9 +14,16 @@ import '../../data/repositories/export_service.dart';
 import '../../data/repositories/profile_repository.dart';
 import '../../data/store/memory_doc_store.dart';
 import '../../domain/models/profile.dart';
-import '../../domain/safety/allergen_guard.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 
 const supportEmail = 'support@chefii.app';
+
+String _roleLabel(AppLocalizations l, HouseholdRole r) => switch (r) {
+      HouseholdRole.owner => l.accountRoleOwner,
+      HouseholdRole.adult => l.accountRoleAdult,
+      HouseholdRole.member => l.accountRoleMember,
+    };
 
 // ---------------------------------------------------------------- 71 Profile & account (You tab)
 
@@ -25,6 +32,7 @@ class YouScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = context.l10n;
     final profile = ref.watch(profileProvider).value;
     final user = ref.watch(authUserProvider).value;
     final household = ref.watch(householdProvider).value;
@@ -43,21 +51,21 @@ class YouScreen extends ConsumerWidget {
 
     return PremiumAppScaffold(
       showBack: false,
-      header: EditorialPageHeader(eyebrow: 'You', title: profile?.displayName ?? 'Your account', subtitle: [profile?.email, household?.name].whereType<String>().join(' · ')),
+      header: EditorialPageHeader(eyebrow: l.accountEyebrow, title: profile?.displayName ?? l.accountTitleFallback, subtitle: [profile?.email, household?.name].whereType<String>().join(' · ')),
       children: [
         Row(children: [
           Expanded(
             child: TextButton.icon(
               icon: const Icon(Icons.edit_outlined),
-              label: const Text('Edit name'),
+              label: Text(l.accountEditName),
               onPressed: () async {
                 final c = TextEditingController(text: profile?.displayName);
                 final name = await showDialog<String>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Your name'),
+                    title: Text(l.accountYourName),
                     content: TextField(controller: c, autofocus: true, textCapitalization: TextCapitalization.words),
-                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: const Text('Save'))],
+                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.commonCancel)), TextButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: Text(l.commonSave))],
                   ),
                 );
                 if (name != null && name.isNotEmpty && profile != null) await ref.read(profileRepoProvider).saveProfile(profile.copyWith(displayName: name));
@@ -65,43 +73,43 @@ class YouScreen extends ConsumerWidget {
             ),
           ),
         ]),
-        const SectionHeader('Preferences', topSpacing: Space.s),
-        tile(Icons.health_and_safety_outlined, 'Dietary safety', '/you/dietary',
+        SectionHeader(l.accountSectionPreferences, topSpacing: Space.s),
+        tile(Icons.health_and_safety_outlined, l.accountDietarySafety, '/you/dietary',
             subtitle: dietary.allergiesKnown
-                ? (dietary.allergies.isEmpty ? 'No allergies recorded' : dietary.allergies.map((a) => AllergenGuard.byKey[a]?.label ?? a).join(', '))
-                : 'Not provided yet'),
-        tile(Icons.restaurant_menu, 'Culinary preferences', '/you/culinary'),
-        tile(Icons.spa_outlined, 'Wellness preferences', '/you/wellness'),
-        tile(Icons.wb_twilight, 'Morning routine', '/morning/setup'),
-        tile(Icons.notifications_active_outlined, 'Meal reminders', '/journal/reminders'),
-        const SectionHeader('Health & nutrition'),
-        tile(Icons.insights_outlined, 'Nutrition', '/you/nutrition'),
-        tile(Icons.lightbulb_outline, 'Nutrition insights', '/you/nutrition/intelligence'),
-        if (wellness.smileAndFood) tile(Icons.sentiment_satisfied_alt_outlined, 'Smile & Food', '/you/smile'),
-        tile(Icons.water_drop_outlined, 'Glucose journal', wellness.diabetesFeatures ? '/you/glucose' : '/you/diabetes', subtitle: wellness.diabetesFeatures ? null : 'Optional'),
-        tile(Icons.group_outlined, 'My nutrition circle', '/you/circle'),
-        const SectionHeader('Household & account'),
-        tile(Icons.family_restroom, 'Household members', '/you/household'),
-        tile(Icons.privacy_tip_outlined, 'Privacy & data', '/you/privacy'),
-        tile(Icons.hub_outlined, 'Connected services', '/you/connected'),
-        tile(Icons.workspace_premium_outlined, 'Membership', '/you/membership'),
-        tile(Icons.accessibility_new, 'Accessibility & language', '/you/accessibility'),
-        tile(Icons.lock_outline, 'Security & sessions', '/you/security'),
-        tile(Icons.help_outline, 'Help & support', '/you/help'),
-        tile(Icons.gavel_outlined, 'Legal & evidence', '/you/legal'),
-        tile(Icons.download_outlined, 'Export or delete your data', '/you/data'),
-        if (isPro || kIsWeb) tile(Icons.badge_outlined, 'Professional portal', '/pro'),
+                ? (dietary.allergies.isEmpty ? l.accountNoAllergies : dietary.allergies.map(context.allergenLabel).join(', '))
+                : l.accountNotProvidedYet),
+        tile(Icons.restaurant_menu, l.accountCulinaryPreferences, '/you/culinary'),
+        tile(Icons.spa_outlined, l.accountWellnessPreferences, '/you/wellness'),
+        tile(Icons.wb_twilight, l.accountMorningRoutine, '/morning/setup'),
+        tile(Icons.notifications_active_outlined, l.accountMealReminders, '/journal/reminders'),
+        SectionHeader(l.accountSectionHealth),
+        tile(Icons.insights_outlined, l.accountNutrition, '/you/nutrition'),
+        tile(Icons.lightbulb_outline, l.accountNutritionInsights, '/you/nutrition/intelligence'),
+        if (wellness.smileAndFood) tile(Icons.sentiment_satisfied_alt_outlined, l.accountSmileAndFood, '/you/smile'),
+        tile(Icons.water_drop_outlined, l.accountGlucoseJournal, wellness.diabetesFeatures ? '/you/glucose' : '/you/diabetes', subtitle: wellness.diabetesFeatures ? null : l.accountOptional),
+        tile(Icons.group_outlined, l.accountNutritionCircle, '/you/circle'),
+        SectionHeader(l.accountSectionHousehold),
+        tile(Icons.family_restroom, l.accountHouseholdMembers, '/you/household'),
+        tile(Icons.privacy_tip_outlined, l.accountPrivacyData, '/you/privacy'),
+        tile(Icons.hub_outlined, l.accountConnectedServices, '/you/connected'),
+        tile(Icons.workspace_premium_outlined, l.accountMembership, '/you/membership'),
+        tile(Icons.accessibility_new, l.accountAccessibilityLanguage, '/you/accessibility'),
+        tile(Icons.lock_outline, l.accountSecuritySessions, '/you/security'),
+        tile(Icons.help_outline, l.accountHelpSupport, '/you/help'),
+        tile(Icons.gavel_outlined, l.accountLegalEvidence, '/you/legal'),
+        tile(Icons.download_outlined, l.accountExportOrDelete, '/you/data'),
+        if (isPro || kIsWeb) tile(Icons.badge_outlined, l.accountProPortal, '/pro'),
         const SizedBox(height: Space.l),
         SecondaryActionButton(
           icon: Icons.logout,
-          label: 'Sign out',
+          label: l.accountSignOut,
           onPressed: () async {
             await ref.read(authServiceProvider).signOut();
             if (context.mounted) context.go('/welcome');
           },
         ),
         const SizedBox(height: Space.m),
-        Center(child: Text('Chefii · ${ref.watch(appConfigProvider).isDemo ? 'Demo mode' : 'Early access'}', style: context.text.bodySmall)),
+        Center(child: Text(ref.watch(appConfigProvider).isDemo ? l.accountFooterDemo : l.accountFooterEarlyAccess, style: context.text.bodySmall)),
       ],
     );
   }
@@ -114,20 +122,21 @@ class HouseholdMembersScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = context.l10n;
     final household = ref.watch(householdProvider).value;
     final members = ref.watch(membersProvider).value ?? const <HouseholdMember>[];
     final invites = household == null ? const <Map<String, dynamic>>[] : (ref.watch(_invitesProvider(household.id)).value ?? const []);
     final uid = ref.watch(uidProvider);
     final isOwner = household?.ownerUid == uid;
     return PremiumAppScaffold(
-      header: EditorialPageHeader(eyebrow: 'Household', title: household?.name ?? 'Household', subtitle: '${household?.portions ?? 2} usual portions'),
+      header: EditorialPageHeader(eyebrow: l.accountHousehold, title: household?.name ?? l.accountHousehold, subtitle: l.accountUsualPortions(household?.portions ?? 2)),
       primaryAction: isOwner
           ? PrimaryActionButton(
               icon: Icons.person_add_alt,
-              label: 'Invite someone',
+              label: l.accountInviteSomeone,
               onPressed: () async {
                 final code = await ref.read(householdRepoProvider).createInvite(household!.id, uid!);
-                await SharePlus.instance.share(ShareParams(text: 'Join our kitchen on Chefii with code $code (valid for 7 days).', subject: 'Join my Chefii kitchen'));
+                await SharePlus.instance.share(ShareParams(text: l.accountInviteShareText(code), subject: l.accountInviteShareSubject));
               },
             )
           : null,
@@ -137,14 +146,14 @@ class HouseholdMembersScreen extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: Space.xs),
             child: ListTile(
               leading: CircleAvatar(child: Text(m.displayName.isEmpty ? '?' : m.displayName[0])),
-              title: Text(m.uid == uid ? '${m.displayName} (you)' : m.displayName),
-              subtitle: Text('${m.role.name[0].toUpperCase()}${m.role.name.substring(1)} · since ${formatDay(context, m.joinedAt)}'),
+              title: Text(m.uid == uid ? l.accountMemberYou(m.displayName) : m.displayName),
+              subtitle: Text(l.accountMemberSubtitle(_roleLabel(l, m.role), formatDay(context, m.joinedAt))),
               trailing: isOwner && m.uid != uid
                   ? IconButton(
-                      tooltip: 'Remove',
+                      tooltip: l.commonRemove,
                       icon: const Icon(Icons.person_remove_outlined),
                       onPressed: () async {
-                        final ok = await showConfirmActionSheet(context, title: 'Remove ${m.displayName}?', message: 'They\'ll lose access to the shared kitchen. Their private journal stays theirs.', confirmLabel: 'Remove', destructive: true);
+                        final ok = await showConfirmActionSheet(context, title: l.accountRemoveMemberTitle(m.displayName), message: l.accountRemoveMemberMessage, confirmLabel: l.commonRemove, destructive: true);
                         if (ok) await ref.read(householdRepoProvider).removeMember(household!.id, m.uid);
                       },
                     )
@@ -152,15 +161,11 @@ class HouseholdMembersScreen extends ConsumerWidget {
             ),
           ),
         if (invites.isNotEmpty) ...[
-          const SectionHeader('Open invitations'),
-          for (final i in invites) ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.mail_outline), title: Text('Code ${i['code']}'), subtitle: const Text('Valid for 7 days, single use')),
+          SectionHeader(l.accountOpenInvitations),
+          for (final i in invites) ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.mail_outline), title: Text(l.accountInviteCode('${i['code']}')), subtitle: Text(l.accountInviteValidity)),
         ],
-        const SectionHeader('What members share'),
-        Text(
-          'Everyone shares the kitchen, shopping list, meal plan and saved recipes. Each person\'s journal, nutrition, glucose, Smile & Food log and professional reviews stay private. '
-          'Allergies are shared with the household only so shared meals stay safe.',
-          style: context.text.bodyMedium,
-        ),
+        SectionHeader(l.accountWhatMembersShare),
+        Text(l.accountMembersShareBody, style: context.text.bodyMedium),
       ],
     );
   }
@@ -175,6 +180,7 @@ class PrivacyScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = context.l10n;
     final s = ref.watch(settingsProvider).value ?? const AppSettings();
     final consents = ref.watch(consentsProvider).value ?? const <ConsentRecord>[];
     final uid = ref.watch(uidProvider);
@@ -185,44 +191,45 @@ class PrivacyScreen extends ConsumerWidget {
     }
 
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Privacy', title: 'Your data, your choice', subtitle: 'Chefii never sells your data or uses your health records for advertising.'),
+      header: EditorialPageHeader(eyebrow: l.accountPrivacyEyebrow, title: l.accountPrivacyTitle, subtitle: l.accountPrivacySubtitle),
       children: [
         ToggleTile(
           icon: Icons.auto_awesome_outlined,
-          title: 'AI processing',
-          subtitle: 'Send receipt and fridge photos, and chef requests, to our AI providers (Google Gemini; OpenAI if enabled below) through our secure servers. Providers may not train on your data under our agreements.',
+          title: l.accountAiProcessing,
+          subtitle: l.accountAiProcessingBody,
           value: s.aiProcessingConsent,
           onChanged: (v) => save(s.copyWith(aiProcessingConsent: v), consentPurpose: 'ai_processing', granted: v),
         ),
         ToggleTile(
           icon: Icons.chat_outlined,
-          title: 'Optional second AI provider',
-          subtitle: 'Allow OpenAI for conversation and recipe writing. Off means Gemini only.',
+          title: l.accountOptionalAiProvider,
+          subtitle: l.accountOptionalAiProviderBody,
           value: s.allowOptionalAiProvider,
           onChanged: s.aiProcessingConsent ? (v) => save(s.copyWith(allowOptionalAiProvider: v), consentPurpose: 'ai_optional_provider', granted: v) : null,
         ),
         ToggleTile(
           icon: Icons.query_stats,
-          title: 'Product analytics',
-          subtitle: 'Anonymous usage events (e.g. "receipt imported"). Never food names, health data or free text.',
+          title: l.accountAnalytics,
+          subtitle: l.accountAnalyticsBody,
           value: s.analyticsConsent,
           onChanged: (v) => save(s.copyWith(analyticsConsent: v), consentPurpose: 'analytics', granted: v),
         ),
         const SizedBox(height: Space.s),
-        ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.group_outlined), title: const Text('Professional sharing'), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/circle')),
-        ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.download_outlined), title: const Text('Export or delete your data'), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/data')),
-        const SectionHeader('Consent history'),
-        if (consents.isEmpty) Text('No consents recorded.', style: context.text.bodySmall),
+        ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.group_outlined), title: Text(l.accountProfessionalSharing), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/circle')),
+        ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.download_outlined), title: Text(l.accountExportOrDelete), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/data')),
+        SectionHeader(l.accountConsentHistory),
+        if (consents.isEmpty) Text(l.accountNoConsents, style: context.text.bodySmall),
         for (final c in consents.take(20))
           ListTile(
             contentPadding: EdgeInsets.zero,
             dense: true,
             leading: Icon(c.granted ? Icons.check_circle_outline : Icons.cancel_outlined, size: 20),
-            title: Text('${c.purpose} · ${c.granted ? 'granted' : 'withdrawn'}'),
-            subtitle: Text('${formatDay(context, c.recordedAt)} · version ${c.version}'),
+            // The purpose is a stored identifier ('ai_processing', 'share:…'), shown as-is.
+            title: Text(c.granted ? l.accountConsentGranted(c.purpose) : l.accountConsentWithdrawn(c.purpose)),
+            subtitle: Text(l.accountConsentVersion(formatDay(context, c.recordedAt), c.version)),
           ),
         const SizedBox(height: Space.m),
-        Text('Data is stored in Canada (Google Cloud, Montréal region) where supported. See the Privacy Policy for details.', style: context.text.bodySmall),
+        Text(l.accountDataResidency, style: context.text.bodySmall),
       ],
     );
   }
@@ -235,22 +242,23 @@ class ConnectedServicesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = context.l10n;
     final ai = ref.watch(aiGatewayProvider);
     final config = ref.watch(appConfigProvider);
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Services', title: 'Connected services'),
+      header: EditorialPageHeader(eyebrow: l.accountServicesEyebrow, title: l.accountConnectedServices),
       children: [
         Card(
           child: ListTile(
             leading: const Icon(Icons.notifications_outlined),
-            title: const Text('Notifications'),
-            subtitle: const Text('For reminders, timers and your morning alarm'),
+            title: Text(l.accountNotifications),
+            subtitle: Text(l.accountNotificationsBody),
             trailing: TextButton(
               onPressed: () async {
                 final ok = await ref.read(notificationServiceProvider).requestPermission();
-                if (context.mounted) showMessage(context, ok ? 'Notifications are on' : 'Notifications are off — you can change this in system Settings.');
+                if (context.mounted) showMessage(context, ok ? l.accountNotificationsOn : l.accountNotificationsOff);
               },
-              child: const Text('Check'),
+              child: Text(l.accountCheck),
             ),
           ),
         ),
@@ -258,30 +266,37 @@ class ConnectedServicesScreen extends ConsumerWidget {
         Card(
           child: ListTile(
             leading: const Icon(Icons.auto_awesome_outlined),
-            title: const Text('Kitchen AI'),
-            subtitle: Text(ai.isDemo ? 'Demo mode — sample results, no AI provider connected' : 'Connected through Chefii\'s secure servers'),
+            title: Text(l.accountKitchenAi),
+            subtitle: Text(ai.isDemo ? l.accountKitchenAiDemo : l.accountKitchenAiConnected),
           ),
         ),
         const SizedBox(height: Space.xs),
-        const Card(
+        Card(
           child: ListTile(
-            leading: Icon(Icons.favorite_border),
-            title: Text('Apple Health / Health Connect'),
-            subtitle: Text('Coming later: read-only glucose import with clear provenance. Not available yet.'),
+            leading: const Icon(Icons.favorite_border),
+            title: Text(l.accountHealthApps),
+            subtitle: Text(l.accountHealthAppsBody),
           ),
         ),
         const SizedBox(height: Space.xs),
         Card(
           child: ListTile(
             leading: const Icon(Icons.group_outlined),
-            title: const Text('Professionals'),
-            subtitle: const Text('Manage who can see your records'),
+            title: Text(l.accountProfessionals),
+            subtitle: Text(l.accountProfessionalsBody),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/you/circle'),
           ),
         ),
         const SizedBox(height: Space.m),
-        Text('Backend: ${config.isDemo ? 'local demo storage on this device' : 'Firebase${config.useEmulators ? ' (emulators)' : ''}'}', style: context.text.bodySmall),
+        Text(
+          config.isDemo
+              ? l.accountBackendDemo
+              : config.useEmulators
+                  ? l.accountBackendEmulators
+                  : l.accountBackendFirebase,
+          style: context.text.bodySmall,
+        ),
       ],
     );
   }
@@ -294,22 +309,23 @@ class MembershipScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Membership', title: 'Early access', subtitle: 'Every Chefii feature is included while we\'re in early access.'),
+      header: EditorialPageHeader(eyebrow: l.accountMembership, title: l.accountEarlyAccess, subtitle: l.accountMembershipSubtitle),
       children: [
         SoftCard(
           color: context.palette.accentSoft,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Chefii Membership', style: context.text.headlineSmall),
+            Text(l.accountMembershipName, style: context.text.headlineSmall),
             const SizedBox(height: Space.xs),
-            Text('Paid plans aren\'t available yet. When they launch, you\'ll be told the price in advance and nothing will be charged without your confirmation through the App Store or Google Play.', style: context.text.bodyMedium),
+            Text(l.accountMembershipBody, style: context.text.bodyMedium),
           ]),
         ),
-        const SectionHeader('Included now'),
-        for (final f in ['Receipt and fridge scanning', 'AI chef and guided cooking', 'Meal planning and smart shopping', 'Nutrition journal and insights', 'Sharing with your nutrition circle'])
+        SectionHeader(l.accountIncludedNow),
+        for (final f in [l.accountFeatureScanning, l.accountFeatureChef, l.accountFeaturePlanning, l.accountFeatureJournal, l.accountFeatureCircle])
           ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.check), title: Text(f)),
         const SizedBox(height: Space.m),
-        Text('Receipts and billing history will appear here once memberships launch.', style: context.text.bodySmall),
+        Text(l.accountBillingNote, style: context.text.bodySmall),
       ],
     );
   }
@@ -322,35 +338,36 @@ class AccessibilityScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = context.l10n;
     final s = ref.watch(settingsProvider).value ?? const AppSettings();
     Future<void> save(AppSettings n) => ref.read(profileRepoProvider).saveSettings(ref.read(uidProvider)!, n);
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Settings', title: 'Accessibility & language'),
+      header: EditorialPageHeader(eyebrow: l.accountSettingsEyebrow, title: l.accountAccessibilityLanguage),
       children: [
-        Text('Text size', style: context.text.titleMedium),
-        Semantics(label: 'Text size', child: Slider(
+        Text(l.accountTextSize, style: context.text.titleMedium),
+        Semantics(label: l.accountTextSize, child: Slider(
           value: s.textScale,
           min: 0.9,
           max: 1.6,
           divisions: 7,
-          label: '${(s.textScale * 100).round()}%',
-          semanticFormatterCallback: (v) => '${(v * 100).round()} percent',
+          label: l.accountTextScaleValue((s.textScale * 100).round()),
+          semanticFormatterCallback: (v) => l.accountTextScaleSemantic((v * 100).round()),
           onChanged: (v) => save(s.copyWith(textScale: v)),
         )),
-        Text('Preview: Simmer gently until the lentils collapse.', style: context.text.bodyLarge),
-        Text('Chefii also follows your device\'s text size.', style: context.text.bodySmall),
+        Text(l.accountTextPreview, style: context.text.bodyLarge),
+        Text(l.accountDeviceTextSize, style: context.text.bodySmall),
         const SizedBox(height: Space.m),
-        ToggleTile(icon: Icons.motion_photos_off_outlined, title: 'Reduce motion', subtitle: 'Fewer animations and transitions', value: s.reduceMotion, onChanged: (v) => save(s.copyWith(reduceMotion: v))),
-        ToggleTile(icon: Icons.record_voice_over_outlined, title: 'Read cooking steps aloud', subtitle: 'In guided cooking', value: s.voiceGuidance, onChanged: (v) => save(s.copyWith(voiceGuidance: v))),
-        const SectionHeader('Language'),
+        ToggleTile(icon: Icons.motion_photos_off_outlined, title: l.accountReduceMotion, subtitle: l.accountReduceMotionBody, value: s.reduceMotion, onChanged: (v) => save(s.copyWith(reduceMotion: v))),
+        ToggleTile(icon: Icons.record_voice_over_outlined, title: l.accountReadStepsAloud, subtitle: l.accountReadStepsAloudBody, value: s.voiceGuidance, onChanged: (v) => save(s.copyWith(voiceGuidance: v))),
+        SectionHeader(l.accountLanguage),
         RadioGroup<String>(
           groupValue: s.language,
           onChanged: (v) => v == null ? null : save(s.copyWith(language: v)),
-          child: const Column(children: [
-            RadioListTile(value: 'system', title: Text('Same as my device')),
+          child: Column(children: [
+            RadioListTile(value: 'system', title: Text(l.accountLanguageSystem)),
             // Language names are always shown in their own language.
-            RadioListTile(value: 'en-CA', title: Text('English (Canada)')),
-            RadioListTile(value: 'fr-CA', title: Text('Français (Canada)')),
+            const RadioListTile(value: 'en-CA', title: Text('English (Canada)')), // l10n-ignore
+            const RadioListTile(value: 'fr-CA', title: Text('Français (Canada)')), // l10n-ignore
           ]),
         ),
       ],
@@ -365,21 +382,22 @@ class SecurityScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = context.l10n;
     final user = ref.watch(authUserProvider).value;
     final isDemo = ref.watch(appConfigProvider).isDemo;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Settings', title: 'Security & sessions'),
+      header: EditorialPageHeader(eyebrow: l.accountSettingsEyebrow, title: l.accountSecuritySessions),
       children: [
-        Card(child: ListTile(leading: const Icon(Icons.person_outline), title: Text(user?.email ?? (isDemo ? 'Demo account' : 'Signed in')), subtitle: Text(isDemo ? 'Stored only on this device' : 'Account ID ${user?.uid.substring(0, 6)}…'))),
+        Card(child: ListTile(leading: const Icon(Icons.person_outline), title: Text(user?.email ?? (isDemo ? l.accountDemoAccount : l.accountSignedIn)), subtitle: Text(isDemo ? l.accountStoredOnDevice : l.accountIdShort('${user?.uid.substring(0, 6)}')))),
         const SizedBox(height: Space.xs),
         if (!isDemo && user?.email != null)
           Card(
             child: ListTile(
               leading: const Icon(Icons.password),
-              title: const Text('Reset password'),
+              title: Text(l.accountResetPassword),
               onTap: () async {
                 await ref.read(authServiceProvider).sendPasswordReset(user!.email!);
-                if (context.mounted) showMessage(context, 'Password reset email sent');
+                if (context.mounted) showMessage(context, l.accountResetPasswordSent);
               },
             ),
           ),
@@ -387,10 +405,10 @@ class SecurityScreen extends ConsumerWidget {
           Card(
             child: ListTile(
               leading: const Icon(Icons.devices_other),
-              title: const Text('Sign out of all devices'),
-              subtitle: const Text('Ends every session, including this one'),
+              title: Text(l.accountSignOutAll),
+              subtitle: Text(l.accountSignOutAllBody),
               onTap: () async {
-                final ok = await showConfirmActionSheet(context, title: 'Sign out everywhere?', message: 'You\'ll need to sign in again on each device.', confirmLabel: 'Sign out everywhere', destructive: true);
+                final ok = await showConfirmActionSheet(context, title: l.accountSignOutEverywhereTitle, message: l.accountSignOutEverywhereMessage, confirmLabel: l.accountSignOutEverywhere, destructive: true);
                 if (!ok) return;
                 try {
                   await ref.read(authServiceProvider).reauthenticate();
@@ -406,7 +424,7 @@ class SecurityScreen extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: Space.m),
-        Text('Sensitive actions such as deleting your account or exporting health data ask you to confirm your identity again.', style: context.text.bodySmall),
+        Text(l.accountReauthNote, style: context.text.bodySmall),
       ],
     );
   }
@@ -425,13 +443,13 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
   final _msg = TextEditingController();
   String _kind = 'feedback';
 
-  static const faqs = [
-    ('How accurate is my kitchen?', 'Items from receipts you reviewed are confirmed. Amounts after cooking are deducted from what you confirm. Anything estimated is labelled, and Chefii occasionally asks you to verify.'),
-    ('What if I use something without telling Chefii?', 'Use the "I used…" button or tap − on an item. If counts drift, Quick check lets you fix several items in seconds.'),
-    ('Are freshness dates safe to rely on?', 'No — they\'re estimates from typical storage times. Always follow the package date and your own judgement.'),
-    ('Does Chefii give medical advice?', 'No. Nutrition features are education. For personal advice, share your records with a registered dietitian in My nutrition circle.'),
-    ('Who can see my health data?', 'Only you, plus any professional you explicitly share with, for the time you choose. Household members never see your journal or health records.'),
-  ];
+  static List<(String, String)> faqs(AppLocalizations l) => [
+        (l.accountFaqAccuracyQ, l.accountFaqAccuracyA),
+        (l.accountFaqUntrackedQ, l.accountFaqUntrackedA),
+        (l.accountFaqFreshnessQ, l.accountFaqFreshnessA),
+        (l.accountFaqMedicalQ, l.accountFaqMedicalA),
+        (l.accountFaqHealthDataQ, l.accountFaqHealthDataA),
+      ];
 
   @override
   void dispose() {
@@ -441,31 +459,32 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Help', title: 'How can we help?'),
+      header: EditorialPageHeader(eyebrow: l.accountHelpEyebrow, title: l.accountHelpTitle),
       primaryAction: PrimaryActionButton(
-        label: 'Send',
+        label: l.accountSend,
         onPressed: () async {
           if (_msg.text.trim().isEmpty) return;
           await ref.read(profileRepoProvider).submitFeedback(ref.read(uidProvider)!, kind: _kind, message: _msg.text.trim());
           _msg.clear();
-          if (context.mounted) showMessage(context, 'Thank you — we read every message.');
+          if (context.mounted) showMessage(context, l.accountFeedbackThanks);
         },
       ),
       children: [
-        for (final (q, a) in faqs) ExpansionTile(tilePadding: EdgeInsets.zero, title: Text(q), children: [Padding(padding: const EdgeInsets.only(bottom: Space.m), child: Text(a))]),
-        const SectionHeader('Write to us'),
+        for (final (q, a) in faqs(l)) ExpansionTile(tilePadding: EdgeInsets.zero, title: Text(q), children: [Padding(padding: const EdgeInsets.only(bottom: Space.m), child: Text(a))]),
+        SectionHeader(l.accountWriteToUs),
         SegmentedButton<String>(
-          segments: const [ButtonSegment(value: 'feedback', label: Text('Feedback')), ButtonSegment(value: 'bug', label: Text('Report a problem'))],
+          segments: [ButtonSegment(value: 'feedback', label: Text(l.accountFeedback)), ButtonSegment(value: 'bug', label: Text(l.accountReportProblem))],
           selected: {_kind},
           onSelectionChanged: (s) => setState(() => _kind = s.first),
         ),
         const SizedBox(height: Space.s),
-        TextField(controller: _msg, minLines: 4, maxLines: 8, decoration: const InputDecoration(hintText: 'Tell us what happened or what you\'d love to see. Please don\'t include health details.')),
+        TextField(controller: _msg, minLines: 4, maxLines: 8, decoration: InputDecoration(hintText: l.accountFeedbackHint)),
         TextButton.icon(
           icon: const Icon(Icons.mail_outline),
-          label: const Text('Email support'),
-          onPressed: () => launchUrl(Uri(scheme: 'mailto', path: supportEmail, query: 'subject=Chefii support')),
+          label: Text(l.accountEmailSupport),
+          onPressed: () => launchUrl(Uri(scheme: 'mailto', path: supportEmail, query: 'subject=${l.accountSupportEmailSubject}')),
         ),
       ],
     );
@@ -477,28 +496,29 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
 class LegalScreen extends StatelessWidget {
   const LegalScreen({super.key});
 
-  static const sections = [
-    ('Terms of Service (summary)', 'Chefii is provided for household kitchen organisation, cooking guidance and general nutrition education. You\'re responsible for food safety decisions in your home. Full terms will be published before public launch and require legal review.'),
-    ('Privacy Policy (summary)', 'We collect what you enter or scan to run Chefii: kitchen items, receipts, recipes, meal records, and optional health information you choose to add. We process data in Canada where possible, use AI providers only with your consent and under data-processing agreements, never sell personal information, and let you export or delete your data at any time. Prepared to meet PIPEDA and applicable provincial health privacy laws; full policy subject to legal review.'),
-    ('Medical limitations', 'Chefii does not diagnose, treat, cure or prevent any disease, and is not a medical device. Nutrition values are estimates. Glucose features are a personal journal and do not replace medical devices, alarms or your care team. Allergy screening relies on ingredient names and labels you check; it cannot guarantee a food is free of an allergen.'),
-    ('Food safety', 'Freshness indicators are estimates based on typical storage times. Always follow package dates, safe storage temperatures and safe internal cooking temperatures.'),
-    ('Evidence methodology', 'Nutrition statements come from national guidelines and authoritative references. Each shows its sources, evidence strength, limitations and review status. AI may rephrase approved statements but may not create new health claims.'),
-    ('AI disclosure', 'Recipes marked "Created by your AI chef", receipt readings and photo suggestions are generated by AI and may contain mistakes. Illustrations are not photographs of your food.'),
-  ];
+  static List<(String, String)> sections(AppLocalizations l) => [
+        (l.accountLegalTermsTitle, l.accountLegalTermsBody),
+        (l.accountLegalPrivacyTitle, l.accountLegalPrivacyBody),
+        (l.accountLegalMedicalTitle, l.accountLegalMedicalBody),
+        (l.accountLegalFoodSafetyTitle, l.accountLegalFoodSafetyBody),
+        (l.accountLegalEvidenceTitle, l.accountLegalEvidenceBody),
+        (l.accountLegalAiTitle, l.accountLegalAiBody),
+      ];
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Legal', title: 'Legal & disclosures'),
+      header: EditorialPageHeader(eyebrow: l.accountLegalEyebrow, title: l.accountLegalTitle),
       children: [
-        for (final (t, b) in sections) ExpansionTile(tilePadding: EdgeInsets.zero, title: Text(t), children: [Padding(padding: const EdgeInsets.only(bottom: Space.m), child: Text(b))]),
-        ListTile(contentPadding: EdgeInsets.zero, title: const Text('Evidence library'), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/nutrition/evidence')),
+        for (final (t, b) in sections(l)) ExpansionTile(tilePadding: EdgeInsets.zero, title: Text(t), children: [Padding(padding: const EdgeInsets.only(bottom: Space.m), child: Text(b))]),
+        ListTile(contentPadding: EdgeInsets.zero, title: Text(l.accountEvidenceLibrary), trailing: const Icon(Icons.chevron_right), onTap: () => context.push('/you/nutrition/evidence')),
         ListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Open-source licences'),
-          subtitle: const Text('Including Cormorant Garamond and Inter (SIL Open Font License)'),
+          title: Text(l.accountLicences),
+          subtitle: Text(l.accountLicencesBody),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => showLicensePage(context: context, applicationName: 'Chefii'),
+          onTap: () => showLicensePage(context: context, applicationName: 'Chefii'), // l10n-ignore
         ),
       ],
     );
@@ -526,7 +546,12 @@ class _DataControlsScreenState extends ConsumerState<DataControlsScreen> {
     super.dispose();
   }
 
+  /// The confirmation word is the one shown in the current language
+  /// (DELETE / SUPPRIMER).
+  bool get _confirmed => _confirm.text.trim().toUpperCase() == context.l10n.accountDeleteConfirmWord;
+
   Future<void> _export() async {
+    final subject = context.l10n.accountExportShareSubject;
     setState(() => _busy = true);
     try {
       await ref.read(authServiceProvider).reauthenticate(password: _password.text.isEmpty ? null : _password.text);
@@ -534,7 +559,7 @@ class _DataControlsScreenState extends ConsumerState<DataControlsScreen> {
       final json = await DataExportService(ref.read(docStoreProvider)).toJson(uid, householdId: ref.read(householdIdProvider));
       await ref.read(profileRepoProvider).audit(uid, action: 'export.created', target: uid);
       final file = XFile.fromData(Uint8List.fromList(utf8.encode(json)), mimeType: 'application/json', name: 'chefii-export.json');
-      await SharePlus.instance.share(ShareParams(files: [file], subject: 'Your Chefii data'));
+      await SharePlus.instance.share(ShareParams(files: [file], subject: subject));
     } on AuthException catch (e) {
       if (mounted) showMessage(context, e.message, error: true);
     } catch (e) {
@@ -545,7 +570,7 @@ class _DataControlsScreenState extends ConsumerState<DataControlsScreen> {
   }
 
   Future<void> _delete() async {
-    if (_confirm.text.trim().toUpperCase() != 'DELETE') return;
+    if (!_confirmed) return;
     setState(() => _busy = true);
     try {
       final auth = ref.read(authServiceProvider);
@@ -571,35 +596,32 @@ class _DataControlsScreenState extends ConsumerState<DataControlsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final isDemo = ref.watch(appConfigProvider).isDemo;
     final hasPassword = !isDemo && (ref.watch(authUserProvider).value?.email != null);
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Your data', title: 'Export or delete'),
+      header: EditorialPageHeader(eyebrow: l.accountDataEyebrow, title: l.accountDataTitle),
       children: [
-        Text('Export', style: context.text.titleMedium),
+        Text(l.accountExport, style: context.text.titleMedium),
         const SizedBox(height: Space.xs),
-        Text('A complete copy of your profile, kitchen, journal, health records, consents and sharing history as a JSON file.', style: context.text.bodyMedium),
+        Text(l.accountExportBody, style: context.text.bodyMedium),
         if (hasPassword) ...[
           const SizedBox(height: Space.s),
-          TextField(controller: _password, obscureText: true, decoration: const InputDecoration(labelText: 'Password (to confirm it\'s you)')),
+          TextField(controller: _password, obscureText: true, decoration: InputDecoration(labelText: l.accountPasswordConfirm)),
         ],
         const SizedBox(height: Space.s),
-        SecondaryActionButton(icon: Icons.download_outlined, label: 'Export my data', onPressed: _busy ? null : _export),
-        const SectionHeader('Delete account'),
-        Text(
-          'Permanently deletes your account, journal, health records and sharing grants. If you\'re the only member of your household, its kitchen is deleted too. '
-          'Some records may be kept where the law requires (for example, purchase receipts for membership billing). This can\'t be undone.',
-          style: context.text.bodyMedium,
-        ),
+        SecondaryActionButton(icon: Icons.download_outlined, label: l.accountExportMyData, onPressed: _busy ? null : _export),
+        SectionHeader(l.accountDeleteAccount),
+        Text(l.accountDeleteBody, style: context.text.bodyMedium),
         const SizedBox(height: Space.s),
-        TextField(controller: _confirm, onChanged: (_) => setState(() {}), decoration: const InputDecoration(labelText: 'Type DELETE to confirm')),
+        TextField(controller: _confirm, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: l.accountDeleteConfirmLabel(l.accountDeleteConfirmWord))),
         const SizedBox(height: Space.s),
         SizedBox(
           width: double.infinity,
           child: FilledButton(
             style: FilledButton.styleFrom(backgroundColor: context.palette.error, foregroundColor: Colors.white),
-            onPressed: _busy || _confirm.text.trim().toUpperCase() != 'DELETE' ? null : _delete,
-            child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Delete my account'),
+            onPressed: _busy || !_confirmed ? null : _delete,
+            child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(l.accountDeleteMyAccount),
           ),
         ),
       ],

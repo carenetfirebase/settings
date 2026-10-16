@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../app/actions.dart';
 import '../../data/repositories/receipt_repository.dart';
+import '../../l10n/l10n.dart';
 
 class PhotoPermissionDenied implements Exception {}
 
@@ -32,8 +33,8 @@ Future<bool?> chooseCameraOrLibrary(BuildContext context) => showModalBottomShee
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(leading: const Icon(Icons.photo_camera_outlined), title: const Text('Take a photo'), onTap: () => Navigator.pop(ctx, true)),
-          ListTile(leading: const Icon(Icons.photo_library_outlined), title: const Text('Choose from library'), onTap: () => Navigator.pop(ctx, false)),
+          ListTile(leading: const Icon(Icons.photo_camera_outlined), title: Text(ctx.l10n.sharedTakePhoto), onTap: () => Navigator.pop(ctx, true)),
+          ListTile(leading: const Icon(Icons.photo_library_outlined), title: Text(ctx.l10n.sharedChooseFromLibrary), onTap: () => Navigator.pop(ctx, false)),
           const SizedBox(height: 8),
         ]),
       ),

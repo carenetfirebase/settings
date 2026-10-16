@@ -1,0 +1,8 @@
+{
+  "sharedAiConsentTitle": "Utiliser l'IA pour {feature} ?",
+  "sharedAiConsentMessage": "Pour ce faire, Chefii envoie la photo ou le texte à son fournisseur d'IA (Google Gemini) par l'intermédiaire de nos serveurs sécurisés au Canada. Selon nos ententes, ces données ne servent pas à entraîner ses modèles, et vous pouvez désactiver cette option en tout temps dans Confidentialité et données.",
+  "sharedAiConsentAllow": "Autoriser",
+  "sharedAiConsentNotNow": "Pas maintenant",
+  "sharedTakePhoto": "Prendre une photo",
+  "sharedChooseFromLibrary": "Choisir dans la photothèque"
+}

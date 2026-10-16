@@ -14,6 +14,8 @@ import '../../domain/models/nutrition.dart';
 import '../../domain/models/recipe.dart';
 import '../../domain/recipes/recipe_availability.dart';
 import '../../domain/units/units.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 import '../shared/recipe_logic.dart';
 import 'timers.dart';
 
@@ -23,7 +25,7 @@ Widget _sessionGate(WidgetRef ref, String id, Widget Function(CookingSession s) 
   if (s == null) {
     return Scaffold(
       appBar: AppBar(),
-      body: async.isLoading ? const LoadingState() : const ErrorState(message: 'This cooking session could not be found.'),
+      body: async.isLoading ? const LoadingState() : ErrorState(message: ref.context.l10n.cookingSessionNotFound),
     );
   }
   return builder(s);
@@ -48,19 +50,20 @@ class _PrepChecklistScreenState extends ConsumerState<PrepChecklistScreen> {
       final report = ref.watch(recipeAvailabilityProvider(s.recipe));
       final byName = {for (final c in report.checks) c.ingredient.name: c};
       final items = [...s.recipe.ingredients.map((i) => 'i:${i.name}'), ...s.recipe.equipment.map((e) => 'e:$e')];
+      final l = context.l10n;
       return PremiumAppScaffold(
-        header: EditorialPageHeader(eyebrow: 'Before you begin', title: s.recipe.title, subtitle: '${s.servings} servings · gather everything first'),
+        header: EditorialPageHeader(eyebrow: l.cookingBeforeYouBegin, title: s.recipe.title, subtitle: l.cookingPrepSubtitle(s.servings)),
         primaryAction: PrimaryActionButton(
           icon: Icons.play_arrow_rounded,
-          label: _gathered.length >= items.length ? 'Begin cooking' : 'Begin anyway',
+          label: _gathered.length >= items.length ? l.cookingBeginCooking : l.cookingBeginAnyway,
           onPressed: () async {
             await ref.read(cookingRepoProvider).update(s.copyWith(status: CookingStatus.cooking));
             if (context.mounted) context.pushReplacement('/cook/${s.id}');
           },
         ),
         children: [
-          Text('${_gathered.length} of ${items.length} ready', style: context.text.bodySmall),
-          const SectionHeader('Ingredients', topSpacing: Space.s),
+          Text(l.cookingReadyCount(_gathered.length, items.length), style: context.text.bodySmall),
+          SectionHeader(l.cookingIngredients, topSpacing: Space.s),
           for (final i in s.recipe.ingredients)
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
@@ -68,13 +71,13 @@ class _PrepChecklistScreenState extends ConsumerState<PrepChecklistScreen> {
               onChanged: (v) => setState(() => v == true ? _gathered.add('i:${i.name}') : _gathered.remove('i:${i.name}')),
               title: Text(i.display),
               subtitle: switch (byName[i.name]?.availability) {
-                IngredientAvailability.partial => Text('Kitchen shows ${byName[i.name]!.onHand?.format()} — check you have enough'),
-                IngredientAvailability.missing => const Text('Not in your kitchen records'),
+                IngredientAvailability.partial => Text(l.cookingKitchenShows(byName[i.name]!.onHand == null ? '—' : context.formatQty(byName[i.name]!.onHand!))),
+                IngredientAvailability.missing => Text(l.cookingNotInKitchen),
                 _ => null,
               },
             ),
           if (s.recipe.equipment.isNotEmpty) ...[
-            const SectionHeader('Equipment'),
+            SectionHeader(l.cookingEquipment),
             for (final e in s.recipe.equipment)
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -132,7 +135,7 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
   void _onPage(CookingSession s, int i) {
     HapticFeedback.selectionClick();
     ref.read(cookingRepoProvider).update(s.copyWith(currentStep: i));
-    if (_speak) ref.read(speakerProvider).speak('Step ${i + 1}. ${s.recipe.steps[i].text}');
+    if (_speak) ref.read(speakerProvider).speak(context.l10n.cookingStepSpeech(i + 1, s.recipe.steps[i].text));
   }
 
   @override
@@ -143,23 +146,24 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
       final timers = ref.watch(cookingTimersProvider);
       final current = _pages!.hasClients ? (_pages!.page ?? s.currentStep).round() : s.currentStep;
       final last = current >= steps.length - 1;
+      final l = context.l10n;
       return Scaffold(
         appBar: AppBar(
           title: Text(s.recipe.title, overflow: TextOverflow.ellipsis),
           actions: [
             IconButton(
-              tooltip: _speak ? 'Stop reading steps aloud' : 'Read steps aloud',
+              tooltip: _speak ? l.cookingStopReadingAloud : l.cookingReadAloud,
               onPressed: () {
                 setState(() => _speak = !_speak);
                 if (_speak) {
-                  ref.read(speakerProvider).speak('Step ${current + 1}. ${steps[current].text}');
+                  ref.read(speakerProvider).speak(l.cookingStepSpeech(current + 1, steps[current].text));
                 } else {
                   ref.read(speakerProvider).stop();
                 }
               },
               icon: Icon(_speak ? Icons.volume_up : Icons.volume_off_outlined),
             ),
-            IconButton(tooltip: 'Timers', onPressed: () => context.push('/cook/timers'), icon: Badge(isLabelVisible: timers.isNotEmpty, label: Text('${timers.length}'), child: const Icon(Icons.timer_outlined))),
+            IconButton(tooltip: l.cookingTimers, onPressed: () => context.push('/cook/timers'), icon: Badge(isLabelVisible: timers.isNotEmpty, label: Text('${timers.length}'), child: const Icon(Icons.timer_outlined))), // l10n-ignore
           ],
         ),
         body: SafeArea(
@@ -167,7 +171,7 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
               child: Semantics(
-                label: 'Step ${current + 1} of ${steps.length}',
+                label: l.cookingStepOf(current + 1, steps.length),
                 child: LinearProgressIndicator(value: (current + 1) / steps.length, minHeight: 4),
               ),
             ),
@@ -184,7 +188,7 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
                   return SingleChildScrollView(
                     padding: const EdgeInsets.all(Space.gutter),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('STEP ${i + 1} OF ${steps.length}', style: context.text.labelSmall?.copyWith(color: context.palette.accent)),
+                      Text(l.cookingStepOfCaps(i + 1, steps.length), style: context.text.labelSmall?.copyWith(color: context.palette.accent)),
                       const SizedBox(height: Space.m),
                       Semantics(liveRegion: true, child: Text(st.text, style: context.text.headlineMedium?.copyWith(fontFamily: 'Inter', fontWeight: FontWeight.w500, height: 1.35))),
                       if (st.tip != null) ...[
@@ -202,9 +206,9 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
                         const SizedBox(height: Space.l),
                         SecondaryActionButton(
                           icon: Icons.timer_outlined,
-                          label: 'Start ${st.timerLabel ?? 'timer'} · ${formatMinutes((st.timerSeconds! / 60).round())}',
+                          label: st.timerLabel == null ? l.cookingStartTimer(formatMinutes((st.timerSeconds! / 60).round())) : l.cookingStartNamedTimer(st.timerLabel!, formatMinutes((st.timerSeconds! / 60).round())),
                           onPressed: () {
-                            ref.read(cookingTimersProvider.notifier).start(st.timerLabel ?? 'Step ${i + 1}', Duration(seconds: st.timerSeconds!));
+                            ref.read(cookingTimersProvider.notifier).start(st.timerLabel ?? l.cookingStepTimerLabel(i + 1), Duration(seconds: st.timerSeconds!), l);
                             ref.read(notificationServiceProvider).requestPermission();
                           },
                         ),
@@ -218,12 +222,12 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(Space.gutter, Space.xs, Space.gutter, Space.m),
               child: Row(children: [
-                Expanded(child: SecondaryActionButton(label: 'Back', icon: Icons.arrow_back, onPressed: current == 0 ? null : () => _go(s, current - 1))),
+                Expanded(child: SecondaryActionButton(label: l.commonBack, icon: Icons.arrow_back, onPressed: current == 0 ? null : () => _go(s, current - 1))),
                 const SizedBox(width: Space.s),
                 Expanded(
                   flex: 2,
                   child: PrimaryActionButton(
-                    label: last ? 'Finish cooking' : 'Next step',
+                    label: last ? l.cookingFinishCooking : l.cookingNextStep,
                     icon: last ? Icons.check : Icons.arrow_forward,
                     onPressed: last
                         ? () async {
@@ -260,7 +264,7 @@ class _TimerStrip extends ConsumerWidget {
               padding: const EdgeInsets.only(right: Space.xs),
               child: ActionChip(
                 avatar: Icon(t.finished(now) ? Icons.notifications_active : (t.running ? Icons.timer : Icons.pause), size: 18),
-                label: Text('${t.label} ${t.finished(now) ? 'done' : formatDuration(t.remaining(now))}'),
+                label: Text(t.finished(now) ? context.l10n.cookingTimerChipDone(t.label) : '${t.label} ${formatDuration(t.remaining(now))}'),
                 onPressed: () => context.push('/cook/timers'),
               ),
             ),
@@ -281,13 +285,23 @@ class CookingTimersScreen extends ConsumerStatefulWidget {
 
 class _CookingTimersScreenState extends ConsumerState<CookingTimersScreen> {
   Timer? _tick;
-  final _label = TextEditingController(text: 'Timer');
+  final _label = TextEditingController();
+  bool _labelInit = false;
   int _minutes = 5;
 
   @override
   void initState() {
     super.initState();
     _tick = Timer.periodic(const Duration(seconds: 1), (_) => mounted ? setState(() {}) : null);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_labelInit) {
+      _labelInit = true;
+      _label.text = context.l10n.cookingDefaultTimerName;
+    }
   }
 
   @override
@@ -302,18 +316,19 @@ class _CookingTimersScreenState extends ConsumerState<CookingTimersScreen> {
     final timers = ref.watch(cookingTimersProvider);
     final c = ref.read(cookingTimersProvider.notifier);
     final now = DateTime.now();
+    final l = context.l10n;
     return PremiumAppScaffold(
-      header: const EditorialPageHeader(eyebrow: 'Kitchen', title: 'Timers', subtitle: 'They\'ll alert you even if you leave the app.'),
+      header: EditorialPageHeader(eyebrow: l.cookingKitchenEyebrow, title: l.cookingTimers, subtitle: l.cookingTimersSubtitle),
       primaryAction: PrimaryActionButton(
         icon: Icons.add_alarm,
-        label: 'Start $_minutes min timer',
+        label: l.cookingStartMinutesTimer(_minutes),
         onPressed: () {
-          c.start(_label.text.trim().isEmpty ? 'Timer' : _label.text.trim(), Duration(minutes: _minutes));
+          c.start(_label.text.trim().isEmpty ? l.cookingDefaultTimerName : _label.text.trim(), Duration(minutes: _minutes), l);
           ref.read(notificationServiceProvider).requestPermission();
         },
       ),
       children: [
-        if (timers.isEmpty) const EmptyState(compact: true, icon: Icons.timer_outlined, title: 'No timers running', message: 'Start one from a recipe step, or below.'),
+        if (timers.isEmpty) EmptyState(compact: true, icon: Icons.timer_outlined, title: l.cookingNoTimersTitle, message: l.cookingNoTimersMessage),
         for (final t in timers)
           Card(
             margin: const EdgeInsets.only(bottom: Space.xs),
@@ -326,24 +341,24 @@ class _CookingTimersScreenState extends ConsumerState<CookingTimersScreen> {
                     Text(t.label, style: context.text.titleMedium),
                     Semantics(
                       liveRegion: t.finished(now),
-                      child: Text(t.finished(now) ? 'Done' : formatDuration(t.remaining(now)), style: context.text.displaySmall?.copyWith(fontFamily: 'Inter', fontFeatures: const [FontFeature.tabularFigures()])),
+                      child: Text(t.finished(now) ? l.commonDone : formatDuration(t.remaining(now)), style: context.text.displaySmall?.copyWith(fontFamily: 'Inter', fontFeatures: const [FontFeature.tabularFigures()])),
                     ),
                   ]),
                 ),
                 if (!t.finished(now)) ...[
-                  IconButton(tooltip: '+1 minute', onPressed: () => c.addTime(t.id, const Duration(minutes: 1)), icon: const Icon(Icons.exposure_plus_1)),
-                  IconButton(tooltip: t.running ? 'Pause' : 'Resume', onPressed: () => t.running ? c.pause(t.id) : c.resume(t.id), icon: Icon(t.running ? Icons.pause : Icons.play_arrow)),
+                  IconButton(tooltip: l.cookingAddMinute, onPressed: () => c.addTime(t.id, const Duration(minutes: 1), l), icon: const Icon(Icons.exposure_plus_1)),
+                  IconButton(tooltip: t.running ? l.cookingPause : l.cookingResume, onPressed: () => t.running ? c.pause(t.id) : c.resume(t.id, l), icon: Icon(t.running ? Icons.pause : Icons.play_arrow)),
                 ],
-                IconButton(tooltip: 'Remove', onPressed: () => c.cancel(t.id), icon: const Icon(Icons.close)),
+                IconButton(tooltip: l.commonRemove, onPressed: () => c.cancel(t.id), icon: const Icon(Icons.close)),
               ]),
             ),
           ),
-        const SectionHeader('New timer'),
-        TextField(controller: _label, decoration: const InputDecoration(labelText: 'Name', hintText: 'e.g. Rice')),
+        SectionHeader(l.cookingNewTimer),
+        TextField(controller: _label, decoration: InputDecoration(labelText: l.cookingTimerName, hintText: l.cookingTimerNameHint)),
         const SizedBox(height: Space.s),
         Wrap(spacing: Space.xs, children: [
           for (final m in [1, 3, 5, 10, 15, 20, 30, 45])
-            ChoiceChip(label: Text('$m min'), selected: _minutes == m, onSelected: (_) => setState(() => _minutes = m)),
+            ChoiceChip(label: Text(l.cookingMinutesChip(m)), selected: _minutes == m, onSelected: (_) => setState(() => _minutes = m)),
         ]),
       ],
     );
@@ -369,14 +384,15 @@ class _ConfirmIngredientsScreenState extends ConsumerState<ConfirmIngredientsScr
     return _sessionGate(ref, widget.sessionId, (s) {
       final items = _items ??= List.of(s.consumptions);
       final alreadyApplied = s.inventoryOperationId != null && s.status != CookingStatus.cooking;
+      final l = context.l10n;
       return PremiumAppScaffold(
-        header: const EditorialPageHeader(
-          eyebrow: 'Almost done',
-          title: 'What did you use?',
-          subtitle: 'Adjust anything that differed. This updates your kitchen once.',
+        header: EditorialPageHeader(
+          eyebrow: l.cookingAlmostDone,
+          title: l.cookingWhatDidYouUse,
+          subtitle: l.cookingConfirmSubtitle,
         ),
         primaryAction: PrimaryActionButton(
-          label: alreadyApplied ? 'Continue' : 'Confirm and update kitchen',
+          label: alreadyApplied ? l.commonContinue : l.cookingConfirmAndUpdate,
           loading: _busy,
           onPressed: () async {
             setState(() => _busy = true);
@@ -384,7 +400,7 @@ class _ConfirmIngredientsScreenState extends ConsumerState<ConfirmIngredientsScr
               final r = await ref.read(actionsProvider).confirmCooking(s, items);
               if (!context.mounted) return;
               if (r.discrepancies.isNotEmpty) {
-                showMessage(context, 'Kitchen updated. ${r.discrepancies.length} item${r.discrepancies.length == 1 ? ' wasn\'t' : 's weren\'t'} fully recorded — we\'ll ask you to check later.');
+                showMessage(context, context.l10n.cookingDiscrepancies(r.discrepancies.length));
               }
               context.pushReplacement('/cook/${s.id}/done');
             } catch (e) {
@@ -395,7 +411,7 @@ class _ConfirmIngredientsScreenState extends ConsumerState<ConfirmIngredientsScr
           },
         ),
         children: [
-          if (items.isEmpty) Text('None of these ingredients are tracked in your kitchen, so nothing will change.', style: context.text.bodyMedium),
+          if (items.isEmpty) Text(l.cookingNothingTracked, style: context.text.bodyMedium),
           for (var i = 0; i < items.length; i++)
             Card(
               margin: const EdgeInsets.only(bottom: Space.xs),
@@ -411,15 +427,15 @@ class _ConfirmIngredientsScreenState extends ConsumerState<ConfirmIngredientsScr
                     ),
                     TextButton(
                       onPressed: () => setState(() => items[i] = items[i].copyWith(skipped: !items[i].skipped)),
-                      child: Text(items[i].skipped ? 'Include' : 'Didn\'t use'),
+                      child: Text(items[i].skipped ? l.cookingInclude : l.cookingDidntUse),
                     ),
                   ]),
                   if (!items[i].skipped && items[i].planned != null)
                     Row(children: [
-                      Text('Recipe: ${items[i].planned!.format()}', style: context.text.bodySmall),
+                      Text(l.cookingRecipeAmount(context.formatQty(items[i].planned!)), style: context.text.bodySmall),
                       const Spacer(),
                       QuantityStepper(
-                        label: 'Amount of ${items[i].ingredientName} used',
+                        label: l.cookingAmountUsed(items[i].ingredientName),
                         value: items[i].actual ?? items[i].planned!,
                         min: 0,
                         onChanged: (q) => setState(() => items[i] = items[i].copyWith(actual: q)),
@@ -461,11 +477,13 @@ class _MealCompleteScreenState extends ConsumerState<MealCompleteScreen> {
       final meal = _meal ??= s.recipe.mealTypes.contains(mealTypeFor(DateTime.now())) ? mealTypeFor(DateTime.now()) : s.recipe.mealTypes.first;
       final wellness = ref.watch(wellnessProvider).value;
       final n = s.recipe.nutritionPerServing.scale(_eaten);
+      final l = context.l10n;
+      final eatenAmount = _eaten == _eaten.roundToDouble() ? '${_eaten.round()}' : (Localizations.localeOf(context).languageCode == 'fr' ? '$_eaten'.replaceAll('.', ',') : '$_eaten');
       return PremiumAppScaffold(
         showBack: false,
-        header: EditorialPageHeader(eyebrow: 'Bon appétit', title: s.recipe.title, subtitle: 'Your kitchen has been updated.'),
+        header: EditorialPageHeader(eyebrow: l.cookingBonAppetit, title: s.recipe.title, subtitle: l.cookingKitchenUpdated),
         primaryAction: PrimaryActionButton(
-          label: 'Finish',
+          label: l.cookingFinish,
           loading: _busy,
           onPressed: () async {
             setState(() => _busy = true);
@@ -474,7 +492,7 @@ class _MealCompleteScreenState extends ConsumerState<MealCompleteScreen> {
               if (_favourite) await ref.read(profileRepoProvider).setFavourite(ref.read(uidProvider)!, s.recipe.id, true);
               if (!context.mounted) return;
               context.go('/today');
-              showMessage(context, leftovers > 0 ? 'Logged, and $leftovers portion${leftovers == 1 ? '' : 's'} saved in the fridge.' : 'Logged to your journal.');
+              showMessage(context, leftovers > 0 ? l.cookingLoggedWithLeftovers(leftovers) : l.cookingLoggedToJournal);
             } catch (e) {
               if (context.mounted) showMessage(context, ErrorState.describe(e), error: true);
             } finally {
@@ -483,36 +501,36 @@ class _MealCompleteScreenState extends ConsumerState<MealCompleteScreen> {
           },
         ),
         children: [
-          Text('How was it?', style: context.text.titleMedium),
+          Text(l.cookingHowWasIt, style: context.text.titleMedium),
           Row(children: [
             for (var i = 1; i <= 5; i++)
               IconButton(
-                tooltip: '$i star${i == 1 ? '' : 's'}',
+                tooltip: l.cookingStars(i),
                 onPressed: () => setState(() => _rating = i),
                 icon: Icon(i <= _rating ? Icons.star_rounded : Icons.star_outline_rounded, color: context.palette.accent, size: 32),
               ),
           ]),
-          const SectionHeader('Your portion'),
+          SectionHeader(l.cookingYourPortion),
           Row(children: [
-            Expanded(child: Text('Portions you ate', style: context.text.bodyLarge)),
+            Expanded(child: Text(l.cookingPortionsYouAte, style: context.text.bodyLarge)),
             QuantityStepper(value: Quantity(_eaten, Unit.piece), step: 0.5, min: 0, max: s.servings.toDouble(), onChanged: (q) => setState(() => _eaten = q.amount)),
           ]),
           const SizedBox(height: Space.s),
           Wrap(spacing: Space.xs, children: [
-            for (final m in MealType.values) ChoiceChip(label: Text(m.label), selected: meal == m, onSelected: (_) => setState(() => _meal = m)),
+            for (final m in MealType.values) ChoiceChip(label: Text(context.labelOf(m)), selected: meal == m, onSelected: (_) => setState(() => _meal = m)),
           ]),
           if ((wellness?.showNutritionOnRecipes ?? true) && _eaten > 0) ...[
             const SizedBox(height: Space.m),
-            NutritionSummaryCard(nutrition: n, title: 'Your meal', subtitle: '${_eaten == _eaten.roundToDouble() ? _eaten.round() : _eaten} portion${_eaten == 1 ? '' : 's'}', showCalories: wellness?.calorieTracking ?? false),
+            NutritionSummaryCard(nutrition: n, title: l.cookingYourMeal, subtitle: l.cookingPortionCount(_eaten, eatenAmount), showCalories: wellness?.calorieTracking ?? false),
           ],
-          const SectionHeader('Leftovers'),
+          SectionHeader(l.cookingLeftovers),
           Row(children: [
-            Expanded(child: Text('Portions to save', style: context.text.bodyLarge)),
+            Expanded(child: Text(l.cookingPortionsToSave, style: context.text.bodyLarge)),
             QuantityStepper(value: Quantity(leftovers.toDouble(), Unit.piece), step: 1, min: 0, max: 20, onChanged: (q) => setState(() => _leftovers = q.amount.round())),
           ]),
-          if (leftovers > 0) Text('We\'ll add them to your fridge with a reminder to eat them within 3 days.', style: context.text.bodySmall),
+          if (leftovers > 0) Text(l.cookingLeftoversReminder, style: context.text.bodySmall),
           const SizedBox(height: Space.m),
-          ToggleTile(title: 'Save to favourites', value: _favourite, onChanged: (v) => setState(() => _favourite = v), icon: Icons.favorite_border),
+          ToggleTile(title: l.cookingSaveFavourite, value: _favourite, onChanged: (v) => setState(() => _favourite = v), icon: Icons.favorite_border),
         ],
       );
     });

@@ -177,9 +177,9 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> {
     } on DuplicateReceiptException catch (e) {
       if (mounted) context.push('/receipt/${e.existing.id}/error?reason=duplicate');
     } on ReceiptValidationException catch (e) {
-      setState(() => _error = e.message);
+      setState(() => _error = ErrorState.describeIn(context, e));
     } catch (e) {
-      setState(() => _error = ErrorState.describe(e));
+      setState(() => _error = ErrorState.describeIn(context, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -544,7 +544,7 @@ class _CorrectItemSheetState extends ConsumerState<CorrectItemSheet> {
       await _save2(updated.matchedProductId == '' ? _clearMatch(updated) : updated);
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) showMessage(context, ErrorState.describe(e), error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -725,9 +725,9 @@ class _StorageAssignmentScreenState extends ConsumerState<StorageAssignmentScree
       await ref.read(actionsProvider).confirmReceipt(r);
       if (mounted) context.go('/receipt/${r.id}/done');
     } on ReceiptValidationException catch (e) {
-      setState(() => _error = e.message);
+      setState(() => _error = ErrorState.describeIn(context, e));
     } catch (e) {
-      setState(() => _error = ErrorState.describe(e));
+      setState(() => _error = ErrorState.describeIn(context, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -909,7 +909,7 @@ class ReceiptDoneScreen extends ConsumerWidget {
                 final res = await ref.read(actionsProvider).undo(r.importOperationId!);
                 if (context.mounted) showMessage(context, res.operation.summary);
               } catch (e) {
-                if (context.mounted) showMessage(context, ErrorState.describe(e), error: true);
+                if (context.mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
               }
             },
           ),

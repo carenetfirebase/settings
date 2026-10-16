@@ -416,9 +416,9 @@ class SecurityScreen extends ConsumerWidget {
                   await ref.read(authServiceProvider).signOut();
                   if (context.mounted) context.go('/welcome');
                 } on AuthException catch (e) {
-                  if (context.mounted) showMessage(context, e.message, error: true);
+                  if (context.mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
                 } catch (e) {
-                  if (context.mounted) showMessage(context, ErrorState.describe(e), error: true);
+                  if (context.mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
                 }
               },
             ),
@@ -561,9 +561,9 @@ class _DataControlsScreenState extends ConsumerState<DataControlsScreen> {
       final file = XFile.fromData(Uint8List.fromList(utf8.encode(json)), mimeType: 'application/json', name: 'chefii-export.json');
       await SharePlus.instance.share(ShareParams(files: [file], subject: subject));
     } on AuthException catch (e) {
-      if (mounted) showMessage(context, e.message, error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } catch (e) {
-      if (mounted) showMessage(context, ErrorState.describe(e), error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -586,9 +586,9 @@ class _DataControlsScreenState extends ConsumerState<DataControlsScreen> {
       await auth.deleteAccount();
       if (mounted) context.go('/welcome');
     } on AuthException catch (e) {
-      if (mounted) showMessage(context, e.message, error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } catch (e) {
-      if (mounted) showMessage(context, ErrorState.describe(e), error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -404,7 +404,7 @@ class _ConfirmIngredientsScreenState extends ConsumerState<ConfirmIngredientsScr
               }
               context.pushReplacement('/cook/${s.id}/done');
             } catch (e) {
-              if (context.mounted) showMessage(context, ErrorState.describe(e), error: true);
+              if (context.mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
             } finally {
               if (mounted) setState(() => _busy = false);
             }
@@ -494,7 +494,7 @@ class _MealCompleteScreenState extends ConsumerState<MealCompleteScreen> {
               context.go('/today');
               showMessage(context, leftovers > 0 ? l.cookingLoggedWithLeftovers(leftovers) : l.cookingLoggedToJournal);
             } catch (e) {
-              if (context.mounted) showMessage(context, ErrorState.describe(e), error: true);
+              if (context.mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
             } finally {
               if (mounted) setState(() => _busy = false);
             }

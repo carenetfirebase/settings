@@ -24,7 +24,7 @@ void reportOperation(BuildContext context, WidgetRef ref, OperationResult r) {
     try {
       await ref.read(actionsProvider).undo(r.operation.id);
     } catch (e) {
-      if (context.mounted) showMessage(context, ErrorState.describe(e), error: true);
+      if (context.mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     }
   });
 }
@@ -86,7 +86,7 @@ class _QuickAdjustSheetState extends ConsumerState<QuickAdjustSheet> {
       Navigator.pop(context);
       reportOperation(context, ref, r);
     } catch (e) {
-      if (mounted) showMessage(context, ErrorState.describe(e), error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -102,7 +102,7 @@ class _QuickAdjustSheetState extends ConsumerState<QuickAdjustSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(lot.productName, style: context.text.headlineSmall),
+            Text(context.productName(lot.productId, lot.productName), style: context.text.headlineSmall),
             Text(context.l10n.kitchenRecorded(context.formatQty(lot.quantity)), style: context.text.bodySmall),
             const SizedBox(height: Space.m),
             SegmentedButton<AdjustMode>(
@@ -260,9 +260,9 @@ class _KitchenCommandSheetState extends ConsumerState<KitchenCommandSheet> {
       Navigator.pop(context);
       reportOperation(context, ref, r);
     } on InventoryException catch (e) {
-      if (mounted) setState(() => _hint = e.message);
+      if (mounted) setState(() => _hint = ErrorState.describeIn(context, e));
     } catch (e) {
-      if (mounted) showMessage(context, ErrorState.describe(e), error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -392,7 +392,7 @@ class _StorageLocationsSheetState extends ConsumerState<StorageLocationsSheet> {
       await f(hid);
       if (mounted && done != null) showMessage(context, done);
     } catch (e) {
-      if (mounted) showMessage(context, ErrorState.describe(e), error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

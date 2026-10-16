@@ -312,7 +312,7 @@ class IngredientCard extends StatelessWidget {
                     : l.coreDaysLeft(days);
     return Semantics(
       button: onTap != null,
-      label: [lot.productName, qty, context.labelOf(status), ?freshness].join(', '),
+      label: [context.productName(lot.productId, lot.productName), qty, context.labelOf(status), ?freshness].join(', '),
       excludeSemantics: true,
       child: Card(
         child: InkWell(
@@ -333,7 +333,7 @@ class IngredientCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(lot.productName, style: context.text.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(context.productName(lot.productId, lot.productName), style: context.text.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 2),
                       Wrap(
                         spacing: Space.xs,

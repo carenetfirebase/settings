@@ -37,7 +37,7 @@ class ChefChat extends Notifier<List<ChefMessage>> {
       ref.read(recipeCacheProvider.notifier).putAll(reply.recipes);
       state = [...state, reply];
     } on AiUnavailableException catch (e) {
-      state = [...state, ChefMessage(fromUser: false, text: l.chefChatUnavailable(e.message))];
+      state = [...state, ChefMessage(fromUser: false, text: l.chefChatUnavailable(ErrorState.describeWith(l, e)))];
     } catch (_) {
       state = [...state, ChefMessage(fromUser: false, text: l.chefChatError)];
     } finally {
@@ -374,7 +374,7 @@ class _RecipeResultsScreenState extends ConsumerState<RecipeResultsScreen> {
         if (result?.isDemo == true) DemoBanner(message: l.chefDemoResults),
         if (async.isLoading) LoadingState(message: l.chefConsidering),
         if (async.hasError)
-          ErrorState(message: async.error is AiUnavailableException ? (async.error as AiUnavailableException).message : ErrorState.describe(async.error!), onRetry: () => ref.invalidate(chefResultsProvider)),
+          ErrorState(message: ErrorState.describeIn(context, async.error!), onRetry: () => ref.invalidate(chefResultsProvider)),
         if (result != null && suggestions.isEmpty && !async.isLoading)
           EmptyState(icon: Icons.search_off, title: l.chefNoMoreIdeasTitle, message: l.chefNoMoreIdeasMessage, actionLabel: l.chefAdjust, onAction: () => context.pop()),
         if (result != null && result.filteredForSafety > 0)

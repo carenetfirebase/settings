@@ -101,6 +101,11 @@ describe('product matching', () => {
   it('matches receipt abbreviations like the app does', () => {
     expect(bestMatch('BNLS SKNLS CHKN BRST')?.product.id).toBe('chicken_breast');
     expect(bestMatch('MLK 2%')?.product.id).toBe('milk');
+    // Québec receipts are often printed in French, in capitals, without accents.
+    expect(bestMatch('OEUFS GROS CAL 12')?.product.id).toBe('egg');
+    expect(bestMatch('LAIT 2% 4L')?.product.id).toBe('milk');
+    expect(bestMatch('BOEUF HACHE MAIGRE')?.product.id).toBe('ground_beef');
+    expect(bestMatch('POMMES DE TERRE')?.product.id).toBe('potato');
     expect(bestMatch('dish soap')).toBeNull();
   });
 });

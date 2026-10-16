@@ -313,7 +313,7 @@ class _QuickMealEntryScreenState extends ConsumerState<QuickMealEntryScreen> {
         _recipe = null;
       });
     } on AiUnavailableException catch (e) {
-      if (mounted) showMessage(context, e.message, error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

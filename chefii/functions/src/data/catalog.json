@@ -10,7 +10,16 @@
       "large eggs",
       "eggs dozen",
       "omega 3 eggs",
-      "free run eggs"
+      "free run eggs",
+      "Œufs",
+      "oeufs",
+      "oeuf",
+      "gros oeufs",
+      "oeufs gros",
+      "oeufs calibre gros",
+      "oeufs omega 3",
+      "douzaine oeufs",
+      "oeufs gros cal"
     ],
     "allergens": [
       "egg"
@@ -38,7 +47,13 @@
       "mlk 2%",
       "2% milk",
       "milk 2 pct",
-      "partly skimmed milk"
+      "partly skimmed milk",
+      "Lait (2 %)",
+      "lait",
+      "lait 2%",
+      "lait 2 %",
+      "lait partiellement ecreme",
+      "lait 2 pc"
     ],
     "allergens": [
       "milk"
@@ -65,7 +80,12 @@
     "aliases": [
       "unsalted butter",
       "salted butter",
-      "btr"
+      "btr",
+      "Beurre",
+      "beurre",
+      "beurre sale",
+      "beurre non sale",
+      "beurre doux"
     ],
     "allergens": [
       "milk"
@@ -92,7 +112,12 @@
     "aliases": [
       "greek yog",
       "plain greek yogurt",
-      "yogurt greek 2%"
+      "yogurt greek 2%",
+      "Yogourt grec",
+      "yogourt grec",
+      "yogourt",
+      "yaourt grec",
+      "yog grec"
     ],
     "allergens": [
       "milk"
@@ -119,7 +144,12 @@
     "aliases": [
       "old cheddar",
       "chdr",
-      "cheddar cheese"
+      "cheddar cheese",
+      "Cheddar vieilli",
+      "cheddar",
+      "fromage cheddar",
+      "cheddar fort",
+      "cheddar vieilli"
     ],
     "allergens": [
       "milk"
@@ -146,7 +176,11 @@
     "aliases": [
       "parmesan",
       "parm reg",
-      "parmigiano"
+      "parmigiano",
+      "Parmigiano Reggiano",
+      "parmesan",
+      "parmigiano",
+      "fromage parmesan"
     ],
     "allergens": [
       "milk"
@@ -171,7 +205,10 @@
     "defaultUnit": "g",
     "defaultStorage": "fridge",
     "aliases": [
-      "feta cheese"
+      "feta cheese",
+      "Feta",
+      "feta",
+      "fromage feta"
     ],
     "allergens": [
       "milk"
@@ -195,7 +232,10 @@
     "category": "dairy",
     "defaultUnit": "g",
     "defaultStorage": "fridge",
-    "aliases": [],
+    "aliases": [
+      "Ricotta",
+      "ricotta"
+    ],
     "allergens": [
       "milk"
     ],
@@ -221,7 +261,12 @@
     "aliases": [
       "whip cream 35",
       "heavy cream",
-      "whipping cream"
+      "whipping cream",
+      "Crème à fouetter (35 %)",
+      "creme 35%",
+      "creme a fouetter",
+      "creme 35 %",
+      "creme epaisse"
     ],
     "allergens": [
       "milk"
@@ -248,7 +293,12 @@
     "aliases": [
       "bnls sknls chkn brst",
       "chicken breast boneless",
-      "chkn brst"
+      "chkn brst",
+      "Poitrine de poulet",
+      "poitrine de poulet",
+      "poitrines poulet",
+      "poulet poitrine",
+      "poitr poulet"
     ],
     "allergens": [],
     "gramsPerPiece": 200.0,
@@ -273,7 +323,12 @@
     "aliases": [
       "lean grnd beef",
       "ground beef lean",
-      "grd beef"
+      "grd beef",
+      "Bœuf haché maigre",
+      "boeuf hache",
+      "boeuf hache maigre",
+      "hache maigre",
+      "boeuf hache mi maigre"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -298,7 +353,11 @@
     "aliases": [
       "atl salmon fillet",
       "salmon portions",
-      "salmon fil"
+      "salmon fil",
+      "Filet de saumon",
+      "saumon",
+      "filet de saumon",
+      "saumon atlantique"
     ],
     "allergens": [
       "fish"
@@ -325,7 +384,12 @@
     "aliases": [
       "frz shrimp",
       "raw shrimp",
-      "shrimp 31/40"
+      "shrimp 31/40",
+      "Crevettes",
+      "crevettes",
+      "crevette",
+      "crevettes cuites",
+      "crevettes crues"
     ],
     "allergens": [
       "shellfish"
@@ -349,7 +413,12 @@
     "category": "seafood",
     "defaultUnit": "g",
     "defaultStorage": "fridge",
-    "aliases": [],
+    "aliases": [
+      "Filet de morue",
+      "morue",
+      "filet de morue",
+      "cabillaud"
+    ],
     "allergens": [
       "fish"
     ],
@@ -374,7 +443,9 @@
     "defaultStorage": "fridge",
     "aliases": [
       "smkd salmon",
-      "lox"
+      "lox",
+      "Saumon fumé",
+      "saumon fume"
     ],
     "allergens": [
       "fish"
@@ -400,7 +471,11 @@
     "defaultStorage": "fridge",
     "aliases": [
       "tofu firm",
-      "extra firm tofu"
+      "extra firm tofu",
+      "Tofu ferme",
+      "tofu",
+      "tofu ferme",
+      "tofu extra ferme"
     ],
     "allergens": [
       "soy"
@@ -427,7 +502,10 @@
     "aliases": [
       "chick peas",
       "garbanzo",
-      "chickpeas 540ml"
+      "chickpeas 540ml",
+      "Pois chiches (cuits)",
+      "pois chiches",
+      "pois chiche"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -451,7 +529,10 @@
     "defaultStorage": "pantry",
     "aliases": [
       "blk beans",
-      "black beans 540ml"
+      "black beans 540ml",
+      "Haricots noirs (cuits)",
+      "haricots noirs",
+      "feves noires"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -475,7 +556,10 @@
     "defaultStorage": "pantry",
     "aliases": [
       "red lentils",
-      "split red lentils"
+      "split red lentils",
+      "Lentilles rouges (sèches)",
+      "lentilles rouges",
+      "lentilles"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -500,7 +584,10 @@
     "aliases": [
       "basmati",
       "white rice",
-      "jasmine rice"
+      "jasmine rice",
+      "Riz basmati",
+      "riz basmati",
+      "riz"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -526,7 +613,13 @@
       "spaghetti",
       "penne",
       "linguine",
-      "rigatoni"
+      "rigatoni",
+      "Pâtes sèches",
+      "pates",
+      "pates alimentaires",
+      "spaghetti",
+      "penne",
+      "macaroni"
     ],
     "allergens": [
       "wheat",
@@ -554,7 +647,12 @@
     "aliases": [
       "large flake oats",
       "quick oats",
-      "rolled oats"
+      "rolled oats",
+      "Flocons d’avoine",
+      "flocons d'avoine",
+      "flocons avoine",
+      "gruau",
+      "avoine"
     ],
     "allergens": [
       "gluten"
@@ -578,7 +676,10 @@
     "category": "grains",
     "defaultUnit": "g",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Quinoa",
+      "quinoa"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": 0.72,
@@ -603,7 +704,11 @@
       "sourdough",
       "bread loaf",
       "ww bread",
-      "whole wheat bread"
+      "whole wheat bread",
+      "Pain au levain",
+      "pain au levain",
+      "pain",
+      "pain levain"
     ],
     "allergens": [
       "wheat",
@@ -630,7 +735,11 @@
     "defaultStorage": "pantry",
     "aliases": [
       "ap flour",
-      "all purpose flour"
+      "all purpose flour",
+      "Farine tout usage",
+      "farine",
+      "farine tout usage",
+      "farine blanche"
     ],
     "allergens": [
       "wheat",
@@ -656,7 +765,11 @@
     "defaultUnit": "piece",
     "defaultStorage": "fridge",
     "aliases": [
-      "corn tortilla"
+      "corn tortilla",
+      "Tortillas de maïs",
+      "tortillas de mais",
+      "tortillas mais",
+      "tortillas"
     ],
     "allergens": [],
     "gramsPerPiece": 26.0,
@@ -681,7 +794,11 @@
     "aliases": [
       "bby spinach",
       "spinach 142g",
-      "organic spinach"
+      "organic spinach",
+      "Bébés épinards",
+      "epinards",
+      "bebes epinards",
+      "jeunes epinards"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -703,7 +820,11 @@
     "category": "produce",
     "defaultUnit": "g",
     "defaultStorage": "fridge",
-    "aliases": [],
+    "aliases": [
+      "Chou frisé",
+      "chou frise",
+      "kale"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": null,
@@ -727,7 +848,11 @@
     "aliases": [
       "tomatoes on vine",
       "tov",
-      "roma tomatoes"
+      "roma tomatoes",
+      "Tomates",
+      "tomates",
+      "tomate",
+      "tomates rouges"
     ],
     "allergens": [],
     "gramsPerPiece": 120.0,
@@ -751,7 +876,11 @@
     "defaultStorage": "fridge",
     "aliases": [
       "cherry tom",
-      "grape tomatoes"
+      "grape tomatoes",
+      "Tomates cerises",
+      "tomates cerises",
+      "tomate cerise",
+      "tomates raisins"
     ],
     "allergens": [],
     "gramsPerPiece": 17.0,
@@ -775,7 +904,10 @@
     "defaultStorage": "pantry",
     "aliases": [
       "crushed tomatoes 796ml",
-      "canned tomatoes"
+      "canned tomatoes",
+      "Tomates broyées (conserve)",
+      "tomates broyees",
+      "tomates concassees"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -800,7 +932,12 @@
     "aliases": [
       "ylw onions",
       "cooking onions",
-      "onions 3lb"
+      "onions 3lb",
+      "Oignons jaunes",
+      "oignons",
+      "oignon",
+      "oignons jaunes",
+      "oignon jaune"
     ],
     "allergens": [],
     "gramsPerPiece": 150.0,
@@ -824,7 +961,12 @@
     "defaultStorage": "pantry",
     "aliases": [
       "garlic bulb",
-      "garlic 3pk"
+      "garlic 3pk",
+      "Ail",
+      "ail",
+      "gousses ail",
+      "gousse d'ail",
+      "tete ail"
     ],
     "allergens": [],
     "gramsPerPiece": 5.0,
@@ -847,7 +989,10 @@
     "defaultUnit": "g",
     "defaultStorage": "fridge",
     "aliases": [
-      "carrots 2lb"
+      "carrots 2lb",
+      "Carottes",
+      "carottes",
+      "carotte"
     ],
     "allergens": [],
     "gramsPerPiece": 60.0,
@@ -872,7 +1017,11 @@
     "aliases": [
       "red pepper",
       "sweet pepper red",
-      "peppers red"
+      "peppers red",
+      "Poivron rouge",
+      "poivron rouge",
+      "poivron",
+      "poivrons"
     ],
     "allergens": [],
     "gramsPerPiece": 150.0,
@@ -896,7 +1045,10 @@
     "defaultStorage": "fridge",
     "aliases": [
       "broccoli crown",
-      "brocc"
+      "brocc",
+      "Brocoli",
+      "brocoli",
+      "brocolis"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -919,7 +1071,11 @@
     "defaultUnit": "piece",
     "defaultStorage": "fridge",
     "aliases": [
-      "zucchini green"
+      "zucchini green",
+      "Courgette",
+      "courgette",
+      "courgettes",
+      "zucchini"
     ],
     "allergens": [],
     "gramsPerPiece": 200.0,
@@ -944,7 +1100,12 @@
     "aliases": [
       "mushrooms",
       "cremini",
-      "brown mushrooms"
+      "brown mushrooms",
+      "Champignons cremini",
+      "champignons",
+      "champignon",
+      "champignons bruns",
+      "cremini"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -968,7 +1129,13 @@
     "defaultStorage": "pantry",
     "aliases": [
       "yukon gold",
-      "potatoes 5lb"
+      "potatoes 5lb",
+      "Pommes de terre Yukon Gold",
+      "pommes de terre",
+      "patates",
+      "patate",
+      "pdt yukon",
+      "pommes de terre yukon"
     ],
     "allergens": [],
     "gramsPerPiece": 170.0,
@@ -990,7 +1157,11 @@
     "category": "produce",
     "defaultUnit": "piece",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Patate douce",
+      "patate douce",
+      "patates douces"
+    ],
     "allergens": [],
     "gramsPerPiece": 200.0,
     "gramsPerMl": null,
@@ -1013,7 +1184,10 @@
     "defaultStorage": "pantry",
     "aliases": [
       "avocado hass",
-      "hass avocado"
+      "hass avocado",
+      "Avocats",
+      "avocats",
+      "avocat"
     ],
     "allergens": [],
     "gramsPerPiece": 150.0,
@@ -1036,7 +1210,10 @@
     "defaultUnit": "piece",
     "defaultStorage": "fridge",
     "aliases": [
-      "lemon"
+      "lemon",
+      "Citrons",
+      "citrons",
+      "citron"
     ],
     "allergens": [],
     "gramsPerPiece": 58.0,
@@ -1058,7 +1235,11 @@
     "category": "produce",
     "defaultUnit": "piece",
     "defaultStorage": "fridge",
-    "aliases": [],
+    "aliases": [
+      "Limes",
+      "limes",
+      "lime"
+    ],
     "allergens": [],
     "gramsPerPiece": 44.0,
     "gramsPerMl": null,
@@ -1082,7 +1263,12 @@
     "aliases": [
       "honeycrisp",
       "gala apples",
-      "apples 3lb"
+      "apples 3lb",
+      "Pommes",
+      "pommes",
+      "pomme",
+      "pommes mcintosh",
+      "pommes gala"
     ],
     "allergens": [],
     "gramsPerPiece": 180.0,
@@ -1106,7 +1292,10 @@
     "defaultStorage": "pantry",
     "aliases": [
       "bananas",
-      "banana"
+      "banana",
+      "Bananes",
+      "bananes",
+      "banane"
     ],
     "allergens": [],
     "gramsPerPiece": 118.0,
@@ -1130,7 +1319,11 @@
     "defaultStorage": "fridge",
     "aliases": [
       "blueberry 1pt",
-      "bluebrry"
+      "bluebrry",
+      "Bleuets",
+      "bleuets",
+      "bleuet",
+      "myrtilles"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -1153,7 +1346,10 @@
     "defaultUnit": "g",
     "defaultStorage": "fridge",
     "aliases": [
-      "strawberry 1lb"
+      "strawberry 1lb",
+      "Fraises",
+      "fraises",
+      "fraise"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -1177,7 +1373,10 @@
     "defaultStorage": "fridge",
     "aliases": [
       "eng cucumber",
-      "cucumber eng"
+      "cucumber eng",
+      "Concombre anglais",
+      "concombre",
+      "concombre anglais"
     ],
     "allergens": [],
     "gramsPerPiece": 300.0,
@@ -1201,7 +1400,12 @@
     "defaultStorage": "fridge",
     "aliases": [
       "spring mix",
-      "mesclun"
+      "mesclun",
+      "Mesclun",
+      "mesclun",
+      "laitue melangee",
+      "salade melangee",
+      "laitue"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -1223,7 +1427,10 @@
     "category": "produce",
     "defaultUnit": "g",
     "defaultStorage": "fridge",
-    "aliases": [],
+    "aliases": [
+      "Gingembre frais",
+      "gingembre"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": null,
@@ -1245,7 +1452,11 @@
     "defaultUnit": "g",
     "defaultStorage": "fridge",
     "aliases": [
-      "italian parsley"
+      "italian parsley",
+      "Persil italien",
+      "persil",
+      "persil italien",
+      "persil plat"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -1267,7 +1478,10 @@
     "category": "produce",
     "defaultUnit": "g",
     "defaultStorage": "fridge",
-    "aliases": [],
+    "aliases": [
+      "Basilic frais",
+      "basilic"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": null,
@@ -1288,7 +1502,10 @@
     "category": "produce",
     "defaultUnit": "g",
     "defaultStorage": "fridge",
-    "aliases": [],
+    "aliases": [
+      "Coriandre",
+      "coriandre"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": null,
@@ -1311,7 +1528,11 @@
     "defaultStorage": "freezer",
     "aliases": [
       "frz peas",
-      "green peas"
+      "green peas",
+      "Petits pois surgelés",
+      "petits pois",
+      "pois verts",
+      "pois surgeles"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -1335,7 +1556,11 @@
     "defaultStorage": "pantry",
     "aliases": [
       "evoo",
-      "olive oil extra virgin"
+      "olive oil extra virgin",
+      "Huile d’olive extra vierge",
+      "huile d'olive",
+      "huile olive",
+      "huile olive extra vierge"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -1357,7 +1582,11 @@
     "category": "condiments",
     "defaultUnit": "ml",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Huile de sésame grillé",
+      "huile de sesame",
+      "huile sesame"
+    ],
     "allergens": [
       "sesame"
     ],
@@ -1380,7 +1609,11 @@
     "category": "condiments",
     "defaultUnit": "ml",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Sauce soya",
+      "sauce soya",
+      "sauce soja"
+    ],
     "allergens": [
       "soy",
       "wheat",
@@ -1405,7 +1638,11 @@
     "category": "condiments",
     "defaultUnit": "g",
     "defaultStorage": "fridge",
-    "aliases": [],
+    "aliases": [
+      "Miso blanc",
+      "miso",
+      "miso blanc"
+    ],
     "allergens": [
       "soy"
     ],
@@ -1428,7 +1665,12 @@
     "category": "condiments",
     "defaultUnit": "g",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Tahini",
+      "tahini",
+      "tahin",
+      "beurre de sesame"
+    ],
     "allergens": [
       "sesame"
     ],
@@ -1452,7 +1694,10 @@
     "defaultUnit": "ml",
     "defaultStorage": "pantry",
     "aliases": [
-      "coconut milk 400ml"
+      "coconut milk 400ml",
+      "Lait de coco (conserve)",
+      "lait de coco",
+      "lait coco"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -1477,7 +1722,11 @@
     "aliases": [
       "veg broth",
       "vegetable broth",
-      "stock 900ml"
+      "stock 900ml",
+      "Bouillon de légumes réduit en sodium",
+      "bouillon de legumes",
+      "bouillon legumes",
+      "bouillon"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -1499,7 +1748,10 @@
     "category": "pantry",
     "defaultUnit": "ml",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Miel",
+      "miel"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": 1.42,
@@ -1521,7 +1773,11 @@
     "defaultUnit": "ml",
     "defaultStorage": "pantry",
     "aliases": [
-      "pure maple syrup"
+      "pure maple syrup",
+      "Sirop d’érable",
+      "sirop d'erable",
+      "sirop erable",
+      "sirop"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -1543,7 +1799,12 @@
     "category": "pantry",
     "defaultUnit": "g",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Sucre granulé",
+      "sucre",
+      "sucre granule",
+      "sucre blanc"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": 0.85,
@@ -1564,7 +1825,11 @@
     "category": "spices",
     "defaultUnit": "g",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Sel de mer",
+      "sel",
+      "sel de mer"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": 1.2,
@@ -1585,7 +1850,11 @@
     "category": "spices",
     "defaultUnit": "g",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Poivre noir",
+      "poivre",
+      "poivre noir"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": 0.46,
@@ -1606,7 +1875,11 @@
     "category": "spices",
     "defaultUnit": "g",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Cumin moulu",
+      "cumin",
+      "cumin moulu"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": 0.4,
@@ -1627,7 +1900,12 @@
     "category": "spices",
     "defaultUnit": "g",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Flocons de piment",
+      "flocons de piment",
+      "piment broye",
+      "piment fort"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": 0.4,
@@ -1648,7 +1926,11 @@
     "category": "snacks",
     "defaultUnit": "g",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Amandes",
+      "amandes",
+      "amande"
+    ],
     "allergens": [
       "tree_nut"
     ],
@@ -1671,7 +1953,11 @@
     "category": "snacks",
     "defaultUnit": "g",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Noix de Grenoble",
+      "noix de grenoble",
+      "noix"
+    ],
     "allergens": [
       "tree_nut"
     ],
@@ -1696,7 +1982,11 @@
     "defaultStorage": "pantry",
     "aliases": [
       "pb natural",
-      "peanut butter"
+      "peanut butter",
+      "Beurre d’arachide naturel",
+      "beurre d'arachide",
+      "beurre arachide",
+      "beurre arachides"
     ],
     "allergens": [
       "peanut"
@@ -1720,7 +2010,11 @@
     "category": "pantry",
     "defaultUnit": "g",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Graines de chia",
+      "graines de chia",
+      "chia"
+    ],
     "allergens": [],
     "gramsPerPiece": null,
     "gramsPerMl": 0.65,
@@ -1742,7 +2036,10 @@
     "defaultUnit": "g",
     "defaultStorage": "pantry",
     "aliases": [
-      "dark choc 70"
+      "dark choc 70",
+      "Chocolat noir (70 %)",
+      "chocolat noir",
+      "chocolat 70%"
     ],
     "allergens": [
       "milk"
@@ -1766,7 +2063,11 @@
     "category": "condiments",
     "defaultUnit": "ml",
     "defaultStorage": "pantry",
-    "aliases": [],
+    "aliases": [
+      "Vinaigre balsamique",
+      "vinaigre balsamique",
+      "balsamique"
+    ],
     "allergens": [
       "sulphites"
     ],
@@ -1789,7 +2090,12 @@
     "category": "condiments",
     "defaultUnit": "g",
     "defaultStorage": "fridge",
-    "aliases": [],
+    "aliases": [
+      "Moutarde de Dijon",
+      "moutarde de dijon",
+      "moutarde dijon",
+      "moutarde"
+    ],
     "allergens": [
       "mustard"
     ],
@@ -1814,7 +2120,10 @@
     "defaultStorage": "fridge",
     "aliases": [
       "oj",
-      "orange jc"
+      "orange jc",
+      "Jus d’orange",
+      "jus d'orange",
+      "jus orange"
     ],
     "allergens": [],
     "gramsPerPiece": null,
@@ -1838,7 +2147,10 @@
     "defaultStorage": "pantry",
     "aliases": [
       "soda water",
-      "mineral water"
+      "mineral water",
+      "Eau pétillante",
+      "eau petillante",
+      "eau gazeuse"
     ],
     "allergens": [],
     "gramsPerPiece": null,

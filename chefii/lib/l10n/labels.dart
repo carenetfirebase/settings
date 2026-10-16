@@ -13,12 +13,24 @@ import '../domain/models/profile.dart';
 import '../domain/models/receipt.dart';
 import '../domain/models/recipe.dart';
 import '../domain/units/units.dart';
+import '../domain/catalog/catalog.dart';
+import '../domain/catalog/catalog_fr.dart';
 import 'l10n.dart';
 
 /// Translated display names for domain values. Use `context.labelOf(x)`
 /// instead of `x.label` in UI code.
 extension LocalizedLabels on BuildContext {
   String labelOf(Object value) => localizedLabel(l10n, value);
+
+  /// Display name for a food. Catalogue foods show their French name in
+  /// French, but only while the stored name is still the catalogue's English
+  /// name — anything a person typed is shown exactly as typed.
+  String productName(String productId, String storedName) {
+    if (Localizations.localeOf(this).languageCode != 'fr') return storedName;
+    final fr = catalogFrench[productId];
+    final en = catalogById[productId]?.product.name;
+    return fr != null && en != null && en.toLowerCase() == storedName.toLowerCase() ? fr.name : storedName;
+  }
 
   /// Allergen key from AllergenGuard ('peanut', 'tree_nut', ...).
   String allergenLabel(String key) => localizedAllergen(l10n, key);

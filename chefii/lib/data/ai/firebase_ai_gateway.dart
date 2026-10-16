@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+import '../../l10n/l10n.dart';
+
 import '../../domain/catalog/catalog.dart';
 import '../../domain/models/inventory.dart';
 import '../../domain/models/nutrition.dart';
@@ -36,7 +38,8 @@ class FirebaseAiGateway implements AiGateway {
     try {
       final res = await _functions
           .httpsCallable(name, options: HttpsCallableOptions(timeout: _timeout))
-          .call<Map<String, dynamic>>(data);
+          // The server answers chef, chat and meal requests in this language.
+          .call<Map<String, dynamic>>({...data, 'language': ActiveLanguage.tag});
       return Map<String, dynamic>.from(res.data);
     } on FirebaseFunctionsException catch (e) {
       final retryable = e.code == 'unavailable' || e.code == 'deadline-exceeded' || e.code == 'resource-exhausted';

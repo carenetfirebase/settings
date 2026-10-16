@@ -47,6 +47,8 @@ class InventoryCommand {
 ///
 /// Examples: "I used two eggs", "add 1 kg flour", "threw out the spinach",
 /// "we're out of milk", "there are 4 apples left", "used 250 ml of milk".
+/// Canadian French too: « j'ai utilisé deux œufs », « on n'a plus de lait »,
+/// « j'ai jeté les épinards », « il reste 4 pommes », « 250 ml de lait ».
 class InventoryCommandParser {
   InventoryCommandParser(this.matcher);
 
@@ -57,7 +59,19 @@ class InventoryCommandParser {
     'seven': 7.0, 'eight': 8.0, 'nine': 9.0, 'ten': 10.0, 'eleven': 11.0, 'twelve': 12.0, 'half': 0.5,
     'half a': 0.5, 'a half': 0.5, 'a couple of': 2.0, 'a couple': 2.0, 'couple of': 2.0, 'a dozen': 12.0,
     'dozen': 12.0, 'a few': 3.0, 'quarter': 0.25, 'a quarter': 0.25,
+    // French (accents folded).
+    'un': 1.0, 'une': 1.0, 'deux': 2.0, 'trois': 3.0, 'quatre': 4.0, 'cinq': 5.0, 'sept': 7.0,
+    'huit': 8.0, 'neuf': 9.0, 'dix': 10.0, 'onze': 11.0, 'douze': 12.0, 'demi': 0.5, 'une demie': 0.5,
+    'un demi': 0.5, 'la moitie': 0.5, 'la moitie de': 0.5, 'une douzaine': 12.0, 'une douzaine de': 12.0,
+    'quelques': 3.0, 'un quart': 0.25, 'un quart de': 0.25, 'une couple de': 2.0, 'un couple de': 2.0,
   };
+
+  // French patterns run on accent-folded text ("j'ai utilise").
+  static final _consumeFr = RegExp(r"^(?:j'ai |on a |nous avons )?(?:juste )?(?:utilise|mange|pris|bu|cuisine avec|consomme|utiliser|prendre)\s+(.+)$");
+  static final _addFr = RegExp(r"^(?:j'ai |on a |nous avons )?(?:achete|ajoute|ajouter|ajoutez|acheter|range)\s+(.+)$");
+  static final _discardFr = RegExp(r"^(?:j'ai |on a |nous avons )?(?:jete|jeter|jette|mis au compost|composte|mis a la poubelle)\s+(.+)$");
+  static final _emptyFr = RegExp(r"^(?:il n'y a plus|il y a plus|on n'a plus|on a plus|je n'ai plus|j'ai plus|nous n'avons plus|plus|j'ai fini|on a fini|fini|termine|j'ai termine)\s+(?:de |d'|du |des |le |la |les |l')?(.+)$");
+  static final _setCountFr = RegExp(r"^(?:il (?:me |nous )?reste|il y a|on a|j'ai|nous avons|seulement)\s+(.+?)(?:\s+qui restent?)?$");
 
   static final _consume = RegExp(r'^(?:i |we )?(?:just )?(?:used|ate|had|cooked with|took|drank|consumed|use)\s+(.+)$');
   static final _add = RegExp(r'^(?:i |we )?(?:just )?(?:added|add|bought|got|picked up|purchased|put away)\s+(.+)$');
@@ -88,16 +102,29 @@ class InventoryCommandParser {
     if ((m = _setCount.firstMatch(s)) != null) {
       return _build(InventoryCommandAction.setCount, m!.group(1)!);
     }
+    return _parseFrench(ProductMatcher.fold(s));
+  }
+
+  InventoryCommand? _parseFrench(String s) {
+    RegExpMatch? m;
+    if ((m = _emptyFr.firstMatch(s)) != null) return _build(InventoryCommandAction.markEmpty, m!.group(1)!);
+    if ((m = _discardFr.firstMatch(s)) != null) return _build(InventoryCommandAction.discard, m!.group(1)!);
+    if ((m = _consumeFr.firstMatch(s)) != null) return _build(InventoryCommandAction.consume, m!.group(1)!);
+    if ((m = _addFr.firstMatch(s)) != null) return _build(InventoryCommandAction.add, m!.group(1)!);
+    if ((m = _setCountFr.firstMatch(s)) != null) return _build(InventoryCommandAction.setCount, m!.group(1)!);
     return null;
   }
 
   InventoryCommand? _build(InventoryCommandAction action, String rest) {
-    var text = rest.trim().replaceFirst(RegExp(r'^(?:the|my|our|all the|all of the|all|of the)\s+'), '');
+    var text = rest
+        .trim()
+        .replaceFirst(RegExp(r'^(?:the|my|our|all the|all of the|all|of the)\s+'), '')
+        .replaceFirst(RegExp(r"^(?:tout le |toute la |tous les |toutes les |le |la |les |l'|mon |ma |mes |nos |du |de la |des |de l')"), '');
     Quantity? qty;
     var parsedQty = false;
 
     // Numeric amount: "250 ml of milk", "1.5kg flour", "2 eggs"
-    final numeric = RegExp(r'^(\d+(?:[.,]\d+)?|\d+/\d+)\s*([a-z]+)?\s*(?:of\s+)?(.*)$').firstMatch(text);
+    final numeric = RegExp(r"^(\d+(?:[.,]\d+)?|\d+/\d+)\s*([a-z]+)?\s*(?:of\s+|de\s+|d')?(.*)$").firstMatch(text);
     double? amount;
     String? unitWord;
     if (numeric != null) {
@@ -111,7 +138,7 @@ class InventoryCommandParser {
         if (text == w || text.startsWith('$w ')) {
           amount = _numbers[w];
           text = text.substring(w.length).trim();
-          final uw = RegExp(r'^([a-z]+)\s+(?:of\s+)?(.*)$').firstMatch(text);
+          final uw = RegExp(r"^([a-z]+)\s+(?:of\s+|de\s+|d')?(.*)$").firstMatch(text);
           if (uw != null && Unit.tryParse(uw.group(1)!) != null) {
             unitWord = uw.group(1);
             text = uw.group(2)!;
@@ -130,7 +157,7 @@ class InventoryCommandParser {
         text = '$unitWord $text'.trim();
       }
     }
-    text = text.replaceFirst(RegExp(r'^(?:of\s+)?(?:the\s+)?'), '').trim();
+    text = text.replaceFirst(RegExp(r"^(?:of\s+)?(?:the\s+)?(?:de\s+|d'|du\s+|des\s+)?"), '').trim();
     if (text.isEmpty) return null;
 
     final match = matcher.best(text, minScore: 0.45);

@@ -47,6 +47,7 @@ class _ChefiiAppState extends ConsumerState<ChefiiApp> {
       localeResolutionCallback: (device, supported) =>
           device?.languageCode == 'fr' ? const Locale('fr', 'CA') : const Locale('en', 'CA'),
       builder: (context, child) {
+        ActiveLanguage.locale = Localizations.localeOf(context);
         final mq = MediaQuery.of(context);
         // Respect the device setting and multiply by the in-app preference,
         // capped so layouts remain usable.

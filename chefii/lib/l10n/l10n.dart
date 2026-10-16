@@ -19,3 +19,17 @@ Locale? localeForSetting(String language) => switch (language) {
       'en-CA' => const Locale('en', 'CA'),
       _ => null,
     };
+
+/// The language the app is currently showing, for code without a
+/// BuildContext (AI requests, speech). Updated by ChefiiApp on every build.
+abstract final class ActiveLanguage {
+  static Locale locale = const Locale('en', 'CA');
+
+  static bool get isFrench => locale.languageCode == 'fr';
+
+  /// 'fr-CA' / 'en-CA' (BCP 47) for servers and text-to-speech.
+  static String get tag => isFrench ? 'fr-CA' : 'en-CA';
+
+  /// 'fr_CA' / 'en_CA' for speech recognition.
+  static String get speechLocaleId => isFrench ? 'fr_CA' : 'en_CA';
+}

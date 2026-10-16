@@ -54,7 +54,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     final filtered = lots.where((l) {
       if (_location != 'all' && l.locationId != _location) return false;
       if (_category != null && context.labelOf(l.category) != _category) return false;
-      if (_query.isNotEmpty && !l.productName.toLowerCase().contains(_query.toLowerCase())) return false;
+      if (_query.isNotEmpty && !context.productName(l.productId, l.productName).toLowerCase().contains(_query.toLowerCase())) return false;
       return true;
     }).toList()
       ..sort((a, b) => a.productName.compareTo(b.productName));
@@ -74,7 +74,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
       children: [
         if (lotsAsync.isLoading && lots.isEmpty) LoadingState(message: context.l10n.kitchenOpening),
         if (lotsAsync.hasError && lots.isEmpty)
-          ErrorState(message: ErrorState.describe(lotsAsync.error!), onRetry: () => ref.invalidate(lotsProvider)),
+          ErrorState(message: ErrorState.describeIn(context, lotsAsync.error!), onRetry: () => ref.invalidate(lotsProvider)),
         if (!lotsAsync.isLoading && lots.isEmpty && !lotsAsync.hasError)
           EmptyState(
             icon: Icons.kitchen_outlined,
@@ -259,7 +259,7 @@ class IngredientDetailScreen extends ConsumerWidget {
             final actions = ref.read(actionsProvider);
             if (v == 'discard') {
               final ok = await showConfirmActionSheet(context,
-                  title: context.l10n.kitchenDiscardTitle(lot.productName), message: context.l10n.kitchenDiscardMessage(context.formatQty(lot.quantity)), confirmLabel: context.l10n.kitchenDiscard, destructive: true);
+                  title: context.l10n.kitchenDiscardTitle(context.productName(lot.productId, lot.productName)), message: context.l10n.kitchenDiscardMessage(context.formatQty(lot.quantity)), confirmLabel: context.l10n.kitchenDiscard, destructive: true);
               if (!ok || !context.mounted) return;
               final r = await actions.markEmpty(lot, opId: AppActions.newOpId('discard'), discarded: true);
               if (context.mounted) reportOperation(context, ref, r);
@@ -278,7 +278,7 @@ class IngredientDetailScreen extends ConsumerWidget {
       ],
       header: EditorialPageHeader(
         eyebrow: context.labelOf(lot.category),
-        title: lot.productName,
+        title: context.productName(lot.productId, lot.productName),
         subtitle: '${context.formatQty(lot.quantity)} · ${locationName(context, ref, lot.locationId)}', // l10n-ignore: joins translated parts
         trailing: InventoryStatusBadge(status: status),
       ),
@@ -458,7 +458,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       context.pop();
       reportOperation(context, ref, r);
     } catch (e) {
-      if (mounted) showMessage(context, ErrorState.describe(e), error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -502,7 +502,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         for (final m in matches)
           ListTile(
             leading: Icon(categoryIcon(m.product.category)),
-            title: Text(m.product.name),
+            title: Text(context.productName(m.product.id, m.product.name)),
             subtitle: Text(context.labelOf(m.product.category)),
             onTap: () {
               _search.text = m.product.name;
@@ -622,7 +622,7 @@ class _FridgeScanScreenState extends ConsumerState<FridgeScanScreen> {
     } on PhotoPermissionDenied {
       setState(() => _denied = true);
     } on AiUnavailableException catch (e) {
-      if (mounted) showMessage(context, e.message, error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -771,7 +771,7 @@ class FreshnessCentreScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(Space.m),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Expanded(child: Text(l.productName, style: context.text.titleMedium)),
+                  Expanded(child: Text(context.productName(l.productId, l.productName), style: context.text.titleMedium)),
                   InventoryStatusBadge(status: l.statusOn(today)),
                 ]),
                 Text(
@@ -885,7 +885,7 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                   await ref.read(actionsProvider).correct(counts, opId: _opId);
                   setState(() => _summary = (changed: changed, verified: counts.length));
                 } catch (e) {
-                  if (context.mounted) showMessage(context, ErrorState.describe(e), error: true);
+                  if (context.mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
                 } finally {
                   if (mounted) setState(() => _busy = false);
                 }
@@ -901,12 +901,12 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
               padding: const EdgeInsets.all(Space.m),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Wrap(spacing: Space.xs, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                  Text(l.productName, style: context.text.titleMedium),
+                  Text(context.productName(l.productId, l.productName), style: context.text.titleMedium),
                   InventoryStatusBadge(status: l.statusOn(today)),
                 ]),
                 const SizedBox(height: Space.xs),
                 Wrap(spacing: Space.s, runSpacing: Space.xs, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                  QuantityStepper(value: _counts[l.id] ?? l.quantity, onChanged: (q) => setState(() => _counts[l.id] = q), label: l.productName),
+                  QuantityStepper(value: _counts[l.id] ?? l.quantity, onChanged: (q) => setState(() => _counts[l.id] = q), label: context.productName(l.productId, l.productName)),
                   if (_counts[l.id] != null && _counts[l.id] != l.quantity)
                     Text(context.l10n.kitchenWasAmount(context.formatQty(l.quantity)), style: context.text.bodySmall),
                 ]),

@@ -213,9 +213,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       // The router redirects based on onboarding state.
       if (mounted) context.go(profile.onboardingComplete ? '/today' : '/onboarding/household');
     } on AuthException catch (e) {
-      if (!e.cancelled && mounted) setState(() => _error = e.message);
+      if (!e.cancelled && mounted) setState(() => _error = ErrorState.describeIn(context, e));
     } catch (e) {
-      if (mounted) setState(() => _error = ErrorState.describe(e));
+      if (mounted) setState(() => _error = ErrorState.describeIn(context, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -389,7 +389,7 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
       ref.read(analyticsProvider).log(AnalyticsEvents.onboardingStep, {'step': 4});
       if (mounted) context.go('/onboarding/dietary');
     } catch (e) {
-      if (mounted) showMessage(context, ErrorState.describe(e), error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -421,7 +421,7 @@ class _HouseholdSetupScreenState extends ConsumerState<HouseholdSetupScreen> {
       await ref.read(profileRepoProvider).updateProfileFields(uid, {'onboardingStep': 4});
       if (mounted) context.go('/onboarding/dietary');
     } on FirebaseFunctionsException catch (e) {
-      if (mounted) showMessage(context, e.message ?? l.onboardingJoinFailed, error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -895,7 +895,7 @@ class _BuildKitchenScreenState extends ConsumerState<BuildKitchenScreen> {
       if (then == 'scan') context.push('/kitchen/scan');
       if (then == 'manual') context.push('/kitchen/add');
     } catch (e) {
-      if (mounted) showMessage(context, ErrorState.describe(e), error: true);
+      if (mounted) showMessage(context, ErrorState.describeIn(context, e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

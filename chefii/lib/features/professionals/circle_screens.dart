@@ -510,7 +510,7 @@ class _ClientRecordsScreenState extends ConsumerState<ClientRecordsScreen> {
           FutureBuilder(
             future: _records,
             builder: (context, snap) {
-              if (snap.hasError) return ErrorState(message: ErrorState.describe(snap.error!));
+              if (snap.hasError) return ErrorState(message: ErrorState.describeIn(context, snap.error!));
               if (!snap.hasData) return const LoadingState();
               final rows = snap.data!;
               if (rows.isEmpty) return Text(l.prosNoRecords, style: context.text.bodyMedium);

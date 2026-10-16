@@ -325,7 +325,7 @@ class EvidenceScreen extends StatelessWidget {
                 _kv(context, l.healthReview, c.professionallyReviewed ? l.healthProfessionallyReviewed(c.reviewedOn.toIso()) : l.healthInternalSummary(c.reviewedOn.toIso())),
                 _kv(context, l.healthLimitations, c.limitations),
                 if (c.foodSources.isNotEmpty)
-                  _kv(context, l.healthFoods, c.foodSources.map((id) => catalogById[id]?.product.name).whereType<String>().join(', ')),
+                  _kv(context, l.healthFoods, c.foodSources.where(catalogById.containsKey).map((id) => context.productName(id, catalogById[id]!.product.name)).join(', ')),
                 const SizedBox(height: Space.xs),
                 if (c.sourceIds.isEmpty) Text(l.healthCitationPending, style: context.text.bodySmall),
                 for (final id in c.sourceIds)
@@ -394,7 +394,7 @@ class NutrientDetailScreen extends ConsumerWidget {
         ],
         SectionHeader(l.healthRichSources),
         for (final e in top.take(6))
-          ListTile(contentPadding: EdgeInsets.zero, title: Text(e.product.name), trailing: Text(l.healthPer100g(formatNutrient(nutrient, e.reference.per100g[nutrient])))),
+          ListTile(contentPadding: EdgeInsets.zero, title: Text(context.productName(e.product.id, e.product.name)), trailing: Text(l.healthPer100g(formatNutrient(nutrient, e.reference.per100g[nutrient])))),
         if (claims.isNotEmpty) ...[
           SectionHeader(l.healthEvidence),
           for (final c in claims)

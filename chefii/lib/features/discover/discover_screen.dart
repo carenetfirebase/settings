@@ -8,6 +8,7 @@ import '../../domain/models/nutrition.dart';
 import '../../domain/models/recipe.dart';
 import '../../domain/recipes/recipe_availability.dart';
 import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 import '../shared/recipe_logic.dart';
 
 // ---------------------------------------------------------------- 53 Discover
@@ -70,7 +71,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     if (widget.initialFilter == 'expiring') results.sort((a, b) => (b.usesExpiringItems ? 1 : 0) - (a.usesExpiringItems ? 1 : 0));
     final favs = ref.watch(favouritesProvider).value ?? const <String>{};
     final showNutrition = ref.watch(wellnessProvider).value?.showNutritionOnRecipes ?? true;
-    final ingredientName = widget.ingredient == null ? null : catalogById[widget.ingredient]?.product.name;
+    final ingredientName = widget.ingredient == null ? null : catalogById[widget.ingredient] == null ? null : context.productName(widget.ingredient!, catalogById[widget.ingredient]!.product.name);
     final l = context.l10n;
     final labels = {for (final f in filters) filterLabel(l, f): f};
 

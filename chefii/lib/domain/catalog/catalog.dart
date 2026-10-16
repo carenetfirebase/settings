@@ -1,6 +1,7 @@
 import '../models/inventory.dart';
 import '../models/nutrition.dart';
 import '../units/units.dart';
+import 'catalog_fr.dart';
 
 /// Built-in starter catalogue.
 ///
@@ -60,7 +61,8 @@ CatalogEntry _e(
         bridge: UnitBridge(gramsPerPiece: perPiece, gramsPerMl: perMl),
         typicalShelfLifeDays: shelf,
         allergens: allergens,
-        aliases: aliases,
+        // French names and receipt spellings match too (Québec receipts, voice).
+        aliases: [...aliases, if (catalogFrench[id] case final fr?) ...[fr.name, ...fr.aliases]],
         nutrientRefId: id,
         lowStockThreshold: lowStock,
       ),

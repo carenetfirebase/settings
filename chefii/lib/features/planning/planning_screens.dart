@@ -261,7 +261,7 @@ class LeftoversScreen extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(Space.m),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(l.productName, style: context.text.titleMedium),
+                Text(context.productName(l.productId, l.productName), style: context.text.titleMedium),
                 Text(
                   [
                     t.planningLeftoverPortions(l.quantity.amount.round()),
@@ -275,11 +275,12 @@ class LeftoversScreen extends ConsumerWidget {
                   ActionChip(
                     label: Text(t.planningEatPortion),
                     onPressed: () async {
+                      final name = context.productName(l.productId, l.productName);
                       final r = await ref.read(actionsProvider).useFromLot(l, const Quantity(1, Unit.piece), opId: AppActions.newOpId('leftover'));
                       final recipe = l.preparedFromRecipeId == null ? null : ref.read(recipeByIdProvider(l.preparedFromRecipeId!));
                       await ref.read(journalRepoProvider).add(
                             uid: ref.read(uidProvider)!,
-                            title: t.planningLeftoversEntryTitle(l.productName),
+                            title: t.planningLeftoversEntryTitle(name),
                             mealType: mealTypeFor(DateTime.now()),
                             eatenAt: DateTime.now(),
                             portions: 1,
@@ -473,7 +474,7 @@ class _ShoppingItemScreenState extends ConsumerState<ShoppingItemScreen> {
     final i = _i;
     final l = context.l10n;
     if (i == null) return PremiumAppScaffold(children: [items == null ? const LoadingState() : EmptyState(icon: Icons.shopping_bag_outlined, title: l.planningItemRemovedTitle, message: l.planningItemRemovedMessage)]);
-    final alternatives = substitutionAlternatives(i.productId);
+    final alternatives = substitutionAlternatives(i.productId, displayName: context.productName);
     final lastPrice = _lastPaid(ref, i);
     return PremiumAppScaffold(
       header: EditorialPageHeader(eyebrow: context.labelOf(i.category), title: i.name),
@@ -522,12 +523,12 @@ class _ShoppingItemScreenState extends ConsumerState<ShoppingItemScreen> {
   }
 }
 
-List<String> substitutionAlternatives(String? productId) {
+List<String> substitutionAlternatives(String? productId, {String Function(String id, String name)? displayName}) {
   if (productId == null) return const [];
   return [
     for (final e in catalog)
       if (e.product.id != productId && e.product.category == catalogById[productId]?.product.category && e.product.allergens.join() == catalogById[productId]?.product.allergens.join())
-        e.product.name,
+        displayName?.call(e.product.id, e.product.name) ?? e.product.name,
   ].take(4).toList();
 }
 

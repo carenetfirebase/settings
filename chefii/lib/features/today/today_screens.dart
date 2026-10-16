@@ -169,7 +169,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.eco_outlined),
-              title: Text(l.todayUseSoon(lot.productName)),
+              title: Text(l.todayUseSoon(context.productName(lot.productId, lot.productName))),
               subtitle: Text(lot.daysLeftIsEstimate ? l.todayEstimatedFromPurchase : l.todayRecordedDate(lot.useByDate!.toIso())),
               onTap: () => context.push('/kitchen/item/${lot.id}'),
             ),
@@ -284,7 +284,7 @@ class DailyBriefingScreen extends ConsumerWidget {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.eco_outlined),
-            title: Text(lot.productName),
+            title: Text(context.productName(lot.productId, lot.productName)),
             subtitle: Text(l.todayUseTodayIfYouCan(context.formatQty(lot.quantity))),
             onTap: () => context.push('/kitchen/item/${lot.id}'),
           ),

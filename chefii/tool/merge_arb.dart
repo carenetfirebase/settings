@@ -42,11 +42,20 @@ void main(List<String> args) {
         continue;
       }
       fr[k] = t;
-      final pe = _placeholder.allMatches(entry.value as String).map((m) => m[1]).toSet();
-      final pf = _placeholder.allMatches(t).map((m) => m[1]).toSet();
-      if (!pe.containsAll(pf) || !pf.containsAll(pe.where((p) => !(entry.value as String).contains('$p, plural') && !(entry.value as String).contains('$p, select')))) {
-        // Plural/select selectors may legitimately be absent from a branch.
-        if (!pf.containsAll(pe) && pe.difference(pf).isNotEmpty) errors.add('$area: $k placeholders differ (en $pe, fr $pf)');
+      // Compare only declared placeholders, so one-word plural/select
+      // branches like {items} are not mistaken for placeholders.
+      final meta = e['@$k'];
+      final declared = meta is Map && meta['placeholders'] is Map ? (meta['placeholders'] as Map).keys.cast<String>().toSet() : <String>{};
+      final enText = entry.value as String;
+      Set<String> used(String text) => {
+            for (final m in _placeholder.allMatches(text))
+              if (declared.isEmpty || declared.contains(m[1])) m[1]!,
+          };
+      if (declared.isEmpty && (enText.contains(', plural,') || enText.contains(', select,'))) {
+        errors.add('$area: $k uses plural/select but declares no placeholders');
+      } else {
+        final pe = used(enText), pf = used(t);
+        if (!pe.containsAll(pf) || !pf.containsAll(pe)) errors.add('$area: $k placeholders differ (en $pe, fr $pf)');
       }
     }
     for (final k in f.keys) {

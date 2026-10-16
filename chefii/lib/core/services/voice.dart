@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import '../../l10n/l10n.dart';
+
 /// On-device speech recognition for "I used two eggs". Transcripts are parsed
 /// locally first; nothing is sent anywhere unless the local parser fails and
 /// the user has AI processing enabled.
@@ -11,7 +13,7 @@ abstract class VoiceInput {
   Future<bool> available();
 
   /// Listens once and completes with the final transcript (or null).
-  Future<String?> listenOnce({void Function(String partial)? onPartial, String localeId = 'en_CA'});
+  Future<String?> listenOnce({void Function(String partial)? onPartial, String? localeId});
   Future<void> stop();
 }
 
@@ -29,7 +31,7 @@ class SpeechVoiceInput implements VoiceInput {
   }
 
   @override
-  Future<String?> listenOnce({void Function(String partial)? onPartial, String localeId = 'en_CA'}) async {
+  Future<String?> listenOnce({void Function(String partial)? onPartial, String? localeId}) async {
     if (!await available()) return null;
     final done = Completer<String?>();
     await _stt.listen(
@@ -42,7 +44,7 @@ class SpeechVoiceInput implements VoiceInput {
         pauseFor: const Duration(seconds: 3),
         partialResults: true,
         onDevice: false,
-        localeId: localeId,
+        localeId: localeId ?? ActiveLanguage.speechLocaleId,
         cancelOnError: true,
       ),
     );
@@ -64,14 +66,15 @@ abstract class Speaker {
 
 class TtsSpeaker implements Speaker {
   final _tts = FlutterTts();
-  bool _configured = false;
+  String? _language;
 
   @override
   Future<void> speak(String text) async {
-    if (!_configured) {
-      await _tts.setLanguage('en-CA');
+    final language = ActiveLanguage.tag;
+    if (_language != language) {
+      await _tts.setLanguage(language);
       await _tts.setSpeechRate(0.47);
-      _configured = true;
+      _language = language;
     }
     await _tts.stop();
     await _tts.speak(text);
@@ -93,7 +96,7 @@ class UnavailableVoiceInput implements VoiceInput {
   @override
   Future<bool> available() async => false;
   @override
-  Future<String?> listenOnce({void Function(String partial)? onPartial, String localeId = 'en_CA'}) async => null;
+  Future<String?> listenOnce({void Function(String partial)? onPartial, String? localeId}) async => null;
   @override
   Future<void> stop() async {}
 }

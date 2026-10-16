@@ -73,6 +73,25 @@ enum Unit {
       'unit': Unit.piece,
       'units': Unit.piece,
       'x': Unit.piece,
+      // Canadian French.
+      'gramme': Unit.g,
+      'grammes': Unit.g,
+      'kilo': Unit.kg,
+      'kilos': Unit.kg,
+      'kilogramme': Unit.kg,
+      'kilogrammes': Unit.kg,
+      'once': Unit.oz,
+      'onces': Unit.oz,
+      'livre': Unit.lb,
+      'livres': Unit.lb,
+      'tasse': Unit.cup,
+      'tasses': Unit.cup,
+      'unite': Unit.piece,
+      'unites': Unit.piece,
+      'unité': Unit.piece,
+      'unités': Unit.piece,
+      'douzaine': Unit.dozen,
+      'douzaines': Unit.dozen,
     };
     return aliases[s];
   }

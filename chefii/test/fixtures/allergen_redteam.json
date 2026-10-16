@@ -925,6 +925,13 @@
       "allergens": [
         "sulphites"
       ]
+    },
+    {
+      "text": "tortillas de blé",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
     }
   ],
   "mustNotDetect": [
@@ -1106,6 +1113,13 @@
         "milk",
         "egg",
         "wheat"
+      ]
+    },
+    {
+      "text": "tortillas de maïs",
+      "allergens": [
+        "wheat",
+        "gluten"
       ]
     }
   ],

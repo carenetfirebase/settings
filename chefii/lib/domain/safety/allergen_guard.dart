@@ -119,7 +119,8 @@ const allergens = <AllergenInfo>[
       'rice noodle', 'rice vermicelli', 'gluten-free', 'buckwheat', 'tamari', 'cassava flour', 'corn flour',
       'cornflour', 'potato flour', 'tapioca flour', 'rice paper', 'oat bran', 'rice bran',
       'farine de riz', "farine d'amande", 'farine de noix de coco', 'farine de pois chiche', 'farine de mais',
-      'farine de sarrasin', 'ble noir', 'sarrasin', 'nouilles de riz', 'sans gluten',
+      'farine de sarrasin', 'ble noir', 'sarrasin', 'nouilles de riz', 'sans gluten', 'tortilla de mais',
+      'tortillas de mais', 'galette de mais',
     ],
   ),
   AllergenInfo('mustard', 'Mustard', ['mustard', 'dijon', 'moutarde']),
@@ -136,6 +137,7 @@ const allergens = <AllergenInfo>[
   ], exclusions: [
     'gluten-free', 'buckwheat', 'rice flour', 'almond flour', 'coconut flour', 'chickpea flour',
     'corn tortilla', 'rice noodle', 'tamari', 'cassava flour', 'corn flour', 'cornflour', 'sans gluten',
+    'tortilla de mais', 'tortillas de mais', 'galette de mais',
   ]),
 ];
 

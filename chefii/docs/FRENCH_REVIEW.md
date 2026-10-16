@@ -57,3 +57,10 @@ These French titles and URLs were written without internet access; open each and
 - OMS, Sucres et caries dentaires — https://www.who.int/fr/news-room/fact-sheets/detail/sugars-and-dental-caries
 - NIH Office of Dietary Supplements (biotin, iron): English only; no official French version.
 - "CDRR" reference term has no French entry yet (shows in English if used).
+
+## Recipe wording to confirm
+
+- "champignons café" (cremini), "chou frisé" (kale), "flocons de piment" (chili flakes), "Cocotte en fonte" (Dutch oven), "Chaudron à fond épais" (heavy pot), "Pot avec couvercle" (jar), "Poêlée dorée…" (hash), cuisine "Collation" (snack), "Moyen-orientale".
+- Corn tortillas are "galettes de maïs" in ingredient lists; "tortillas de maïs" is now also understood as wheat-free by the allergen guard, so either wording is safe.
+- Soy sauce is "sauce soya (contient du blé)" so the name itself signals wheat.
+- Substitution notes avoid « noisette » (hazelnut) for "nuttier".

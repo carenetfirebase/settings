@@ -690,7 +690,7 @@ class SubstitutionsSheet extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(Space.m),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('${o.original.name} → ${o.replacement.display}', style: context.text.titleMedium), // l10n-ignore
+                    Text('${o.original.name} → ${[if (o.replacement.quantity != null) context.formatQty(o.replacement.quantity!), context.productName(o.replacement.productId ?? '', o.replacement.name)].join(' ')}', style: context.text.titleMedium), // l10n-ignore: names and quantities only
                     Text(substitutionNoteFor(o.original.productId ?? '', o.replacement.productId ?? '', o.note, french), style: context.text.bodySmall),
                     const SizedBox(height: Space.xs),
                     Wrap(spacing: Space.xs, children: [

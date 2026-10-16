@@ -7,6 +7,7 @@ import '../../domain/catalog/catalog.dart';
 import '../../domain/models/nutrition.dart';
 import '../../domain/models/recipe.dart';
 import '../../domain/recipes/recipe_availability.dart';
+import '../../l10n/l10n.dart';
 import '../shared/recipe_logic.dart';
 
 // ---------------------------------------------------------------- 53 Discover
@@ -21,7 +22,22 @@ class DiscoverScreen extends ConsumerStatefulWidget {
 }
 
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
-  static const filters = ['Available now', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', '15-minute', 'High-protein', 'Vegetarian', 'Comfort', 'World cuisines'];
+  // Filter ids (also accepted from the ?filter= route parameter); the chips show filterLabel().
+  static const filters = ['Available now', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', '15-minute', 'High-protein', 'Vegetarian', 'Comfort', 'World cuisines']; // l10n-ignore
+
+  static String filterLabel(AppLocalizations l, String id) => switch (id) {
+        'Available now' => l.discoverFilterAvailableNow,
+        'Breakfast' => l.discoverFilterBreakfast,
+        'Lunch' => l.discoverFilterLunch,
+        'Dinner' => l.discoverFilterDinner,
+        'Snacks' => l.discoverFilterSnacks,
+        '15-minute' => l.discoverFilter15Minute,
+        'High-protein' => l.discoverFilterHighProtein,
+        'Vegetarian' => l.discoverFilterVegetarian,
+        'Comfort' => l.discoverFilterComfort,
+        'World cuisines' => l.discoverFilterWorldCuisines,
+        _ => id,
+      };
   late String? _filter = widget.initialFilter == 'expiring' ? 'Available now' : (filters.contains(widget.initialFilter) ? widget.initialFilter : null);
   String _query = '';
 
@@ -55,6 +71,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     final favs = ref.watch(favouritesProvider).value ?? const <String>{};
     final showNutrition = ref.watch(wellnessProvider).value?.showNutritionOnRecipes ?? true;
     final ingredientName = widget.ingredient == null ? null : catalogById[widget.ingredient]?.product.name;
+    final l = context.l10n;
+    final labels = {for (final f in filters) filterLabel(l, f): f};
 
     Widget card(AvailabilityReport a) => Padding(
           padding: const EdgeInsets.only(bottom: Space.m),
@@ -63,7 +81,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             availabilityLabel: a.label,
             canCookNow: a.canCookNow,
             showNutrition: showNutrition,
-            rationale: a.usesExpiringItems ? 'Uses something that needs eating soon' : null,
+            rationale: a.usesExpiringItems ? l.discoverUsesExpiring : null,
             trailing: favs.contains(a.recipe.id) ? Icon(Icons.favorite, color: context.palette.accent, size: 20) : null,
             onTap: () => context.push('/recipe/${a.recipe.id}'),
           ),
@@ -79,19 +97,25 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     return PremiumAppScaffold(
       showBack: widget.ingredient != null || widget.initialFilter != null,
       actions: [
-        IconButton(tooltip: 'Meal planner', onPressed: () => context.push('/plan'), icon: const Icon(Icons.calendar_month_outlined)),
-        IconButton(tooltip: 'Ask the chef', onPressed: () => context.push('/chef'), icon: const Icon(Icons.auto_awesome_outlined)),
+        IconButton(tooltip: l.discoverMealPlanner, onPressed: () => context.push('/plan'), icon: const Icon(Icons.calendar_month_outlined)),
+        IconButton(tooltip: l.discoverAskChef, onPressed: () => context.push('/chef'), icon: const Icon(Icons.auto_awesome_outlined)),
       ],
       header: EditorialPageHeader(
-        eyebrow: 'Discover',
-        title: ingredientName == null ? 'Something delicious' : 'Cook with ${ingredientName.toLowerCase()}',
-        subtitle: 'Every recipe here suits your household\'s dietary needs.',
+        eyebrow: l.discoverEyebrow,
+        title: ingredientName == null ? l.discoverTitle : l.discoverCookWith(ingredientName.toLowerCase()),
+        subtitle: l.discoverSubtitle,
       ),
       children: [
-        SearchFilterBar(hint: 'Search recipes or ingredients', onQuery: (q) => setState(() => _query = q), filters: filters, selected: _filter, onFilter: (f) => setState(() => _filter = f)),
+        SearchFilterBar(
+          hint: l.discoverSearchHint,
+          onQuery: (q) => setState(() => _query = q),
+          filters: labels.keys.toList(),
+          selected: _filter == null ? null : filterLabel(l, _filter!),
+          onFilter: (f) => setState(() => _filter = f == null ? null : labels[f]),
+        ),
         const SizedBox(height: Space.m),
         if (results.isEmpty)
-          EmptyState(icon: Icons.search_off, title: 'No recipes match', message: 'Try another filter, or ask your chef to create something.', actionLabel: 'Ask the chef', onAction: () => context.push('/chef')),
+          EmptyState(icon: Icons.search_off, title: l.discoverNoMatchTitle, message: l.discoverNoMatchMessage, actionLabel: l.discoverAskChef, onAction: () => context.push('/chef')),
         if (_filter == 'World cuisines')
           for (final c in (byCuisine.keys.toList()..sort())) ...[
             SectionHeader(c, topSpacing: Space.s),
@@ -100,11 +124,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         else
           for (final a in results) card(a),
         if (results.isNotEmpty)
-          Text('Nutrition is estimated per serving from reference data${showNutrition ? '' : ' (hidden in your preferences)'}. Protein-rich means at least ${25} g per serving.',
-              style: context.text.bodySmall),
+          Text(showNutrition ? l.discoverNutritionFootnote(25) : l.discoverNutritionFootnoteHidden(25), style: context.text.bodySmall),
       ],
     );
   }
 }
 
-String proteinLabel(Recipe r) => '${r.nutritionPerServing[Nutrient.protein].round()} g protein';
+String proteinLabel(AppLocalizations l, Recipe r) => l.discoverProteinLabel(r.nutritionPerServing[Nutrient.protein].round());

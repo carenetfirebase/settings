@@ -1,0 +1,53 @@
+{
+  "discoverFilterAvailableNow": "Available now",
+  "discoverFilterBreakfast": "Breakfast",
+  "discoverFilterLunch": "Lunch",
+  "discoverFilterDinner": "Dinner",
+  "discoverFilterSnacks": "Snacks",
+  "discoverFilter15Minute": "15-minute",
+  "discoverFilterHighProtein": "High-protein",
+  "discoverFilterVegetarian": "Vegetarian",
+  "discoverFilterComfort": "Comfort",
+  "discoverFilterWorldCuisines": "World cuisines",
+  "discoverMealPlanner": "Meal planner",
+  "discoverAskChef": "Ask the chef",
+  "discoverEyebrow": "Discover",
+  "discoverTitle": "Something delicious",
+  "discoverCookWith": "Cook with {ingredient}",
+  "@discoverCookWith": {
+    "placeholders": {
+      "ingredient": {
+        "type": "String"
+      }
+    }
+  },
+  "discoverSubtitle": "Every recipe here suits your household's dietary needs.",
+  "discoverSearchHint": "Search recipes or ingredients",
+  "discoverNoMatchTitle": "No recipes match",
+  "discoverNoMatchMessage": "Try another filter, or ask your chef to create something.",
+  "discoverUsesExpiring": "Uses something that needs eating soon",
+  "discoverNutritionFootnote": "Nutrition is estimated per serving from reference data. Protein-rich means at least {grams} g per serving.",
+  "@discoverNutritionFootnote": {
+    "placeholders": {
+      "grams": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverNutritionFootnoteHidden": "Nutrition is estimated per serving from reference data (hidden in your preferences). Protein-rich means at least {grams} g per serving.",
+  "@discoverNutritionFootnoteHidden": {
+    "placeholders": {
+      "grams": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverProteinLabel": "{grams} g protein",
+  "@discoverProteinLabel": {
+    "placeholders": {
+      "grams": {
+        "type": "int"
+      }
+    }
+  }
+}

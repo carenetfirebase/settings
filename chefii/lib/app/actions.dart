@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../core/services/analytics.dart';
 import '../data/ai/ai_gateway.dart';
+import '../data/errors.dart';
 import '../data/repositories/inventory_repository.dart';
 import '../data/repositories/receipt_repository.dart';
 import '../domain/catalog/catalog.dart';
@@ -19,7 +20,11 @@ import '../domain/models/recipe.dart';
 import '../domain/units/units.dart';
 import 'providers.dart';
 
-class NotSignedInException implements Exception {
+class NotSignedInException implements Exception, CodedError {
+  @override
+  AppErrorCode get code => AppErrorCode.notSignedIn;
+  @override
+  Map<String, Object?> get args => const {};
   @override
   String toString() => 'Please sign in to continue.';
 }
@@ -30,9 +35,13 @@ class ReceiptPage {
   final String mimeType;
 }
 
-class DuplicateReceiptException implements Exception {
+class DuplicateReceiptException implements Exception, CodedError {
   DuplicateReceiptException(this.existing);
   final PurchaseReceipt existing;
+  @override
+  AppErrorCode get code => AppErrorCode.receiptDuplicate;
+  @override
+  Map<String, Object?> get args => const {};
   @override
   String toString() => 'This receipt looks like one you already scanned.';
 }
@@ -56,6 +65,9 @@ class AppActions {
 
   // -------------------------------------------------------------- inventory
 
+  static InventoryException _notRecorded(FoodProduct p) =>
+      InventoryException('No ${p.name} recorded in your kitchen.', code: AppErrorCode.inventoryProductNotRecorded, args: {'product': p.name});
+
   Future<OperationResult> applyCommand(InventoryCommand c, {required String opId}) async {
     final p = c.product!;
     _analytics.log(AnalyticsEvents.voiceCommand, {'kind': c.action.name});
@@ -67,26 +79,26 @@ class AppActions {
         if (c.quantity == null) {
           // "threw out the spinach": discard everything recorded for it.
           final lots = await _inv.lotsForProduct(hid, p.id);
-          if (lots.isEmpty) throw InventoryException('No ${p.name} recorded in your kitchen.');
+          if (lots.isEmpty) throw _notRecorded(p);
           return _inv.consume(
             householdId: hid,
             operationId: opId,
             actorUid: uid,
             kind: c.action == InventoryCommandAction.discard ? OperationKind.discard : OperationKind.consume,
-            reason: c.action == InventoryCommandAction.discard ? 'Discarded' : 'Used',
+            reason: c.action == InventoryCommandAction.discard ? 'Discarded' : 'Used', // l10n-ignore: stored record text, written without a locale
             requests: [for (final l in lots) ConsumeRequest(productId: p.id, productName: p.name, quantity: l.quantity, lotId: l.id)],
           );
         }
         return consume(product: p, quantity: c.quantity!, opId: opId, discard: c.action == InventoryCommandAction.discard);
       case InventoryCommandAction.markEmpty:
         final lots = await _inv.lotsForProduct(hid, p.id);
-        if (lots.isEmpty) throw InventoryException('No ${p.name} recorded in your kitchen.');
+        if (lots.isEmpty) throw _notRecorded(p);
         return _inv.consume(
           householdId: hid,
           operationId: opId,
           actorUid: uid,
-          reason: 'Marked empty',
-          summary: '${p.name} marked empty',
+          reason: 'Marked empty', // l10n-ignore: stored record text, written without a locale
+          summary: '${p.name} marked empty', // l10n-ignore: stored record text, written without a locale
           requests: [for (final l in lots) ConsumeRequest(productId: p.id, productName: p.name, quantity: l.quantity, lotId: l.id)],
         );
       case InventoryCommandAction.setCount:
@@ -143,7 +155,7 @@ class AppActions {
       operationId: opId,
       actorUid: uid,
       kind: discard ? OperationKind.discard : OperationKind.consume,
-      reason: discard ? 'Discarded' : 'Used',
+      reason: discard ? 'Discarded' : 'Used', // l10n-ignore: stored record text, written without a locale
       requests: [ConsumeRequest(productId: product.id, productName: product.name, quantity: quantity, lotId: lotId, bridge: product.bridge)],
     );
   }
@@ -156,7 +168,7 @@ class AppActions {
       operationId: opId,
       actorUid: uid,
       kind: discard ? OperationKind.discard : OperationKind.consume,
-      reason: discard ? 'Discarded' : 'Used',
+      reason: discard ? 'Discarded' : 'Used', // l10n-ignore: stored record text, written without a locale
       requests: [ConsumeRequest(productId: lot.productId, productName: lot.productName, quantity: quantity, lotId: lot.id)],
     );
   }
@@ -212,7 +224,7 @@ class AppActions {
       operationId: 'example_kitchen_$hid',
       actorUid: uid,
       kind: OperationKind.manualAdd,
-      summary: 'Added example ingredients',
+      summary: 'Added example ingredients', // l10n-ignore: stored record text, written without a locale
       inputs: [
         for (final (id, amount, unit, loc) in picks)
           NewLotInput(
@@ -231,13 +243,14 @@ class AppActions {
   /// Validates, de-duplicates, uploads and starts server extraction.
   /// Returns the receipt id; progress arrives on the receipt document.
   Future<String> submitReceipt(List<ReceiptPage> pages, {bool allowDuplicate = false}) async {
-    if (pages.isEmpty) throw ReceiptValidationException('Add at least one photo.');
+    if (pages.isEmpty) throw ReceiptValidationException('Add at least one photo.', code: AppErrorCode.receiptNoPhotos);
     if (pages.length > ReceiptImageRules.maxPages) {
-      throw ReceiptValidationException('Up to ${ReceiptImageRules.maxPages} pages per receipt.');
+      throw ReceiptValidationException('Up to ${ReceiptImageRules.maxPages} pages per receipt.',
+          code: AppErrorCode.receiptTooManyPages, args: {'max': ReceiptImageRules.maxPages});
     }
     for (final p in pages) {
       final err = ReceiptImageRules.validate(p.bytes, p.mimeType);
-      if (err != null) throw ReceiptValidationException(err);
+      if (err != null) throw ReceiptValidationException(err, code: ReceiptImageRules.check(p.bytes, p.mimeType));
     }
     final repo = ref.read(receiptRepoProvider);
     final hashes = pages.map((p) => ReceiptImageRules.hash(p.bytes)).toList();
@@ -264,7 +277,7 @@ class AppActions {
       }
       await repo.markUploaded(household, id, paths);
     } catch (e) {
-      await repo.markFailed(household, id, 'upload_failed', 'We couldn\'t upload the photo. Check your connection and try again.');
+      await repo.markFailed(household, id, 'upload_failed', 'We couldn\'t upload the photo. Check your connection and try again.'); // l10n-ignore: stored record text, written without a locale
       rethrow;
     }
     unawaited(_process(household, id));
@@ -279,7 +292,7 @@ class AppActions {
       await ref.read(receiptRepoProvider).markFailed(household, id, e.retryable ? 'unavailable' : 'rejected', e.message);
     } catch (_) {
       _analytics.log(AnalyticsEvents.receiptFailed, {'error_code': 'unknown'});
-      await ref.read(receiptRepoProvider).markFailed(household, id, 'unknown', 'Something went wrong reading this receipt.');
+      await ref.read(receiptRepoProvider).markFailed(household, id, 'unknown', 'Something went wrong reading this receipt.'); // l10n-ignore: stored record text, written without a locale
     }
   }
 
@@ -302,7 +315,7 @@ class AppActions {
           AppNotification(
             id: 'receipt_${r.id}',
             kind: NotificationKind.receipt,
-            title: 'Receipt added to your kitchen',
+            title: 'Receipt added to your kitchen', // l10n-ignore: stored record text, written without a locale
             body: result.operation.summary,
             createdAt: DateTime.now().toUtc(),
             route: '/receipt/${r.id}/done',
@@ -349,7 +362,7 @@ class AppActions {
       operationId: opId,
       actorUid: uid,
       inputs: inputs,
-      summary: 'Added ${inputs.length} item${inputs.length == 1 ? '' : 's'} from your shopping list',
+      summary: 'Added ${inputs.length} item${inputs.length == 1 ? '' : 's'} from your shopping list', // l10n-ignore: stored record text, written without a locale
     );
     await ref.read(planningRepoProvider).clearChecked(hid, checked);
     return result;

@@ -2,6 +2,7 @@ import '../../domain/models/codec.dart';
 import '../../domain/models/planning.dart';
 import '../../domain/models/professional.dart';
 import '../../domain/models/profile.dart';
+import '../errors.dart';
 import '../paths.dart';
 import '../store/doc_store.dart';
 
@@ -204,7 +205,7 @@ class HouseholdRepository {
         final hd = await tx.get(HouseholdPaths(householdId).root);
         if (hd == null) return;
         final h = Household.fromMap(householdId, hd.data);
-        if (memberUid == h.ownerUid) throw StateError('The owner cannot be removed.');
+        if (memberUid == h.ownerUid) throw CodedStateError('The owner cannot be removed.', AppErrorCode.householdOwnerNotRemovable);
         tx.set(HouseholdPaths(householdId).root, {'memberUids': h.memberUids.where((u) => u != memberUid).toList()}, merge: true);
         tx.delete(HouseholdPaths(householdId).member(memberUid));
       });

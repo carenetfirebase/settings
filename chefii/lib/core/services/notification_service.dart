@@ -1,8 +1,12 @@
+import 'dart:ui' show Locale, PlatformDispatcher;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
+
+import '../../l10n/l10n.dart';
 
 /// Notification id ranges, so groups can be cancelled together.
 abstract final class NotificationIds {
@@ -19,12 +23,27 @@ const snoozeActionId = 'snooze';
 const snoozeDuration = Duration(minutes: 10);
 const _snoozeCategory = 'chefii_snoozable';
 
+/// The app's language for notification text, set by the app from the
+/// language setting; null follows the device. Background isolates (snooze
+/// without opening the app) don't share it and use the device language.
+Locale? notificationLocale;
+
+/// Strings for notifications, which are built without a BuildContext.
+AppLocalizations notificationStrings() {
+  final device = PlatformDispatcher.instance.locale;
+  return lookupAppLocalizations(
+      notificationLocale ?? (device.languageCode == 'fr' ? const Locale('fr', 'CA') : const Locale('en', 'CA')));
+}
+
 /// What a snoozed notification says, from the original's deep link.
-({String title, String body}) snoozedContent(String? payload) => switch (payload) {
-      '/morning/wake' => (title: 'Good morning', body: 'Your snoozed alarm. Tap to start your morning.'),
-      '/morning/evening' => (title: 'Tomorrow morning', body: 'Your snoozed evening preview.'),
-      _ => (title: 'A gentle reminder', body: 'Your snoozed reminder from Chefii.'),
-    };
+({String title, String body}) snoozedContent(String? payload, [AppLocalizations? strings]) {
+  final l = strings ?? notificationStrings();
+  return switch (payload) {
+    '/morning/wake' => (title: l.commonGoodMorning, body: l.coreSnoozeWakeBody),
+    '/morning/evening' => (title: l.coreSnoozeEveningTitle, body: l.coreSnoozeEveningBody),
+    _ => (title: l.coreSnoozeReminderTitle, body: l.coreSnoozeReminderBody),
+  };
+}
 
 Future<void> _scheduleSnooze(FlutterLocalNotificationsPlugin plugin, NotificationResponse r) async {
   final content = snoozedContent(r.payload);
@@ -157,35 +176,37 @@ class LocalNotificationService implements NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
-  static const _snooze = AndroidNotificationAction(snoozeActionId, 'Snooze 10 min', cancelNotification: true);
+  // Channel names and actions are in the app's language (notificationStrings).
+  static AndroidNotificationAction get _snooze =>
+      AndroidNotificationAction(snoozeActionId, notificationStrings().coreSnoozeAction, cancelNotification: true);
 
-  static const remindersChannel = AndroidNotificationDetails(
-    'chefii_reminders',
-    'Meal reminders',
-    channelDescription: 'Gentle reminders for meals and kitchen tasks',
-    importance: Importance.defaultImportance,
-    priority: Priority.defaultPriority,
-    actions: [_snooze],
-  );
-  static const alarmChannel = AndroidNotificationDetails(
-    'chefii_morning_alarm',
-    'Morning alarm',
-    channelDescription: 'Your morning routine alarm',
-    importance: Importance.max,
-    priority: Priority.max,
-    category: AndroidNotificationCategory.alarm,
-    fullScreenIntent: true,
-    audioAttributesUsage: AudioAttributesUsage.alarm,
-    actions: [_snooze],
-  );
-  static const _timers = AndroidNotificationDetails(
-    'chefii_timers',
-    'Cooking timers',
-    channelDescription: 'Alerts when a cooking timer finishes',
-    importance: Importance.high,
-    priority: Priority.high,
-    category: AndroidNotificationCategory.alarm,
-  );
+  static AndroidNotificationDetails get remindersChannel => AndroidNotificationDetails(
+        'chefii_reminders',
+        notificationStrings().coreChannelReminders,
+        channelDescription: notificationStrings().coreChannelRemindersDescription,
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        actions: [_snooze],
+      );
+  static AndroidNotificationDetails get alarmChannel => AndroidNotificationDetails(
+        'chefii_morning_alarm',
+        notificationStrings().coreChannelAlarm,
+        channelDescription: notificationStrings().coreChannelAlarmDescription,
+        importance: Importance.max,
+        priority: Priority.max,
+        category: AndroidNotificationCategory.alarm,
+        fullScreenIntent: true,
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+        actions: [_snooze],
+      );
+  static AndroidNotificationDetails get _timers => AndroidNotificationDetails(
+        'chefii_timers',
+        notificationStrings().coreChannelTimers,
+        channelDescription: notificationStrings().coreChannelTimersDescription,
+        importance: Importance.high,
+        priority: Priority.high,
+        category: AndroidNotificationCategory.alarm,
+      );
 
   static NotificationDetails detailsFor(AndroidNotificationDetails android, {bool timeSensitive = false}) => NotificationDetails(
         android: android,
@@ -198,14 +219,14 @@ class LocalNotificationService implements NotificationService {
   NotificationDetails _details(AndroidNotificationDetails android, {bool timeSensitive = false}) =>
       detailsFor(android, timeSensitive: timeSensitive);
 
-  static final initSettings = InitializationSettings(
+  static InitializationSettings get initSettings => InitializationSettings(
     android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
     iOS: DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
       notificationCategories: [
-        DarwinNotificationCategory(_snoozeCategory, actions: [DarwinNotificationAction.plain(snoozeActionId, 'Snooze 10 min')]),
+        DarwinNotificationCategory(_snoozeCategory, actions: [DarwinNotificationAction.plain(snoozeActionId, notificationStrings().coreSnoozeAction)]),
       ],
     ),
   );

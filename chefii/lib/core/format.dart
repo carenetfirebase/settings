@@ -15,6 +15,13 @@ String formatNutrient(Nutrient n, double v) {
   return n == Nutrient.energyKcal ? rounded : '$rounded ${n.unit}';
 }
 
+/// [formatNutrient] for the current language: decimal comma and a
+/// non-breaking space before the unit in French.
+String formatNutrientFor(BuildContext context, Nutrient n, double v) {
+  final s = formatNutrient(n, v);
+  return localeTag(context).startsWith('fr') ? s.replaceAll('.', ',').replaceAll(' ', '\u00a0') : s;
+}
+
 String formatTime(BuildContext context, DateTime t) {
   final local = t.toLocal();
   final tag = localeTag(context);

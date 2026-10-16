@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../errors.dart';
+
 class AppUser {
   const AppUser({required this.uid, this.email, this.displayName, this.isDemo = false, this.isProfessional = false});
 
@@ -15,10 +17,14 @@ class AppUser {
   final bool isProfessional;
 }
 
-class AuthException implements Exception {
-  AuthException(this.message, {this.cancelled = false});
+class AuthException implements Exception, CodedError {
+  AuthException(this.message, {this.cancelled = false, this.code, this.args = const {}});
   final String message;
   final bool cancelled;
+  @override
+  final AppErrorCode? code;
+  @override
+  final Map<String, Object?> args;
   @override
   String toString() => message;
 }
@@ -83,10 +89,10 @@ class DemoAuthService implements AuthService {
   }
 
   @override
-  Future<AppUser> signInWithApple() => throw AuthException('Apple sign-in needs Firebase configured. Use the demo account.');
+  Future<AppUser> signInWithApple() => throw AuthException('Apple sign-in needs Firebase configured. Use the demo account.', code: AppErrorCode.authAppleNeedsFirebase);
 
   @override
-  Future<AppUser> signInWithGoogle() => throw AuthException('Google sign-in needs Firebase configured. Use the demo account.');
+  Future<AppUser> signInWithGoogle() => throw AuthException('Google sign-in needs Firebase configured. Use the demo account.', code: AppErrorCode.authGoogleNeedsFirebase);
 
   @override
   Future<AppUser> signInWithEmail(String email, String password) => _signIn(_prefs.getString(_kName) ?? email.split('@').first, email);

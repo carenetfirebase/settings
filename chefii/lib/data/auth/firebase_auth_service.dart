@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fa;
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../errors.dart';
 import 'auth_service.dart';
 
 class FirebaseAuthService implements AuthService {
@@ -47,23 +48,23 @@ class FirebaseAuthService implements AuthService {
 
   AuthException _wrap(Object e) {
     if (e is fa.FirebaseAuthException) {
-      final msg = switch (e.code) {
-        'invalid-credential' || 'wrong-password' || 'user-not-found' => 'That email and password don\'t match.',
-        'email-already-in-use' => 'An account already exists for that email. Try signing in.',
-        'weak-password' => 'Please choose a longer password (at least 8 characters).',
-        'invalid-email' => 'That email address doesn\'t look right.',
-        'network-request-failed' => 'You appear to be offline. Please try again.',
-        'too-many-requests' => 'Too many attempts. Please wait a moment and try again.',
-        'requires-recent-login' => 'For your security, please sign in again to continue.',
-        'web-context-canceled' || 'canceled' => 'Sign-in was cancelled.',
-        _ => e.message ?? 'Sign-in failed.',
+      final (String msg, AppErrorCode code) = switch (e.code) {
+        'invalid-credential' || 'wrong-password' || 'user-not-found' => ('That email and password don\'t match.', AppErrorCode.authCredentialMismatch),
+        'email-already-in-use' => ('An account already exists for that email. Try signing in.', AppErrorCode.authEmailInUse),
+        'weak-password' => ('Please choose a longer password (at least 8 characters).', AppErrorCode.authWeakPassword),
+        'invalid-email' => ('That email address doesn\'t look right.', AppErrorCode.authInvalidEmail),
+        'network-request-failed' => ('You appear to be offline. Please try again.', AppErrorCode.authOffline),
+        'too-many-requests' => ('Too many attempts. Please wait a moment and try again.', AppErrorCode.authTooManyRequests),
+        'requires-recent-login' => ('For your security, please sign in again to continue.', AppErrorCode.authRecentLoginRequired),
+        'web-context-canceled' || 'canceled' => ('Sign-in was cancelled.', AppErrorCode.authCancelled),
+        _ => (e.message ?? 'Sign-in failed.', AppErrorCode.authFailed),
       };
-      return AuthException(msg, cancelled: e.code.contains('cancel'));
+      return AuthException(msg, cancelled: e.code.contains('cancel'), code: code, args: {'detail': code == AppErrorCode.authFailed ? e.message : null});
     }
     if (e is GoogleSignInException && e.code == GoogleSignInExceptionCode.canceled) {
-      return AuthException('Sign-in was cancelled.', cancelled: true);
+      return AuthException('Sign-in was cancelled.', cancelled: true, code: AppErrorCode.authCancelled);
     }
-    return AuthException('Sign-in failed. Please try again.');
+    return AuthException('Sign-in failed. Please try again.', code: AppErrorCode.authFailedRetry);
   }
 
   @override
@@ -88,7 +89,7 @@ class FirebaseAuthService implements AuthService {
       }
       final account = await GoogleSignIn.instance.authenticate();
       final idToken = account.authentication.idToken;
-      if (idToken == null) throw AuthException('Google did not return an identity token.');
+      if (idToken == null) throw AuthException('Google did not return an identity token.', code: AppErrorCode.authNoGoogleToken);
       return await _result(await _auth.signInWithCredential(fa.GoogleAuthProvider.credential(idToken: idToken)));
     } catch (e) {
       if (e is AuthException) rethrow;
@@ -130,11 +131,11 @@ class FirebaseAuthService implements AuthService {
   @override
   Future<void> reauthenticate({String? password}) async {
     final u = _auth.currentUser;
-    if (u == null) throw AuthException('Please sign in again.');
+    if (u == null) throw AuthException('Please sign in again.', code: AppErrorCode.authSignInAgain);
     try {
       final providers = u.providerData.map((p) => p.providerId).toSet();
       if (providers.contains('password')) {
-        if (password == null || u.email == null) throw AuthException('Enter your password to continue.');
+        if (password == null || u.email == null) throw AuthException('Enter your password to continue.', code: AppErrorCode.authPasswordRequired);
         await u.reauthenticateWithCredential(fa.EmailAuthProvider.credential(email: u.email!, password: password));
       } else if (providers.contains('apple.com')) {
         await u.reauthenticateWithProvider(fa.AppleAuthProvider());

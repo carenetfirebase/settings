@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../core/design/theme.dart';
+import '../core/services/notification_service.dart';
 import '../l10n/l10n.dart';
 import '../domain/models/profile.dart';
 import 'providers.dart';
@@ -29,8 +30,9 @@ class _ChefiiAppState extends ConsumerState<ChefiiApp> {
     final router = ref.watch(routerProvider);
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();
     ref.listen(settingsProvider, (_, next) => ref.read(analyticsProvider).enabled = next.value?.analyticsConsent ?? false);
+    notificationLocale = localeForSetting(settings.language);
     return MaterialApp.router(
-      title: 'Chefii',
+      title: 'Chefii', // l10n-ignore: brand name
       debugShowCheckedModeBanner: false,
       theme: ChefiiTheme.light,
       darkTheme: ChefiiTheme.dark,

@@ -4,6 +4,7 @@ import '../../domain/models/inventory.dart';
 import '../../domain/models/nutrition.dart';
 import '../../domain/models/recipe.dart';
 import '../../domain/units/units.dart';
+import '../errors.dart';
 
 /// What the user asked the chef for.
 class ChefRequest {
@@ -134,10 +135,18 @@ class MealEstimate {
   final String? note;
 }
 
-class AiUnavailableException implements Exception {
-  AiUnavailableException(this.message, {this.retryable = true});
+class AiUnavailableException implements Exception, CodedError {
+  AiUnavailableException(this.message, {this.retryable = true, String? detail})
+      : args = {'detail': detail};
   final String message;
   final bool retryable;
+
+  /// Always [AppErrorCode.aiUnavailable]; `args['detail']` holds the
+  /// server's own (English) message when there was one.
+  @override
+  AppErrorCode get code => AppErrorCode.aiUnavailable;
+  @override
+  final Map<String, Object?> args;
   @override
   String toString() => message;
 }

@@ -9,6 +9,7 @@ import '../../domain/models/health.dart';
 import '../../domain/models/meals.dart';
 import '../../domain/models/profile.dart';
 import '../../domain/nutrition/evidence_library.dart';
+import '../../domain/nutrition/evidence_library_fr.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/labels.dart';
 import '../journal/journal_screens.dart';
@@ -34,6 +35,7 @@ class SmileAndFoodScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final wellness = ref.watch(wellnessProvider).value ?? const WellnessPreferences();
     final events = ref.watch(oralProvider).value ?? const <OralExposureEvent>[];
+    final french = ref.watch(frenchContentProvider);
     final today = DateTime.now();
     final todays = events.where((e) => DateUtils.isSameDay(e.occurredAt.toLocal(), today)).toList();
     final sugar = todays.where((e) => const {OralExposureKind.sugaryDrink, OralExposureKind.sweetSnack, OralExposureKind.stickyFood}.contains(e.kind)).length;
@@ -89,7 +91,7 @@ class SmileAndFoodScreen extends ConsumerWidget {
         for (final c in evidenceClaims.where((c) => c.topic == 'Teeth')) // l10n-ignore: content topic key
           Padding(
             padding: const EdgeInsets.only(bottom: Space.s),
-            child: EvidenceReferenceCard(claim: c, sources: [for (final s in c.sourceIds) evidenceSources[s]!], onTap: () => context.push('/you/nutrition/evidence?claim=${c.id}')),
+            child: EvidenceReferenceCard(claim: localizeClaim(c, french), sources: localizedSourcesOf(c, french), onTap: () => context.push('/you/nutrition/evidence?claim=${c.id}')),
           ),
         Text(l.healthSmileFooter, style: context.text.bodySmall),
       ],

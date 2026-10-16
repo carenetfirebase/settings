@@ -10,6 +10,7 @@ import '../../domain/models/meals.dart';
 import '../../domain/models/nutrition.dart';
 import '../../domain/models/profile.dart';
 import '../../domain/nutrition/evidence_library.dart';
+import '../../domain/nutrition/evidence_library_fr.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/labels.dart';
 import '../journal/journal_screens.dart';
@@ -153,6 +154,7 @@ class NutritionIntelligenceScreen extends ConsumerWidget {
         }
       }
     }
+    final french = ref.watch(frenchContentProvider);
     final fibreLow = now.loggedDays > 0 && now.avg[Nutrient.fibre] < 20;
     final highFibre = ref.watch(rankedRecipesProvider((mealType: null, maxMinutes: null, tag: null)))
         .where((a) => a.recipe.nutritionPerServing[Nutrient.fibre] >= 8)
@@ -188,8 +190,8 @@ class NutritionIntelligenceScreen extends ConsumerWidget {
         if (fibreLow) ...[
           SectionHeader(l.healthSomethingToTry),
           EvidenceReferenceCard(
-            claim: claimById('fibre_foods')!,
-            sources: [for (final s in claimById('fibre_foods')!.sourceIds) evidenceSources[s]!],
+            claim: localizeClaim(claimById('fibre_foods')!, french),
+            sources: localizedSourcesOf(claimById('fibre_foods')!, french),
             onTap: () => context.push('/you/nutrition/evidence?claim=fibre_foods'),
           ),
           const SizedBox(height: Space.s),
@@ -237,7 +239,8 @@ class _HairSkinNailsScreenState extends ConsumerState<HairSkinNailsScreen> {
   @override
   Widget build(BuildContext context) {
     final concerns = ref.watch(concernsProvider).value ?? const <UserConcern>[];
-    final claims = evidenceClaims.where((c) => c.topic == 'Hair, skin & nails').toList(); // l10n-ignore: content topic key
+    final french = ref.watch(frenchContentProvider);
+    final claims = evidenceClaims.where((c) => c.topic == 'Hair, skin & nails').toList(); // l10n-ignore: content topic key (English); translated at display
     final l = context.l10n;
     return PremiumAppScaffold(
       header: EditorialPageHeader(eyebrow: l.healthNutritionEyebrow, title: l.healthHairSkinNails, subtitle: l.healthHairSubtitle),
@@ -284,7 +287,7 @@ class _HairSkinNailsScreenState extends ConsumerState<HairSkinNailsScreen> {
         for (final c in claims)
           Padding(
             padding: const EdgeInsets.only(bottom: Space.s),
-            child: EvidenceReferenceCard(claim: c, sources: [for (final s in c.sourceIds) evidenceSources[s]!], onTap: () => context.push('/you/nutrition/evidence?claim=${c.id}')),
+            child: EvidenceReferenceCard(claim: localizeClaim(c, french), sources: localizedSourcesOf(c, french), onTap: () => context.push('/you/nutrition/evidence?claim=${c.id}')),
           ),
         const SizedBox(height: Space.s),
         SecondaryActionButton(icon: Icons.group_add_outlined, label: l.healthShareWithDietitian, onPressed: () => context.push('/you/circle')),
@@ -295,14 +298,16 @@ class _HairSkinNailsScreenState extends ConsumerState<HairSkinNailsScreen> {
 
 // ---------------------------------------------------------------- 63 Scientific evidence
 
-class EvidenceScreen extends StatelessWidget {
+class EvidenceScreen extends ConsumerWidget {
   const EvidenceScreen({super.key, this.claimId});
   final String? claimId;
 
   @override
-  Widget build(BuildContext context) {
-    final focus = claimId == null ? null : claimById(claimId!);
-    final claims = focus == null ? evidenceClaims : [focus];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final french = ref.watch(frenchContentProvider);
+    final english = claimId == null ? null : claimById(claimId!);
+    final focus = english == null ? null : localizeClaim(english, french);
+    final claims = focus == null ? [for (final c in evidenceClaims) localizeClaim(c, french)] : [focus];
     final l = context.l10n;
     return PremiumAppScaffold(
       header: EditorialPageHeader(
@@ -330,7 +335,7 @@ class EvidenceScreen extends StatelessWidget {
                 if (c.sourceIds.isEmpty) Text(l.healthCitationPending, style: context.text.bodySmall),
                 for (final id in c.sourceIds)
                   Builder(builder: (context) {
-                    final s = evidenceSources[id]!;
+                    final s = localizeSource(evidenceSources[id]!, french);
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.article_outlined),
@@ -371,6 +376,7 @@ class NutrientDetailScreen extends ConsumerWidget {
     final top = [...catalog]..sort((a, b) => b.reference.per100g[nutrient].compareTo(a.reference.per100g[nutrient]));
     final claims = (claimsByNutrient[nutrient] ?? const []).map(claimById).whereType<EvidenceClaim>().toList();
     final topMeals = [...meals]..sort((a, b) => b.nutrition[nutrient].compareTo(a.nutrition[nutrient]));
+    final french = ref.watch(frenchContentProvider);
     final l = context.l10n;
     return PremiumAppScaffold(
       header: EditorialPageHeader(eyebrow: l.healthNutrientEyebrow, title: context.labelOf(nutrient)),
@@ -381,7 +387,7 @@ class NutrientDetailScreen extends ConsumerWidget {
             Text(stats.loggedDays == 0 ? l.healthLogMealsForEstimate : l.healthAverageThisWeek(stats.loggedDays), style: context.text.bodySmall),
             if (dv != null) ...[
               const SizedBox(height: Space.s),
-              Text(_referenceLine(l, nutrient, dv), style: context.text.bodySmall),
+              Text(_referenceLine(l, nutrient, dv, french), style: context.text.bodySmall),
             ],
             const SizedBox(height: Space.xs),
             Text(l.healthDataCompleteness((stats.completeness * 100).round()), style: context.text.bodySmall),
@@ -398,7 +404,7 @@ class NutrientDetailScreen extends ConsumerWidget {
         if (claims.isNotEmpty) ...[
           SectionHeader(l.healthEvidence),
           for (final c in claims)
-            EvidenceReferenceCard(claim: c, sources: [for (final s in c.sourceIds) evidenceSources[s]!], onTap: () => context.push('/you/nutrition/evidence?claim=${c.id}')),
+            EvidenceReferenceCard(claim: localizeClaim(c, french), sources: localizedSourcesOf(c, french), onTap: () => context.push('/you/nutrition/evidence?claim=${c.id}')),
         ],
         const SizedBox(height: Space.m),
         Text(l.healthIndividualNeeds, style: context.text.bodySmall),
@@ -417,9 +423,9 @@ String _concernLabel(AppLocalizations l, ConcernArea a) => switch (a) {
     };
 
 /// Every reference in [dailyReferences] today is a Health Canada label Daily
-/// Value; anything else falls back to the stored (English) kind and source.
-String _referenceLine(AppLocalizations l, Nutrient n, DailyReference dv) {
+/// Value; anything else shows its kind and source, translated when [french].
+String _referenceLine(AppLocalizations l, Nutrient n, DailyReference dv, bool french) {
   final amount = formatNutrient(n, dv.amount);
   if (dv.kind == 'Daily Value' && dv.source == 'Health Canada, Table of Daily Values') return l.healthReferenceDailyValue(amount); // l10n-ignore
-  return l.healthReferenceOther(amount, dv.kind, dv.source);
+  return l.healthReferenceOther(amount, localizeReferenceTerm(dv.kind, french), localizeReferenceTerm(dv.source, french));
 }

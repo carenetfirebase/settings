@@ -26,3 +26,8 @@ Format: decision, why, consequences. Most recent last.
 22. **Monetisation deferred.** Per the directive; the Membership screen is informational.
 23. **Platform document scanner (`cunning_document_scanner`).** Uses VisionKit (iOS) and ML Kit (Android) for edge detection and cropping, with plain camera and library fallback.
 24. **Self-hosted CanvasKit for web builds (`--no-web-resources-cdn`).** No third-party CDN dependency for the professional portal.
+25. **Canadian French from day one.** Québec's Charter of the French Language expects French availability; per-area ARB parts merged by a script, with CI checks for completeness and hard-coded text. Québec vocabulary (déjeuner/dîner/souper). Language names stay in their own language.
+26. **Content language at display time.** Curated recipes and evidence carry parallel French text applied by providers; ids, quantities, timers and nutrition never change, and a test requires identical allergen detection in both languages.
+27. **Accessible colour tokens.** Secondary text #5C6158 and accent #7A6240 meet WCAG AA on every light surface; brand champagne stays in the icon and splash only.
+28. **iPhone-only v1.** Avoids iPad-specific screenshots and layout QA; iPads run the iPhone app.
+29. **Offline changes are not queued in v1.** A failed transactional change says plainly that nothing changed; a replay queue is deferred to avoid silent inventory edits.

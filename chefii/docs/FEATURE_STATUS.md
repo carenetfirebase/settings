@@ -56,8 +56,19 @@ Status as of 2026-10-15, branch `claude/chefii-flutter-app`.
 | 58–60 Glucose | ✅ | Health app import (HealthKit / Health Connect) 🔴 |
 | 61–66 Intelligence, evidence, Smile & Food | ✅ | ⚠️ Evidence is internal draft pending professional review |
 | 67–70 Professionals | ✅ | Professional verification is manual (admin callable); web portal not separately hardened |
-| 71–74, 76–80 Account | ✅ | French UI 🔴 (option shown as "coming soon"); dark theme exists but has not been visually QA'd |
+| 71–74, 76–80 Account | ✅ | Language: same as device / English / Français (Canada) |
 | 75 Membership | 🟡 by design | Informational only; billing deferred per the directive |
+
+## Language, accessibility and appearance
+
+| Capability | Status | Notes |
+|---|---|---|
+| Canadian French interface | ✅ | ≈1,600 strings; CI fails on any untranslated string or hard-coded English. ⚠️ Native-speaker review list in FRENCH_REVIEW.md |
+| French food names, Québec receipts, French voice commands | ✅ | Catalogue in French; matcher folds accents; parser understands Québec French |
+| French recipes and evidence notes | ✅ | Allergen detection must be identical in both languages (test) |
+| AI replies in French | ✅ | Chef, chat, meal titles |
+| Accessibility | ✅ | Automated tap-target, label and WCAG contrast checks on 20 screens, light and dark; 200% text; ⚠️ manual VoiceOver/TalkBack pass still needed |
+| Dark mode | ✅ | Screenshot-checked; illustrations dimmed |
 
 ## Backend
 

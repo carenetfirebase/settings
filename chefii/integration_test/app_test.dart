@@ -47,6 +47,8 @@ void main() {
     // Onboarding with a peanut allergy and the example kitchen.
     await tap(tester, find.text('Get started'));
     await tap(tester, find.text('Continue'));
+    // The terms checkbox appears after the first attempt (as in the widget test).
+    await tap(tester, find.text('Continue with a demo account'));
     await tap(tester, find.byType(CheckboxListTile));
     await tap(tester, find.text('Continue with a demo account'), frames: 20);
     await tap(tester, find.text('Continue'), frames: 15);

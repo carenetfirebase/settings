@@ -34,7 +34,9 @@ cd settings && git checkout claude/chefii-flutter-app && cd chefii
 bash tool/setup_firebase.sh chefii-a1b2c      # your project id
 ```
 
-The script signs you in and connects the app, asks for the model ids and the Gemini key, and deploys everything. When it finishes, commit the files it lists and push, or tell me and I'll take it from there.
+The script signs you in and connects the app, asks for the model ids and the Gemini key, and deploys everything. It also asks for an optional **reCAPTCHA v3 site key** so the website version can use the AI features (photo and receipt reading, chef chat): create one at <https://www.google.com/recaptcha/admin> for the domain `<project>.web.app`, paste its *secret* key into Firebase → App Check → your web app, and give the script the *site* key. Skip it if you only need the phone apps.
+
+When it finishes, open `https://<project>.web.app`, sign in, turn on AI processing when asked, and scan a real receipt: that's the first live test of Gemini. When it finishes, commit the files it lists and push, or tell me and I'll take it from there.
 
 ## 4. Apple (App Store) (≈1 hour; developer account needed)
 

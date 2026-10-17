@@ -80,8 +80,10 @@ Future<List<Override>> _demoOverrides(AppConfig config) async {
 Future<List<Override>> _firebaseOverrides(AppConfig config) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // App Check: Play Integrity / App Attest in release; debug provider locally.
+  // App Check: Play Integrity / App Attest in release, reCAPTCHA v3 on the
+  // website; debug provider locally.
   await FirebaseAppCheck.instance.activate(
+    providerWeb: config.recaptchaSiteKey == null ? null : ReCaptchaV3Provider(config.recaptchaSiteKey!),
     providerAndroid: config.appCheckDebug ? const AndroidDebugProvider() : const AndroidPlayIntegrityProvider(),
     providerApple: config.appCheckDebug ? const AppleDebugProvider() : const AppleAppAttestWithDeviceCheckFallbackProvider(),
   );

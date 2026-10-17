@@ -15,6 +15,7 @@ class AppConfig {
     this.emulatorHost = 'localhost',
     this.googleServerClientId,
     this.appCheckDebug = false,
+    this.recaptchaSiteKey,
   });
 
   final BackendMode backend;
@@ -22,6 +23,10 @@ class AppConfig {
   final String emulatorHost;
   final String? googleServerClientId;
   final bool appCheckDebug;
+
+  /// reCAPTCHA v3 site key for App Check on the website (public, not a
+  /// secret). Without it the server refuses the website's AI requests.
+  final String? recaptchaSiteKey;
 
   bool get isDemo => backend == BackendMode.demo;
 
@@ -31,12 +36,14 @@ class AppConfig {
     const host = String.fromEnvironment('CHEFII_EMULATOR_HOST', defaultValue: 'localhost');
     const clientId = String.fromEnvironment('CHEFII_GOOGLE_SERVER_CLIENT_ID');
     const appCheckDebug = bool.fromEnvironment('CHEFII_APPCHECK_DEBUG');
+    const recaptcha = String.fromEnvironment('CHEFII_RECAPTCHA_SITE_KEY');
     return AppConfig(
       backend: backend == 'firebase' ? BackendMode.firebase : BackendMode.demo,
       useEmulators: emulators,
       emulatorHost: host,
       googleServerClientId: clientId.isEmpty ? null : clientId,
       appCheckDebug: appCheckDebug,
+      recaptchaSiteKey: recaptcha.isEmpty ? null : recaptcha,
     );
   }
 }

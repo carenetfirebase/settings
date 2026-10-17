@@ -57,9 +57,17 @@ firebase functions:secrets:set GEMINI_API_KEY --project "$PROJECT"
 echo "OpenAI is optional and off. To skip it, enter any placeholder at the next prompt."
 firebase functions:secrets:set OPENAI_API_KEY --project "$PROJECT"
 
-step "Building the website (privacy policy, terms, professional portal)"
+step "Website App Check key (optional, lets the website use AI features)"
+echo "Firebase console > App Check > Apps > your web app > reCAPTCHA v3: create a"
+echo "site key at https://www.google.com/recaptcha/admin (add $PROJECT.web.app as a"
+echo "domain), paste the SECRET key into Firebase, and paste the SITE key here."
+echo "The site key is public, not a secret. Press Enter to skip."
+read -r -p "reCAPTCHA v3 site key: " RECAPTCHA_SITE_KEY
+
+step "Building the website (the app on the web, privacy policy, terms, professional portal)"
 flutter pub get
-flutter build web --release --no-web-resources-cdn --dart-define=CHEFII_BACKEND=firebase
+flutter build web --release --no-web-resources-cdn --dart-define=CHEFII_BACKEND=firebase \
+  ${RECAPTCHA_SITE_KEY:+--dart-define=CHEFII_RECAPTCHA_SITE_KEY=$RECAPTCHA_SITE_KEY}
 
 step "Deploying to $PROJECT"
 (cd functions && npm ci)

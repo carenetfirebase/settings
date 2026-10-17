@@ -49,7 +49,8 @@ void main() {
     await tap(tester, find.text('Continue'));
     // The terms checkbox appears after the first attempt (as in the widget test).
     await tap(tester, find.text('Continue with a demo account'));
-    await tap(tester, find.byType(CheckboxListTile));
+    // Tap the box itself: the tile's centre can land on its "Read them" link.
+    await tap(tester, find.descendant(of: find.byType(CheckboxListTile), matching: find.byType(Checkbox)));
     await tap(tester, find.text('Continue with a demo account'), frames: 20);
     await tap(tester, find.text('Continue'), frames: 15);
     await tap(tester, find.text('Yes'));

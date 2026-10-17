@@ -15,7 +15,25 @@ void main() {
     }
   }
 
+  /// Real devices are slower and smaller than the test window: wait for the
+  /// target to appear, scrolling down if it is below the fold (lazy lists
+  /// don't build off-screen items).
+  Future<void> waitFor(WidgetTester tester, Finder f) async {
+    for (var i = 0; i < 120 && f.evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+      final scrollables = find.byType(Scrollable);
+      if (i % 10 == 9 && scrollables.evaluate().isNotEmpty) {
+        await tester.drag(scrollables.last, const Offset(0, -300), warnIfMissed: false);
+      }
+    }
+    if (f.evaluate().isEmpty) {
+      final onScreen = find.byType(Text).evaluate().map((e) => (e.widget as Text).data).whereType<String>().take(40).join(' | ');
+      fail('Never found $f. On screen: $onScreen');
+    }
+  }
+
   Future<void> tap(WidgetTester tester, Finder f, {int frames = 10}) async {
+    await waitFor(tester, f);
     await tester.ensureVisible(f.first);
     await tester.pump();
     await tester.tap(f.first);
@@ -38,15 +56,14 @@ void main() {
     await tap(tester, find.text('Continue'), frames: 15);
     await tap(tester, find.text('Continue'), frames: 15);
     await tap(tester, find.text('Start with example ingredients'), frames: 30);
-    expect(find.textContaining('Alex'), findsWidgets, reason: 'Today greets the user');
+    await waitFor(tester, find.textContaining('Alex')); // Today greets the user
 
     // Guided cooking from Today's suggestion (keeps the screen awake).
     await tap(tester, find.text('Start cooking'), frames: 20);
-    final begin = find.text('Begin cooking');
-    await tap(tester, begin.evaluate().isNotEmpty ? begin : find.text('Begin anyway'), frames: 20);
-    expect(find.textContaining('STEP 1'), findsOneWidget);
+    await tap(tester, find.textContaining(RegExp(r'^Begin (cooking|anyway)$')), frames: 20);
+    await waitFor(tester, find.textContaining('STEP 1'));
     await tap(tester, find.text('Next step'));
-    expect(find.textContaining('STEP 2'), findsOneWidget);
+    await waitFor(tester, find.textContaining('STEP 2'));
 
     // Back to the kitchen tab.
     await tester.pageBack();
@@ -54,13 +71,12 @@ void main() {
     await tester.pageBack();
     await settle(tester, 10);
     await tap(tester, find.text('Kitchen'), frames: 15);
-    expect(find.text('My kitchen'), findsOneWidget);
+    await waitFor(tester, find.text('My kitchen'));
 
     // Switch the whole app to Canadian French.
     await tap(tester, find.text('You'), frames: 15);
     await tap(tester, find.text('Accessibility & language'), frames: 15);
     await tap(tester, find.text('Français (Canada)'), frames: 20);
-    expect(find.text('Aujourd’hui').evaluate().isNotEmpty || find.text("Aujourd'hui").evaluate().isNotEmpty, isTrue,
-        reason: 'navigation is now in French');
+    await waitFor(tester, find.textContaining(RegExp("^Aujourd['’]hui\$"))); // navigation is now in French
   });
 }

@@ -252,4 +252,21 @@ void main() {
       await settle(tester, 2);
     });
   }
+
+  testWidgets('guided cooking steps forward with reduce motion on', (tester) async {
+    final router = await pumpSignedIn(tester);
+    tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    router.push('/recipe/red-lentil-dal');
+    await settle(tester, 10);
+    await tapOn(tester, find.text('Start cooking'));
+    await settle(tester, 10);
+    await tapOn(tester, find.textContaining(RegExp(r'^Begin (cooking|anyway)$')));
+    await settle(tester, 10);
+    expect(find.textContaining('STEP 1'), findsOneWidget);
+    await tapOn(tester, find.text('Next step'));
+    await settle(tester, 4);
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('STEP 2'), findsOneWidget);
+  });
 }

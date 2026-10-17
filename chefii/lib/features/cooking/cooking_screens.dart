@@ -106,10 +106,13 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
   PageController? _pages;
   bool _speak = false;
   Timer? _tick;
+  // Kept so dispose() can stop speech without using ref (unsafe there).
+  late final Speaker _speaker;
 
   @override
   void initState() {
     super.initState();
+    _speaker = ref.read(speakerProvider);
     _speak = ref.read(settingsProvider).value?.voiceGuidance ?? false;
     ScreenAwake.enable();
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -121,7 +124,7 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
   void dispose() {
     _tick?.cancel();
     _pages?.dispose();
-    ref.read(speakerProvider).stop();
+    _speaker.stop();
     ScreenAwake.disable();
     super.dispose();
   }
@@ -129,7 +132,12 @@ class _GuidedCookingScreenState extends ConsumerState<GuidedCookingScreen> {
   void _go(CookingSession s, int step) {
     final n = s.recipe.steps.length;
     final clamped = step.clamp(0, n - 1);
-    _pages?.animateToPage(clamped, duration: context.reduceMotion ? Duration.zero : Motion.medium, curve: Curves.easeOut);
+    // Reduce motion: jump (animateToPage rejects a zero duration).
+    if (context.reduceMotion) {
+      _pages?.jumpToPage(clamped);
+    } else {
+      _pages?.animateToPage(clamped, duration: Motion.medium, curve: Curves.easeOut);
+    }
   }
 
   void _onPage(CookingSession s, int i) {

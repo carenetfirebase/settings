@@ -42,7 +42,7 @@ The script signs you in and connects the app, asks for the model ids and the Gem
 2. Sign in with Apple for Firebase: create a **Services ID** and a **key**, then paste them into Firebase → Authentication → Apple (Firebase shows exactly which fields).
 3. App Check: Firebase → App Check → register the iOS app with **App Attest**.
 4. App Store Connect → **New App**: name "Chefii: Kitchen & Recipes", primary language English (Canada), add French (Canada), bundle id ca.chefii.chefii, SKU `chefii-ios`.
-5. Build: open `ios/Runner.xcworkspace` in Xcode → Signing: choose your team → Product › **Archive** → Distribute → App Store Connect. (Or ask me to set up automatic signing in CI.)
+5. Build: either add the secrets in `docs/RELEASE_AUTOMATION.md` and run the **Chefii release** workflow on GitHub (no Xcode needed), or open `ios/Runner.xcworkspace` in Xcode → Signing: choose your team → Product › **Archive** → Distribute → App Store Connect.
 6. Paste the listing from `docs/store/LISTING.md`, upload screenshots from `store/screenshots/ios/`, answer App Privacy from `docs/store/APP_PRIVACY.md`, add the privacy policy URL `https://<project>.web.app/legal/privacy.html`.
 7. Send to **TestFlight** first and install it on your iPhone.
 

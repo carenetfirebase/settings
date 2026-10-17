@@ -1,0 +1,441 @@
+{
+  "kitchenShoppingList": "Shopping list",
+  "kitchenTellChefii": "Tell Chefii",
+  "kitchenEyebrow": "Kitchen",
+  "kitchenMyKitchen": "My kitchen",
+  "kitchenItemsAcrossPlaces": "{count, plural, =1{1 item across {places} places} other{{count} items across {places} places}}",
+  "@kitchenItemsAcrossPlaces": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "places": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenScanReceipt": "Scan a receipt",
+  "kitchenOpening": "Opening your kitchen…",
+  "kitchenEmptyTitle": "Your kitchen is empty",
+  "kitchenEmptyMessage": "Scan a grocery receipt and Chefii fills it in for you — or add a few things by hand.",
+  "kitchenAddAnItem": "Add an item",
+  "kitchenScanFridgeInstead": "Scan the fridge instead",
+  "kitchenUseSoon": "Use soon",
+  "kitchenToVerify": "To verify",
+  "kitchenStatAdd": "Add",
+  "kitchenStatAnItem": "an item",
+  "kitchenStatSemantics": "{label}: {value}",
+  "@kitchenStatSemantics": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenFilterAll": "All",
+  "kitchenManagePlaces": "Manage places",
+  "kitchenSearchHint": "Search your kitchen",
+  "kitchenNoMatchTitle": "Nothing matches",
+  "kitchenNoMatchMessage": "Try a different search or filter.",
+  "kitchenScanFridge": "Scan fridge",
+  "kitchenSpendingWaste": "Spending & waste",
+  "kitchenReceipts": "Receipts",
+  "kitchenStorageEyebrow": "Storage",
+  "kitchenConfirmedOfTotal": "{confirmed} of {total} confirmed · soonest first",
+  "@kitchenConfirmedOfTotal": {
+    "placeholders": {
+      "confirmed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenVerifyTheseItems": "Verify these items",
+  "kitchenNothingHereTitle": "Nothing here yet",
+  "kitchenNothingHereMessage": "Items you add to {place} appear here.",
+  "@kitchenNothingHereMessage": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenItemNotFoundTitle": "Item not found",
+  "kitchenItemNotFoundMessage": "It may have been removed by someone in your household.",
+  "kitchenMore": "More",
+  "kitchenDiscardTitle": "Discard {name}?",
+  "@kitchenDiscardTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenDiscardMessage": "Records the remaining {amount} as food waste.",
+  "@kitchenDiscardMessage": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenDiscard": "Discard",
+  "kitchenMoveTo": "Move to {place}",
+  "@kitchenMoveTo": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenUpdateAmount": "Update amount",
+  "kitchenRecordedAmount": "Recorded amount",
+  "kitchenOriginally": "Originally",
+  "kitchenAdded": "Added",
+  "kitchenSource": "Source",
+  "kitchenSourceReceipt": "Receipt",
+  "kitchenSourceReceiptLine": "Receipt · \"{line}\"",
+  "@kitchenSourceReceiptLine": {
+    "placeholders": {
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenSourcePhotoScan": "Photo scan",
+  "kitchenSourceBarcode": "Barcode",
+  "kitchenSourceLeftover": "Leftovers you saved",
+  "kitchenSourceDemo": "Example ingredient",
+  "kitchenSourceManual": "Added by hand",
+  "kitchenPackage": "Package",
+  "kitchenDateOnPackage": "Date on package",
+  "kitchenEstimatedQuality": "Estimated quality",
+  "kitchenUnknown": "Unknown",
+  "kitchenSetDateFromPackage": "Set date from package",
+  "kitchenDatePrintedOnPackage": "Date printed on the package",
+  "kitchenEstimateWarning": "Our estimate suggests using this soon. Estimates are a guide only — check how it looks and smells, and follow the package date.",
+  "kitchenRecordedDatePast": "The date you recorded is past. Follow the package guidance; when in doubt, throw it out.",
+  "kitchenRecordedDateClose": "The date you recorded is close. Follow the package guidance; when in doubt, throw it out.",
+  "kitchenThisAmountIsRight": "This amount is right",
+  "kitchenNutritionReference": "Nutrition reference",
+  "kitchenPer100g": "per 100 g · {source}",
+  "@kitchenPer100g": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenActivity": "Activity",
+  "kitchenNoActivity": "No activity yet.",
+  "kitchenNewBarcode": "New barcode — tell us what it is once and we'll remember it.",
+  "kitchenChooseAnItem": "Choose an item",
+  "kitchenAddToKitchen": "Add to kitchen",
+  "kitchenWhatAreYouAdding": "What are you adding?",
+  "kitchenChange": "Change",
+  "kitchenScanBarcode": "Scan barcode",
+  "kitchenBarcodeValue": "Barcode {code}",
+  "@kitchenBarcodeValue": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenWillAddNew": "We'll add \"{name}\" as a new item.",
+  "@kitchenWillAddNew": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenHowMuch": "How much?",
+  "kitchenWhereDoesItLive": "Where does it live?",
+  "kitchenDateOnThePackage": "Date on the package",
+  "kitchenAddDateOptional": "Add a best-before or use-by date (optional)",
+  "kitchenScanABarcode": "Scan a barcode",
+  "kitchenPointAtBarcode": "Point at the barcode on the package",
+  "kitchenCamera": "Camera",
+  "kitchenBarcodeCameraWhy": "Chefii needs the camera to read barcodes. You can still type the item name.",
+  "kitchenTypeItInstead": "Type it instead",
+  "kitchenAiFeatureShelfScan": "scanning your shelves",
+  "kitchenEnterAmountFor": "Enter an amount for {name}.",
+  "@kitchenEnterAmountFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenScanSummary": "{count, plural, =1{Added 1 item from a photo} other{Added {count} items from a photo}}",
+  "@kitchenScanSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenScanTitle": "Scan your shelves",
+  "kitchenScanSubtitle": "We'll suggest what we can see. Nothing is added until you confirm it.",
+  "kitchenTakePhoto": "Take a photo",
+  "kitchenSelectItemsToAdd": "Select items to add",
+  "kitchenAddCount": "{count, plural, =1{Add 1 item} other{Add {count} items}}",
+  "@kitchenAddCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenCameraDeniedWhy": "Allow camera access in Settings to scan, or choose a photo from your library.",
+  "kitchenChooseFromLibrary": "Choose from library",
+  "kitchenOpenFridgeArt": "Open fridge",
+  "kitchenScanTips": "Tips: open the door fully, use good light, and take one photo per shelf for best results.",
+  "kitchenScanDemo": "Demo: sample suggestions — your photo was not analysed.",
+  "kitchenScanNothingTitle": "We couldn't spot anything",
+  "kitchenScanNothingMessage": "Try a brighter, closer photo of one shelf.",
+  "kitchenPercentSure": "{percent}% sure",
+  "@kitchenPercentSure": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenAmount": "Amount",
+  "kitchenEnterAmount": "Enter amount",
+  "kitchenTakeAnotherPhoto": "Take another photo",
+  "kitchenFreshnessSubtitle": "Things worth cooking, freezing or deciding on.",
+  "kitchenFindRecipes": "Find recipes that use these",
+  "kitchenNothingNeedsAttentionTitle": "Nothing needs attention",
+  "kitchenNothingNeedsAttentionMessage": "We'll let you know when something should be used soon.",
+  "kitchenDatePassed": "{days, plural, =1{date passed 1 day ago} other{date passed {days} days ago}}",
+  "@kitchenDatePassed": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenDateIsToday": "date is today",
+  "kitchenDaysLeft": "{days, plural, =1{1 day left} other{{days} days left}}",
+  "@kitchenDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenWithEstimate": "{text} (estimate)",
+  "@kitchenWithEstimate": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenCookWithThis": "Cook with this",
+  "kitchenFreeze": "Freeze",
+  "kitchenFoodSafety": "Food safety",
+  "kitchenFoodSafetyBody": "Chefii's dates are estimates from typical storage times, not safety guarantees. Follow \"use by\" and \"best before\" dates on packages, keep your fridge at 4 °C (40 °F) or below, and when in doubt, throw it out. For guidance, see Health Canada's food safety pages.",
+  "kitchenAllSquaredAway": "All squared away",
+  "kitchenBackToKitchen": "Back to kitchen",
+  "kitchenItemsVerified": "{count, plural, =1{1 item verified} other{{count} items verified}}",
+  "@kitchenItemsVerified": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenEveryAmountRight": "Every amount was already right.",
+  "kitchenAmountsCorrected": "{count, plural, =1{1 amount was corrected. You can undo from the kitchen.} other{{count} amounts were corrected. You can undo from the kitchen.}}",
+  "@kitchenAmountsCorrected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenQuickCheck": "Quick check",
+  "kitchenQuickCheckSubtitle": "{count, plural, =1{Adjust anything that's off, then confirm. 1 item.} other{Adjust anything that's off, then confirm. {count} items.}}",
+  "@kitchenQuickCheckSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenConfirmAll": "Confirm all",
+  "kitchenEverythingAccurateTitle": "Everything looks accurate",
+  "kitchenEverythingAccurateMessage": "Nothing needs checking right now.",
+  "kitchenWasAmount": "was {amount}",
+  "@kitchenWasAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenAlreadyDone": "Already done — nothing changed.",
+  "kitchenRecorded": "Recorded: {amount}",
+  "@kitchenRecorded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenModeUsed": "Used",
+  "kitchenModeAdded": "Added",
+  "kitchenModeTossed": "Tossed",
+  "kitchenModeCount": "Count",
+  "kitchenAmountYouHaveNow": "Amount you have now",
+  "kitchenCountingConfirms": "Counting confirms this item as accurate.",
+  "kitchenUseAmount": "Use {amount}",
+  "@kitchenUseAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenAddAmount": "Add {amount}",
+  "@kitchenAddAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenDiscardAmount": "Discard {amount}",
+  "@kitchenDiscardAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenSetToAmount": "Set to {amount}",
+  "@kitchenSetToAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenMarkFinished": "Mark as finished",
+  "kitchenCommandTryHint": "Try \"I used two eggs\" or \"add 1 kg flour\".",
+  "kitchenVoiceUnavailable": "Voice isn't available. You can type instead — or use your keyboard's dictation.",
+  "kitchenCommandExamples": "\"I used two eggs\" · \"we're out of milk\" · \"add 1 kg flour\"",
+  "kitchenCommandFieldHint": "What happened in the kitchen?",
+  "kitchenListening": "Listening",
+  "kitchenSpeak": "Speak",
+  "kitchenCouldNotFind": "We couldn't find \"{query}\"",
+  "@kitchenCouldNotFind": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenHereIsWhatWillHappen": "Here's what will happen",
+  "kitchenTrySimplerName": "Try a simpler name, or add it from the Kitchen tab.",
+  "kitchenNoAmountSaid": "You didn't say how much — check the amount:",
+  "kitchenQuoted": "\"{text}\"",
+  "@kitchenQuoted": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenCommandMarkEmpty": "Mark {what} as used up",
+  "@kitchenCommandMarkEmpty": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenCommandSetCount": "Set {what} to {amount}",
+  "@kitchenCommandSetCount": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenCommandAction": "{action} {amount} {what}",
+  "@kitchenCommandAction": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenConfirm": "Confirm",
+  "kitchenRenamePlace": "Rename place",
+  "kitchenPlacesTitle": "Places in your kitchen",
+  "kitchenPlacesSubtitle": "Add spots like a garage freezer or a wine fridge.",
+  "kitchenBuiltIn": "Built in",
+  "kitchenKeptLike": "{kind, select, fridge{Kept like a fridge} freezer{Kept like a freezer} pantry{Kept like a pantry} other{Kept like a other}}",
+  "@kitchenKeptLike": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenRenameTooltip": "Rename {place}",
+  "@kitchenRenameTooltip": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenRemoveTooltip": "Remove {place}",
+  "@kitchenRemoveTooltip": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenRemovedPlace": "Removed {place}.",
+  "@kitchenRemovedPlace": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenAddedPlace": "Added {place}.",
+  "@kitchenAddedPlace": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenNewPlace": "New place",
+  "kitchenNewPlaceHint": "e.g. Garage freezer",
+  "kitchenKeptLikeHeader": "Kept like a…",
+  "kitchenAddPlace": "Add place"
+}

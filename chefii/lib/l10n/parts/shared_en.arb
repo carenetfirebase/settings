@@ -1,0 +1,15 @@
+{
+  "sharedAiConsentTitle": "Use AI for {feature}?",
+  "@sharedAiConsentTitle": {
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "sharedAiConsentMessage": "To do this, Chefii sends the photo or text to its AI provider (Google Gemini) through our secure servers in Canada. It isn't used to train their models under our agreements, and you can turn this off any time in Privacy & data.",
+  "sharedAiConsentAllow": "Allow",
+  "sharedAiConsentNotNow": "Not now",
+  "sharedTakePhoto": "Take a photo",
+  "sharedChooseFromLibrary": "Choose from library"
+}

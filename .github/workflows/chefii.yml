@@ -1,0 +1,183 @@
+name: Chefii
+
+on:
+  push:
+    # Feature branches are covered by pull_request; avoid double runs.
+    branches: ['main', 'claude/investment-research-v1-v9wzvm']
+    paths: ['chefii/**', '.github/workflows/chefii.yml']
+  pull_request:
+    paths: ['chefii/**', '.github/workflows/chefii.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: chefii-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: chefii
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: dart run tool/export_shared_data.dart --check
+      - name: Every English string has a French translation
+        run: dart run tool/merge_arb.dart --check
+      - name: No hard-coded user-facing text
+        run: dart run tool/check_hardcoded_strings.dart --check
+      - name: Deploy guard blocks non-Chefii projects
+        run: |
+          for p in referai Referai-prod some-other-app ""; do
+            if GCLOUD_PROJECT="$p" bash tool/guard_firebase_project.sh; then echo "guard allowed '$p'"; exit 1; fi
+          done
+          GCLOUD_PROJECT=chefii-prod bash tool/guard_firebase_project.sh
+          grep -q guard_firebase_project.sh firebase.json
+
+  functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: chefii/functions/package-lock.json
+      - run: npm ci
+        working-directory: chefii/functions
+      - run: npm run build
+        working-directory: chefii/functions
+      - run: npm test
+        working-directory: chefii/functions
+
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: chefii/rules-tests
+      - run: npx firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-chefii "npx vitest run"
+        working-directory: chefii/rules-tests
+      - run: npm ci
+        working-directory: chefii/functions
+      - name: Callable integration tests (emulators)
+        run: npm run test:integration
+        working-directory: chefii/functions
+
+  android-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # Pre-install the NDK Flutter's Gradle plugin asks for, with retries:
+      # a truncated download inside Gradle fails the whole build.
+      - name: Install Android NDK
+        run: |
+          for i in 1 2 3; do
+            (yes || true) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" > /dev/null && exit 0
+            echo "NDK install attempt $i failed; retrying"; sleep $((i * 15))
+          done
+          exit 1
+      - run: flutter build apk --debug
+      - run: flutter build appbundle --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chefii-android
+          path: |
+            chefii/build/app/outputs/flutter-apk/app-debug.apk
+            chefii/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 14
+
+  ios-build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign
+      - run: flutter build ios --simulator --debug
+
+  # Runs the real app on an iPhone simulator: onboarding, cooking, kitchen, French.
+  ios-device-test:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Boot an iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r,v in d.items() if 'iOS' in r for x in v if x['name'].startswith('iPhone')))")
+          xcrun simctl boot "$UDID"
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+      - run: flutter test integration_test -d "$SIM_UDID"
+
+  # Same flow on an Android emulator (API 34).
+  android-device-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Enable KVM
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install Android NDK
+        run: |
+          for i in 1 2 3; do
+            (yes || true) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" > /dev/null && exit 0
+            echo "NDK install attempt $i failed; retrying"; sleep $((i * 15))
+          done
+          exit 1
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          working-directory: chefii
+          script: flutter test integration_test

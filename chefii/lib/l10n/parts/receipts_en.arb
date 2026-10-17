@@ -1,0 +1,250 @@
+{
+  "receiptsEyebrow": "Receipt",
+  "receiptsCaptureTitle": "Scan a receipt",
+  "receiptsCaptureSubtitle": "Lay it flat in good light. Long receipts can be captured in a few pages.",
+  "receiptsScanReceipt": "Scan receipt",
+  "receiptsTakePhoto": "Take a photo",
+  "receiptsDemoCapture": "Demo mode: any photo works — we'll show a labelled sample receipt instead of reading it.",
+  "receiptsCameraPermission": "Camera",
+  "receiptsCameraWhy": "Allow camera access in Settings to scan receipts, or import a photo you already took.",
+  "receiptsImportPhoto": "Import a photo",
+  "receiptsArtworkLabel": "Receipt on a kitchen counter",
+  "receiptsTipLight": "Bright, even light — avoid shadows across the paper",
+  "receiptsTipFrame": "Include the store name at the top and the total at the bottom",
+  "receiptsTipPages": "For long receipts, capture each section as its own page",
+  "receiptsTipPrivacy": "Photos are stored privately for your household and used only to read your purchases",
+  "receiptsRegularCamera": "Use the regular camera",
+  "receiptsImportFromPhotos": "Import from photos",
+  "receiptsAiFeature": "reading receipts",
+  "receiptsPreviewTitle": "Check your photo",
+  "receiptsPreviewSubtitle": "{count, plural, =1{1 page} other{{count} pages}}. Make sure the text is sharp.",
+  "@receiptsPreviewSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsAnalyze": "Analyze receipt",
+  "receiptsNoPagesTitle": "No pages yet",
+  "receiptsNoPagesMessage": "Capture your receipt to continue.",
+  "receiptsCapture": "Capture",
+  "receiptsPageSemantics": "Receipt page {number}",
+  "@receiptsPageSemantics": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsPageLabel": "Page {number}",
+  "@receiptsPageLabel": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsRotate": "Rotate",
+  "receiptsRetake": "Retake",
+  "receiptsRemovePage": "Remove page",
+  "receiptsAddPage": "Add another page",
+  "receiptsStepUploading": "Uploading securely",
+  "receiptsStepReading": "Reading every line",
+  "receiptsStepChecking": "Checking totals and duplicates",
+  "receiptsStepMatching": "Matching to your kitchen",
+  "receiptsProcessingTitle": "Reading your receipt",
+  "receiptsProcessingSubtitle": "This usually takes under a minute. You can leave — we'll keep going.",
+  "receiptsProgressSemantics": "Progress {percent} percent",
+  "@receiptsProgressSemantics": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsContinueBackground": "Continue in the background",
+  "receiptsNotFound": "Receipt not found.",
+  "receiptsAlreadyInKitchenTitle": "Already in your kitchen",
+  "receiptsAlreadyImportedMessage": "This receipt was imported.",
+  "receiptsSeeSummary": "See summary",
+  "receiptsReviewTitle": "Review purchases",
+  "receiptsReviewSubtitle": "{count, plural, =1{1 item} other{{count} items}}",
+  "@receiptsReviewSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsReviewSubtitleToCheck": "{count, plural, =1{1 item} other{{count} items}} · {review} to check",
+  "@receiptsReviewSubtitleToCheck": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "review": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsResolveItems": "{count, plural, =1{Resolve 1 item} other{Resolve {count} items}}",
+  "@receiptsResolveItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsDemoReview": "Demo: this is a built-in sample receipt, not your photo.",
+  "receiptsTotalsMatch": "Items add up to the receipt subtotal.",
+  "receiptsTotalsMatchWithTotal": "Items add up to the receipt subtotal · total {total}.",
+  "@receiptsTotalsMatchWithTotal": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsTotalsMismatch": "Items add up to {linesTotal} but the subtotal reads {subtotal}. A line may be missing — you can add it.",
+  "@receiptsTotalsMismatch": {
+    "placeholders": {
+      "linesTotal": {
+        "type": "String"
+      },
+      "subtotal": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsAddMissingItem": "Add a missing item",
+  "receiptsUnknownItem": "Unknown item",
+  "receiptsAmountNeeded": "Amount needed",
+  "receiptsNotFood": "Not food",
+  "receiptsChecked": "Checked",
+  "receiptsPleaseCheck": "Please check",
+  "receiptsExcludedSemantics": "Excluded. Tap to include",
+  "receiptsIncludedSemantics": "Included. Tap to exclude",
+  "receiptsAddedByYou": "(added by you)",
+  "receiptsAddItemTitle": "Add an item",
+  "receiptsCorrectItemTitle": "Correct item",
+  "receiptsReceiptSays": "Receipt says: {text}",
+  "@receiptsReceiptSays": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsIsFood": "This is food",
+  "receiptsIsFoodSubtitle": "Non-food purchases are not added to your kitchen",
+  "receiptsProductName": "Product name",
+  "receiptsBrandOptional": "Brand (optional)",
+  "receiptsPackageOptional": "Package size (optional)",
+  "receiptsPackageHint": "e.g. 750 g tub",
+  "receiptsQuantity": "Quantity",
+  "receiptsCategory": "Category",
+  "receiptsStoreIn": "Store in",
+  "receiptsUnknownTitle": "A few to check",
+  "receiptsAllResolved": "All resolved.",
+  "receiptsUnknownSubtitle": "Tell us what these are, or leave them out.",
+  "receiptsStillNeedNameAmount": "{count} still need a name and amount",
+  "@receiptsStillNeedNameAmount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsNothingLeftTitle": "Nothing left to check",
+  "receiptsNothingLeftMessage": "Everything has a name and an amount.",
+  "receiptsCouldntTell": "We couldn't tell what this is",
+  "receiptsLooksLikeUnknownAmount": "Looks like: {name} (amount unknown)",
+  "@receiptsLooksLikeUnknownAmount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsLooksLikeWithAmount": "Looks like: {name} · {quantity}",
+  "@receiptsLooksLikeWithAmount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsFix": "Fix",
+  "receiptsLooksRight": "Looks right",
+  "receiptsLeaveOut": "Leave out",
+  "receiptsStorageTitle": "Where does it go?",
+  "receiptsStorageSubtitle": "We've suggested a spot for each. Tap to change.",
+  "receiptsAddToKitchen": "{count, plural, =1{Add 1 item to kitchen} other{Add {count} items to kitchen}}",
+  "@receiptsAddToKitchen": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsChangeStorage": "Change storage",
+  "receiptsDuplicateTitle": "Already scanned?",
+  "receiptsViewEarlier": "View the earlier receipt",
+  "receiptsDuplicateHeadline": "This looks like a receipt you've already added",
+  "receiptsDuplicateMessage": "To avoid counting groceries twice, we stopped here.",
+  "receiptsDuplicateMessageWithDate": "To avoid counting groceries twice, we stopped here. Earlier scan: {date}.",
+  "@receiptsDuplicateMessageWithDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsDifferentReceipt": "It's a different receipt — continue",
+  "receiptsErrorTitle": "We couldn't read that one",
+  "receiptsRetakePhoto": "Retake photo",
+  "receiptsSomethingWrong": "Something went wrong",
+  "receiptsQualityMessage": "The photo may be blurry, too dark or cut off. Lay the receipt flat in bright light and include the whole thing.",
+  "receiptsSafeRetry": "Nothing was added to your kitchen, so it's safe to retry.",
+  "receiptsAddByHand": "Add items by hand instead",
+  "receiptsDoneTitle": "Your kitchen is up to date",
+  "receiptsViewKitchen": "View kitchen",
+  "receiptsMetricAdded": "{count, plural, other{items added}}",
+  "@receiptsMetricAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsMetricLeftOut": "{count, plural, other{left out}}",
+  "@receiptsMetricLeftOut": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsMetricTotal": "total",
+  "receiptsEstimatedNote": "{count, plural, =1{1 item is marked as estimated. Chefii will ask you to confirm next time you're in the kitchen.} other{{count} items are marked as estimated. Chefii will ask you to confirm next time you're in the kitchen.}}",
+  "@receiptsEstimatedNote": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsUndoImportButton": "Undo this import",
+  "receiptsUndoImportTitle": "Undo import?",
+  "receiptsUndoImportMessage": "Removes these items from your kitchen. Anything already used stays recorded.",
+  "receiptsUndoImportConfirm": "Undo import",
+  "receiptsScanAnother": "Scan another receipt",
+  "receiptsListEyebrow": "Kitchen",
+  "receiptsListTitle": "Receipts",
+  "receiptsListEmptyTitle": "No receipts yet",
+  "receiptsListEmptyMessage": "Scanned receipts appear here."
+}

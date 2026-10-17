@@ -1,0 +1,3551 @@
+{
+  "@@locale": "en",
+  "accountEyebrow": "You",
+  "accountTitleFallback": "Your account",
+  "accountEditName": "Edit name",
+  "accountYourName": "Your name",
+  "accountSectionPreferences": "Preferences",
+  "accountDietarySafety": "Dietary safety",
+  "accountNoAllergies": "No allergies recorded",
+  "accountNotProvidedYet": "Not provided yet",
+  "accountCulinaryPreferences": "Culinary preferences",
+  "accountWellnessPreferences": "Wellness preferences",
+  "accountMorningRoutine": "Morning routine",
+  "accountMealReminders": "Meal reminders",
+  "accountSectionHealth": "Health & nutrition",
+  "accountNutrition": "Nutrition",
+  "accountNutritionInsights": "Nutrition insights",
+  "accountSmileAndFood": "Smile & Food",
+  "accountGlucoseJournal": "Glucose journal",
+  "accountOptional": "Optional",
+  "accountNutritionCircle": "My nutrition circle",
+  "accountSectionHousehold": "Household & account",
+  "accountHouseholdMembers": "Household members",
+  "accountPrivacyData": "Privacy & data",
+  "accountConnectedServices": "Connected services",
+  "accountMembership": "Membership",
+  "accountAccessibilityLanguage": "Accessibility & language",
+  "accountSecuritySessions": "Security & sessions",
+  "accountHelpSupport": "Help & support",
+  "accountLegalEvidence": "Legal & evidence",
+  "accountExportOrDelete": "Export or delete your data",
+  "accountProPortal": "Professional portal",
+  "accountSignOut": "Sign out",
+  "accountFooterDemo": "Chefii · Demo mode",
+  "accountFooterEarlyAccess": "Chefii · Early access",
+  "accountHousehold": "Household",
+  "accountUsualPortions": "{count, plural, other{{count} usual portions}}",
+  "@accountUsualPortions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "accountInviteSomeone": "Invite someone",
+  "accountInviteShareText": "Join our kitchen on Chefii with code {code} (valid for 7 days).",
+  "@accountInviteShareText": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "accountInviteShareSubject": "Join my Chefii kitchen",
+  "accountMemberYou": "{name} (you)",
+  "@accountMemberYou": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountMemberSubtitle": "{role} · since {date}",
+  "@accountMemberSubtitle": {
+    "placeholders": {
+      "role": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "accountRoleOwner": "Owner",
+  "accountRoleAdult": "Adult",
+  "accountRoleMember": "Member",
+  "accountRemoveMemberTitle": "Remove {name}?",
+  "@accountRemoveMemberTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountRemoveMemberMessage": "They'll lose access to the shared kitchen. Their private journal stays theirs.",
+  "accountOpenInvitations": "Open invitations",
+  "accountInviteCode": "Code {code}",
+  "@accountInviteCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "accountInviteValidity": "Valid for 7 days, single use",
+  "accountWhatMembersShare": "What members share",
+  "accountMembersShareBody": "Everyone shares the kitchen, shopping list, meal plan and saved recipes. Each person's journal, nutrition, glucose, Smile & Food log and professional reviews stay private. Allergies are shared with the household only so shared meals stay safe.",
+  "accountPrivacyEyebrow": "Privacy",
+  "accountPrivacyTitle": "Your data, your choice",
+  "accountPrivacySubtitle": "Chefii never sells your data or uses your health records for advertising.",
+  "accountAiProcessing": "AI processing",
+  "accountAiProcessingBody": "Send receipt and fridge photos, and chef requests, to our AI providers (Google Gemini; OpenAI if enabled below) through our secure servers. Providers may not train on your data under our agreements.",
+  "accountOptionalAiProvider": "Optional second AI provider",
+  "accountOptionalAiProviderBody": "Allow OpenAI for conversation and recipe writing. Off means Gemini only.",
+  "accountAnalytics": "Product analytics",
+  "accountAnalyticsBody": "Anonymous usage events (e.g. \"receipt imported\"). Never food names, health data or free text.",
+  "accountProfessionalSharing": "Professional sharing",
+  "accountConsentHistory": "Consent history",
+  "accountNoConsents": "No consents recorded.",
+  "accountConsentGranted": "{purpose} · granted",
+  "@accountConsentGranted": {
+    "placeholders": {
+      "purpose": {
+        "type": "String"
+      }
+    }
+  },
+  "accountConsentWithdrawn": "{purpose} · withdrawn",
+  "@accountConsentWithdrawn": {
+    "placeholders": {
+      "purpose": {
+        "type": "String"
+      }
+    }
+  },
+  "accountConsentVersion": "{date} · version {version}",
+  "@accountConsentVersion": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "accountDataResidency": "Data is stored in Canada (Google Cloud, Montréal region) where supported. See the Privacy Policy for details.",
+  "accountServicesEyebrow": "Services",
+  "accountNotifications": "Notifications",
+  "accountNotificationsBody": "For reminders, timers and your morning alarm",
+  "accountNotificationsOn": "Notifications are on",
+  "accountNotificationsOff": "Notifications are off — you can change this in system Settings.",
+  "accountCheck": "Check",
+  "accountKitchenAi": "Kitchen AI",
+  "accountKitchenAiDemo": "Demo mode — sample results, no AI provider connected",
+  "accountKitchenAiConnected": "Connected through Chefii's secure servers",
+  "accountHealthApps": "Apple Health / Health Connect",
+  "accountHealthAppsBody": "Coming later: read-only glucose import with clear provenance. Not available yet.",
+  "accountProfessionals": "Professionals",
+  "accountProfessionalsBody": "Manage who can see your records",
+  "accountBackendDemo": "Backend: local demo storage on this device",
+  "accountBackendFirebase": "Backend: Firebase",
+  "accountBackendEmulators": "Backend: Firebase (emulators)",
+  "accountEarlyAccess": "Early access",
+  "accountMembershipSubtitle": "Every Chefii feature is included while we're in early access.",
+  "accountMembershipName": "Chefii Membership",
+  "accountMembershipBody": "Paid plans aren't available yet. When they launch, you'll be told the price in advance and nothing will be charged without your confirmation through the App Store or Google Play.",
+  "accountIncludedNow": "Included now",
+  "accountFeatureScanning": "Receipt and fridge scanning",
+  "accountFeatureChef": "AI chef and guided cooking",
+  "accountFeaturePlanning": "Meal planning and smart shopping",
+  "accountFeatureJournal": "Nutrition journal and insights",
+  "accountFeatureCircle": "Sharing with your nutrition circle",
+  "accountBillingNote": "Receipts and billing history will appear here once memberships launch.",
+  "accountSettingsEyebrow": "Settings",
+  "accountTextSize": "Text size",
+  "accountTextScaleValue": "{percent}%",
+  "@accountTextScaleValue": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "accountTextScaleSemantic": "{percent} percent",
+  "@accountTextScaleSemantic": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "accountTextPreview": "Preview: Simmer gently until the lentils collapse.",
+  "accountDeviceTextSize": "Chefii also follows your device's text size.",
+  "accountReduceMotion": "Reduce motion",
+  "accountReduceMotionBody": "Fewer animations and transitions",
+  "accountReadStepsAloud": "Read cooking steps aloud",
+  "accountReadStepsAloudBody": "In guided cooking",
+  "accountLanguage": "Language",
+  "accountLanguageSystem": "Same as my device",
+  "accountDemoAccount": "Demo account",
+  "accountSignedIn": "Signed in",
+  "accountStoredOnDevice": "Stored only on this device",
+  "accountIdShort": "Account ID {id}…",
+  "@accountIdShort": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "accountResetPassword": "Reset password",
+  "accountResetPasswordSent": "Password reset email sent",
+  "accountSignOutAll": "Sign out of all devices",
+  "accountSignOutAllBody": "Ends every session, including this one",
+  "accountSignOutEverywhereTitle": "Sign out everywhere?",
+  "accountSignOutEverywhereMessage": "You'll need to sign in again on each device.",
+  "accountSignOutEverywhere": "Sign out everywhere",
+  "accountReauthNote": "Sensitive actions such as deleting your account or exporting health data ask you to confirm your identity again.",
+  "accountHelpEyebrow": "Help",
+  "accountHelpTitle": "How can we help?",
+  "accountSend": "Send",
+  "accountFeedbackThanks": "Thank you — we read every message.",
+  "accountFaqAccuracyQ": "How accurate is my kitchen?",
+  "accountFaqAccuracyA": "Items from receipts you reviewed are confirmed. Amounts after cooking are deducted from what you confirm. Anything estimated is labelled, and Chefii occasionally asks you to verify.",
+  "accountFaqUntrackedQ": "What if I use something without telling Chefii?",
+  "accountFaqUntrackedA": "Use the \"I used…\" button or tap − on an item. If counts drift, Quick check lets you fix several items in seconds.",
+  "accountFaqFreshnessQ": "Are freshness dates safe to rely on?",
+  "accountFaqFreshnessA": "No — they're estimates from typical storage times. Always follow the package date and your own judgement.",
+  "accountFaqMedicalQ": "Does Chefii give medical advice?",
+  "accountFaqMedicalA": "No. Nutrition features are education. For personal advice, share your records with a registered dietitian in My nutrition circle.",
+  "accountFaqHealthDataQ": "Who can see my health data?",
+  "accountFaqHealthDataA": "Only you, plus any professional you explicitly share with, for the time you choose. Household members never see your journal or health records.",
+  "accountWriteToUs": "Write to us",
+  "accountFeedback": "Feedback",
+  "accountReportProblem": "Report a problem",
+  "accountFeedbackHint": "Tell us what happened or what you'd love to see. Please don't include health details.",
+  "accountEmailSupport": "Email support",
+  "accountSupportEmailSubject": "Chefii support",
+  "accountLegalEyebrow": "Legal",
+  "accountLegalTitle": "Legal & disclosures",
+  "accountLegalTermsTitle": "Terms of Service (summary)",
+  "accountLegalTermsBody": "Chefii is provided for household kitchen organisation, cooking guidance and general nutrition education. You're responsible for food safety decisions in your home. Full terms will be published before public launch and require legal review.",
+  "accountLegalPrivacyTitle": "Privacy Policy (summary)",
+  "accountLegalPrivacyBody": "We collect what you enter or scan to run Chefii: kitchen items, receipts, recipes, meal records, and optional health information you choose to add. We process data in Canada where possible, use AI providers only with your consent and under data-processing agreements, never sell personal information, and let you export or delete your data at any time. Prepared to meet PIPEDA and applicable provincial health privacy laws; full policy subject to legal review.",
+  "accountLegalMedicalTitle": "Medical limitations",
+  "accountLegalMedicalBody": "Chefii does not diagnose, treat, cure or prevent any disease, and is not a medical device. Nutrition values are estimates. Glucose features are a personal journal and do not replace medical devices, alarms or your care team. Allergy screening relies on ingredient names and labels you check; it cannot guarantee a food is free of an allergen.",
+  "accountLegalFoodSafetyTitle": "Food safety",
+  "accountLegalFoodSafetyBody": "Freshness indicators are estimates based on typical storage times. Always follow package dates, safe storage temperatures and safe internal cooking temperatures.",
+  "accountLegalEvidenceTitle": "Evidence methodology",
+  "accountLegalEvidenceBody": "Nutrition statements come from national guidelines and authoritative references. Each shows its sources, evidence strength, limitations and review status. AI may rephrase approved statements but may not create new health claims.",
+  "accountLegalAiTitle": "AI disclosure",
+  "accountLegalAiBody": "Recipes marked \"Created by your AI chef\", receipt readings and photo suggestions are generated by AI and may contain mistakes. Illustrations are not photographs of your food.",
+  "accountEvidenceLibrary": "Evidence library",
+  "accountLicences": "Open-source licences",
+  "accountLicencesBody": "Including Cormorant Garamond and Inter (SIL Open Font License)",
+  "accountDataEyebrow": "Your data",
+  "accountDataTitle": "Export or delete",
+  "accountExport": "Export",
+  "accountExportBody": "A complete copy of your profile, kitchen, journal, health records, consents and sharing history as a JSON file.",
+  "accountPasswordConfirm": "Password (to confirm it's you)",
+  "accountExportMyData": "Export my data",
+  "accountExportShareSubject": "Your Chefii data",
+  "accountDeleteAccount": "Delete account",
+  "accountDeleteBody": "Permanently deletes your account, journal, health records and sharing grants. If you're the only member of your household, its kitchen is deleted too. Some records may be kept where the law requires (for example, purchase receipts for membership billing). This can't be undone.",
+  "accountDeleteConfirmWord": "DELETE",
+  "accountDeleteConfirmLabel": "Type {word} to confirm",
+  "@accountDeleteConfirmLabel": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "accountDeleteMyAccount": "Delete my account",
+  "chefChatUnavailable": "{message} Your curated recipes are still available in Discover.",
+  "@chefChatUnavailable": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "chefChatError": "I couldn't reach the kitchen assistant just now. Please try again.",
+  "chefPromptQuickDinner": "Something quick for dinner",
+  "chefPromptProteinBreakfast": "A high-protein breakfast",
+  "chefPromptUseWhatIHave": "What can I make with what I have?",
+  "chefPromptVegetarian": "A comforting vegetarian meal",
+  "chefAiFeature": "your AI chef",
+  "chefHomeTitle": "Your chef",
+  "chefPreferencesTooltip": "Preferences",
+  "chefNewConversation": "New conversation",
+  "chefDemoChat": "Demo: replies use the curated recipe library, not AI.",
+  "chefHomeHeadline": "What shall we cook?",
+  "chefHomeSubtitle": "Ask for anything — I know what's in your kitchen and what everyone can eat.",
+  "chefChooseOptions": "Choose time, portions and more",
+  "chefAskHint": "Ask your chef…",
+  "chefSend": "Send",
+  "chefEyebrow": "Chef",
+  "chefPreferencesTitle": "Tonight, I'd like…",
+  "chefShowRecipes": "Show me recipes",
+  "chefMeal": "Meal",
+  "chefTimeAvailable": "Time available",
+  "chefTimeAvailableSemantics": "Time available in minutes",
+  "chefUpTo": "Up to {duration}",
+  "@chefUpTo": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "chefPortions": "Portions",
+  "chefFewer": "Fewer",
+  "chefMore": "More",
+  "chefUseWhatIHave": "Use what I have",
+  "chefUseWhatIHaveSubtitle": "Prefer recipes I can make now",
+  "chefNutrition": "Nutrition",
+  "chefFocusMoreProtein": "more protein",
+  "chefFocusMoreVegetables": "more vegetables",
+  "chefFocusLighter": "lighter",
+  "chefFocusMoreFibre": "more fibre",
+  "chefCuisine": "Cuisine",
+  "chefCuisineItalian": "Italian",
+  "chefCuisineFrench": "French",
+  "chefCuisineMediterranean": "Mediterranean",
+  "chefCuisineIndian": "Indian",
+  "chefCuisineMiddleEastern": "Middle Eastern",
+  "chefCuisineMexican": "Mexican",
+  "chefCuisineJapanese": "Japanese",
+  "chefCuisineChinese": "Chinese",
+  "chefCuisineModern": "Modern",
+  "chefEquipment": "Equipment",
+  "chefEquipmentOven": "Oven",
+  "chefEquipmentStovetop": "Stovetop",
+  "chefEquipmentAirFryer": "Air fryer",
+  "chefEquipmentSlowCooker": "Slow cooker",
+  "chefEquipmentInstantPot": "Instant Pot",
+  "chefEquipmentBlender": "Blender",
+  "chefEquipmentMicrowave": "Microwave",
+  "chefLeaveOut": "Leave out",
+  "chefLeaveOutHint": "e.g. mushrooms, olives",
+  "chefAlwaysRespected": "Always respected: {list}.",
+  "@chefAlwaysRespected": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "chefNoAllergiesRecorded": "no allergies or restrictions recorded",
+  "chefAddAllergies": "Add your allergies in Profile so I can screen every recipe.",
+  "chefNoRequestTitle": "Tell me what you'd like",
+  "chefNoRequestMessage": "Choose time and portions first.",
+  "chefSetPreferences": "Set preferences",
+  "chefResultsTitle": "For you",
+  "chefResultsSubtitle": "{meal} · up to {duration} · {servings} portions",
+  "@chefResultsSubtitle": {
+    "placeholders": {
+      "meal": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      },
+      "servings": {
+        "type": "int"
+      }
+    }
+  },
+  "chefAnyMeal": "Any meal",
+  "chefTryAnother": "Try another",
+  "chefDemoResults": "Demo: ranked from the curated library, not generated by AI.",
+  "chefConsidering": "Considering your kitchen…",
+  "chefNoMoreIdeasTitle": "No more ideas with these settings",
+  "chefNoMoreIdeasMessage": "Try a longer time or fewer restrictions.",
+  "chefAdjust": "Adjust",
+  "chefFilteredForSafety": "{count, plural, =1{1 idea was left out for your household's dietary needs.} other{{count} ideas were left out for your household's dietary needs.}}",
+  "@chefFilteredForSafety": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chefRecipeUnavailableTitle": "Recipe unavailable",
+  "chefRecipeUnavailableMessage": "This suggestion wasn't saved. Ask your chef again or browse Discover.",
+  "chefDiscover": "Discover",
+  "chefRemoveFavourite": "Remove from favourites",
+  "chefSaveFavourite": "Save to favourites",
+  "chefAddToPlan": "Add to meal plan",
+  "chefNotSafe": "Not safe for your household",
+  "chefStartCooking": "Start cooking",
+  "chefTotalTime": "{duration} total",
+  "@chefTotalTime": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "chefAiCreated": "Created by AI for you. Check cooking temperatures and your own judgement.",
+  "chefAiCreatedWithModel": "Created by AI for you ({model}). Check cooking temperatures and your own judgement.",
+  "@chefAiCreatedWithModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "chefConflicts": "Conflicts with your household's needs",
+  "chefWorthALook": "Worth a look",
+  "chefConflictLine": "• {ingredient}: {reason}",
+  "@chefConflictLine": {
+    "placeholders": {
+      "ingredient": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "chefSeeSubstitutions": "See substitutions",
+  "chefIngredients": "Ingredients",
+  "chefServings": "Servings",
+  "chefFewerServings": "Fewer servings",
+  "chefMoreServings": "More servings",
+  "chefAddMissingToList": "Add {count} to list",
+  "@chefAddMissingToList": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chefAddedToList": "Added to your shopping list",
+  "chefSubstitutions": "Substitutions",
+  "chefMethod": "Method",
+  "chefStoring": "Storing",
+  "chefSavedToRecipes": "Saved to your recipes",
+  "chefSaveRecipe": "Save this recipe",
+  "chefInYourKitchenLower": "in your kitchen",
+  "chefNeedQuantity": "need {quantity}",
+  "@chefNeedQuantity": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "chefNeedMore": "need more",
+  "chefToBuy": "to buy",
+  "chefOptional": "optional",
+  "chefOptionalIngredient": "{ingredient} (optional)",
+  "@chefOptionalIngredient": {
+    "placeholders": {
+      "ingredient": {
+        "type": "String"
+      }
+    }
+  },
+  "chefSmartSubstitutions": "Smart substitutions",
+  "chefSubstitutionsNote": "Every swap is checked against your household's allergies and diet.",
+  "chefNoSafeSwapsTitle": "No safe swaps we're confident about",
+  "chefNoSafeSwapsMessage": "Try asking your chef for a different recipe.",
+  "chefInYourKitchen": "In your kitchen",
+  "chefProteinDiff": "Protein {diff} g / serving",
+  "@chefProteinDiff": {
+    "placeholders": {
+      "diff": {
+        "type": "String"
+      }
+    }
+  },
+  "chefUseThis": "Use this",
+  "commonContinue": "Continue",
+  "commonCancel": "Cancel",
+  "commonSave": "Save",
+  "commonDone": "Done",
+  "commonBack": "Back",
+  "commonTryAgain": "Try again",
+  "commonUndo": "Undo",
+  "commonRemove": "Remove",
+  "commonEdit": "Edit",
+  "commonClose": "Close",
+  "commonYes": "Yes",
+  "commonNo": "No",
+  "commonLoading": "Loading",
+  "commonItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@commonItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonToday": "Today",
+  "commonYesterday": "Yesterday",
+  "commonTomorrow": "Tomorrow",
+  "commonGoodMorning": "Good morning",
+  "commonGoodAfternoon": "Good afternoon",
+  "commonGoodEvening": "Good evening",
+  "cookingSessionNotFound": "This cooking session could not be found.",
+  "cookingBeforeYouBegin": "Before you begin",
+  "cookingPrepSubtitle": "{servings} servings · gather everything first",
+  "@cookingPrepSubtitle": {
+    "placeholders": {
+      "servings": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingBeginCooking": "Begin cooking",
+  "cookingBeginAnyway": "Begin anyway",
+  "cookingReadyCount": "{ready} of {total} ready",
+  "@cookingReadyCount": {
+    "placeholders": {
+      "ready": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingIngredients": "Ingredients",
+  "cookingEquipment": "Equipment",
+  "cookingKitchenShows": "Kitchen shows {quantity} — check you have enough",
+  "@cookingKitchenShows": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingNotInKitchen": "Not in your kitchen records",
+  "cookingStepSpeech": "Step {step}. {text}",
+  "@cookingStepSpeech": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingStopReadingAloud": "Stop reading steps aloud",
+  "cookingReadAloud": "Read steps aloud",
+  "cookingTimers": "Timers",
+  "cookingStepOf": "Step {step} of {total}",
+  "@cookingStepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingStepOfCaps": "STEP {step} OF {total}",
+  "@cookingStepOfCaps": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingStartNamedTimer": "Start {label} · {duration}",
+  "@cookingStartNamedTimer": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingStartTimer": "Start timer · {duration}",
+  "@cookingStartTimer": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingStepTimerLabel": "Step {step}",
+  "@cookingStepTimerLabel": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingFinishCooking": "Finish cooking",
+  "cookingNextStep": "Next step",
+  "cookingTimerChipDone": "{label} done",
+  "@cookingTimerChipDone": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingKitchenEyebrow": "Kitchen",
+  "cookingTimersSubtitle": "They'll alert you even if you leave the app.",
+  "cookingStartMinutesTimer": "Start {minutes} min timer",
+  "@cookingStartMinutesTimer": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingDefaultTimerName": "Timer",
+  "cookingNoTimersTitle": "No timers running",
+  "cookingNoTimersMessage": "Start one from a recipe step, or below.",
+  "cookingAddMinute": "+1 minute",
+  "cookingPause": "Pause",
+  "cookingResume": "Resume",
+  "cookingNewTimer": "New timer",
+  "cookingTimerName": "Name",
+  "cookingTimerNameHint": "e.g. Rice",
+  "cookingMinutesChip": "{minutes} min",
+  "@cookingMinutesChip": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingAlmostDone": "Almost done",
+  "cookingWhatDidYouUse": "What did you use?",
+  "cookingConfirmSubtitle": "Adjust anything that differed. This updates your kitchen once.",
+  "cookingConfirmAndUpdate": "Confirm and update kitchen",
+  "cookingDiscrepancies": "{count, plural, =1{Kitchen updated. 1 item wasn't fully recorded — we'll ask you to check later.} other{Kitchen updated. {count} items weren't fully recorded — we'll ask you to check later.}}",
+  "@cookingDiscrepancies": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingNothingTracked": "None of these ingredients are tracked in your kitchen, so nothing will change.",
+  "cookingInclude": "Include",
+  "cookingDidntUse": "Didn't use",
+  "cookingRecipeAmount": "Recipe: {quantity}",
+  "@cookingRecipeAmount": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingAmountUsed": "Amount of {ingredient} used",
+  "@cookingAmountUsed": {
+    "placeholders": {
+      "ingredient": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingBonAppetit": "Bon appétit",
+  "cookingKitchenUpdated": "Your kitchen has been updated.",
+  "cookingFinish": "Finish",
+  "cookingLoggedWithLeftovers": "Logged, and {count, plural, =1{1 portion} other{{count} portions}} saved in the fridge.",
+  "@cookingLoggedWithLeftovers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingLoggedToJournal": "Logged to your journal.",
+  "cookingHowWasIt": "How was it?",
+  "cookingStars": "{count, plural, =1{1 star} other{{count} stars}}",
+  "@cookingStars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingYourPortion": "Your portion",
+  "cookingPortionsYouAte": "Portions you ate",
+  "cookingYourMeal": "Your meal",
+  "cookingPortionCount": "{count, plural, =1{1 portion} other{{amount} portions}}",
+  "@cookingPortionCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingLeftovers": "Leftovers",
+  "cookingPortionsToSave": "Portions to save",
+  "cookingLeftoversReminder": "We'll add them to your fridge with a reminder to eat them within 3 days.",
+  "cookingSaveFavourite": "Save to favourites",
+  "cookingTimerNotificationTitle": "{label} is done",
+  "@cookingTimerNotificationTitle": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingTimerNotificationBody": "Your Chefii timer has finished.",
+  "coreErrorTitle": "Something went wrong",
+  "coreErrorOffline": "You appear to be offline, so nothing was changed. Please try again when you're connected.",
+  "coreErrorPermissionDenied": "You don't have access to this. If it was shared with you, the owner may have changed permissions.",
+  "coreErrorGeneric": "Please try again in a moment.",
+  "corePermissionOff": "{permission} is turned off",
+  "@corePermissionOff": {
+    "placeholders": {
+      "permission": {
+        "type": "String"
+      }
+    }
+  },
+  "coreOpenSettings": "Open Settings",
+  "coreInProgress": "{label}, in progress",
+  "@coreInProgress": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "coreLess": "Less",
+  "coreMore": "More",
+  "coreClearSearch": "Clear search",
+  "corePhotoFrameHint": "Fit the whole receipt inside the frame",
+  "coreIllustration": "Illustration",
+  "coreIllustrationFor": "Illustration for {label}",
+  "@coreIllustrationFor": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "coreStatus": "Status: {status}",
+  "@coreStatus": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "coreMinutesSpoken": "{minutes, plural, other{{minutes} minutes}}",
+  "@coreMinutesSpoken": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "coreMinutesShort": "{minutes} min",
+  "@coreMinutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "coreKcalApprox": "≈ {kcal} kcal",
+  "@coreKcalApprox": {
+    "placeholders": {
+      "kcal": {
+        "type": "int"
+      }
+    }
+  },
+  "coreLikelyPastBest": "Likely past best",
+  "corePastRecordedDate": "Past recorded date",
+  "coreDaysLeft": "{days, plural, =1{1 day left} other{{days} days left}}",
+  "@coreDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "coreDaysLeftApprox": "{days, plural, =1{~1 day left} other{~{days} days left}}",
+  "@coreDaysLeftApprox": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "coreUseSome": "Use some",
+  "coreNutritionTitle": "Nutrition",
+  "corePerServing": "per serving",
+  "coreEstimate": "Estimate",
+  "coreNutrientAbout": "{nutrient} about {amount}",
+  "@coreNutrientAbout": {
+    "placeholders": {
+      "nutrient": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "coreNutritionNoData": "We don't have nutrition data for these ingredients yet.",
+  "coreNutritionPartial": "Based on {percent}% of ingredients — some couldn't be estimated.",
+  "@coreNutritionPartial": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "coreMealAt": "{meal} at {time}: {title}",
+  "@coreMealAt": {
+    "placeholders": {
+      "meal": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "coreMealAtDone": "{meal} at {time}: {title}, done",
+  "@coreMealAtDone": {
+    "placeholders": {
+      "meal": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "coreMorningRoutine": "Morning routine",
+  "coreSetUpMornings": "Set up your mornings",
+  "coreMorningSummary": "Up {wake} · out by {departure} · {minutes} min free",
+  "@coreMorningSummary": {
+    "placeholders": {
+      "wake": {
+        "type": "String"
+      },
+      "departure": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "coreMorningPitch": "A calm plan from alarm to door, with breakfast decided.",
+  "coreBreakfastLine": "Breakfast: {title}",
+  "@coreBreakfastLine": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "coreChefDemoNote": "Demo · curated suggestions, no AI",
+  "coreSaidByYou": "You: {text}",
+  "@coreSaidByYou": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "coreSaidByChef": "Chef: {text}",
+  "@coreSaidByChef": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "coreEvidenceStrength": "{strength} evidence",
+  "@coreEvidenceStrength": {
+    "placeholders": {
+      "strength": {
+        "type": "String"
+      }
+    }
+  },
+  "coreReviewed": "Reviewed {date}",
+  "@coreReviewed": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "coreInternalSummary": "Internal summary, {date} · awaiting professional review",
+  "@coreInternalSummary": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "coreOverMinutes": "over {minutes} min",
+  "@coreOverMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "coreHelpfulHabit": "helpful habit",
+  "coreDelete": "Delete",
+  "coreShareJournal": "Meals you logged, portions and times",
+  "coreShareNutrition": "Estimated nutrients from your journal",
+  "coreShareGlucose": "Glucose readings you entered",
+  "coreShareOral": "Sugar and acid exposure log",
+  "coreShareConcerns": "Hair, skin & nail notes",
+  "coreShareDietary": "Allergies, intolerances and preferences",
+  "coreAssessmentNew": "New",
+  "coreAssessmentRead": "Read",
+  "coreAssessmentAccepted": "Accepted",
+  "coreAssessmentDeclined": "Declined",
+  "coreAssessmentDraft": "Draft",
+  "coreDemoBanner": "Demo mode — sample data, no AI used.",
+  "coreTabToday": "Today",
+  "coreTabKitchen": "Kitchen",
+  "coreTabDiscover": "Discover",
+  "coreTabJournal": "Journal",
+  "coreTabYou": "You",
+  "corePageNotFound": "Page not found",
+  "corePageNotFoundMessage": "That link doesn't lead anywhere in Chefii.",
+  "coreGoToToday": "Go to Today",
+  "coreAppLoading": "Chefii is loading",
+  "coreSnoozeWakeBody": "Your snoozed alarm. Tap to start your morning.",
+  "coreSnoozeEveningTitle": "Tomorrow morning",
+  "coreSnoozeEveningBody": "Your snoozed evening preview.",
+  "coreSnoozeReminderTitle": "A gentle reminder",
+  "coreSnoozeReminderBody": "Your snoozed reminder from Chefii.",
+  "coreSnoozeAction": "Snooze 10 min",
+  "coreChannelReminders": "Meal reminders",
+  "coreChannelRemindersDescription": "Gentle reminders for meals and kitchen tasks",
+  "coreChannelAlarm": "Morning alarm",
+  "coreChannelAlarmDescription": "Your morning routine alarm",
+  "coreChannelTimers": "Cooking timers",
+  "coreChannelTimersDescription": "Alerts when a cooking timer finishes",
+  "coreErrNotSignedIn": "Please sign in to continue.",
+  "coreErrReceiptDuplicate": "This receipt looks like one you already scanned.",
+  "coreErrPlaceNameLength": "Give the place a name of up to 30 characters.",
+  "coreErrPlaceNameTaken": "You already have a place called {name}.",
+  "@coreErrPlaceNameTaken": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "coreErrPlaceLimit": "You can have up to 12 places.",
+  "coreErrBuiltInRename": "The built-in places can't be renamed.",
+  "coreErrBuiltInRemove": "The built-in places can't be removed.",
+  "coreErrPlaceNotEmpty": "Move or use up what's stored there first.",
+  "coreErrNothingToAdd": "Nothing to add.",
+  "coreErrQuantityNotPositive": "{product}: quantity must be greater than zero.",
+  "@coreErrQuantityNotPositive": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "coreErrNothingToDeduct": "Nothing to deduct.",
+  "coreErrNothingToCorrect": "Nothing to correct.",
+  "coreErrNegativeCount": "Counts cannot be negative.",
+  "coreErrItemGone": "That item no longer exists.",
+  "coreErrWrongUnit": "{product}: use {unit} for this item.",
+  "@coreErrWrongUnit": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "coreErrNothingToUndo": "Nothing to undo.",
+  "coreErrAlreadyUndone": "This change has already been undone.",
+  "coreErrUndoOfUndo": "An undo cannot itself be undone.",
+  "coreErrProductNotRecorded": "No {product} recorded in your kitchen.",
+  "@coreErrProductNotRecorded": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "coreErrReceiptNotFound": "Receipt not found.",
+  "coreErrReceiptNotEditable": "This receipt can no longer be edited.",
+  "coreErrReceiptNotReady": "This receipt is not ready to import.",
+  "coreErrReceiptLinesIncomplete": "{count, plural, =1{1 item needs a name and quantity before importing.} other{{count} items need a name and quantity before importing.}}",
+  "@coreErrReceiptLinesIncomplete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "coreErrReceiptNoFoodItems": "There are no food items to add.",
+  "coreErrReceiptNoPhotos": "Add at least one photo.",
+  "coreErrReceiptTooManyPages": "Up to {max} pages per receipt.",
+  "@coreErrReceiptTooManyPages": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "coreErrImageEmpty": "That image appears to be empty.",
+  "coreErrImageTooLarge": "That image is too large (over 12 MB). Try a closer, single-page photo.",
+  "coreErrImageFormat": "Please use a JPEG, PNG, HEIC or WebP photo.",
+  "coreErrAiUnavailable": "The kitchen assistant is unavailable right now.",
+  "coreErrAuthCredentialMismatch": "That email and password don't match.",
+  "coreErrAuthEmailInUse": "An account already exists for that email. Try signing in.",
+  "coreErrAuthWeakPassword": "Please choose a longer password (at least 8 characters).",
+  "coreErrAuthInvalidEmail": "That email address doesn't look right.",
+  "coreErrAuthOffline": "You appear to be offline. Please try again.",
+  "coreErrAuthTooManyRequests": "Too many attempts. Please wait a moment and try again.",
+  "coreErrAuthRecentLogin": "For your security, please sign in again to continue.",
+  "coreErrAuthCancelled": "Sign-in was cancelled.",
+  "coreErrAuthFailed": "Sign-in failed.",
+  "coreErrAuthFailedRetry": "Sign-in failed. Please try again.",
+  "coreErrAuthNoGoogleToken": "Google did not return an identity token.",
+  "coreErrAuthSignInAgain": "Please sign in again.",
+  "coreErrAuthPasswordRequired": "Enter your password to continue.",
+  "coreErrAuthAppleNeedsFirebase": "Apple sign-in needs Firebase configured. Use the demo account.",
+  "coreErrAuthGoogleNeedsFirebase": "Google sign-in needs Firebase configured. Use the demo account.",
+  "coreErrOwnerNotRemovable": "The owner cannot be removed.",
+  "coreErrProfessionalNotVerified": "Only verified professionals can be granted access.",
+  "coreErrNoShareCategories": "Choose at least one category to share.",
+  "coreErrNoActivePermission": "No active permission for {category}.",
+  "@coreErrNoActivePermission": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "discoverFilterAvailableNow": "Available now",
+  "discoverFilterBreakfast": "Breakfast",
+  "discoverFilterLunch": "Lunch",
+  "discoverFilterDinner": "Dinner",
+  "discoverFilterSnacks": "Snacks",
+  "discoverFilter15Minute": "15-minute",
+  "discoverFilterHighProtein": "High-protein",
+  "discoverFilterVegetarian": "Vegetarian",
+  "discoverFilterComfort": "Comfort",
+  "discoverFilterWorldCuisines": "World cuisines",
+  "discoverMealPlanner": "Meal planner",
+  "discoverAskChef": "Ask the chef",
+  "discoverEyebrow": "Discover",
+  "discoverTitle": "Something delicious",
+  "discoverCookWith": "Cook with {ingredient}",
+  "@discoverCookWith": {
+    "placeholders": {
+      "ingredient": {
+        "type": "String"
+      }
+    }
+  },
+  "discoverSubtitle": "Every recipe here suits your household's dietary needs.",
+  "discoverSearchHint": "Search recipes or ingredients",
+  "discoverNoMatchTitle": "No recipes match",
+  "discoverNoMatchMessage": "Try another filter, or ask your chef to create something.",
+  "discoverUsesExpiring": "Uses something that needs eating soon",
+  "discoverNutritionFootnote": "Nutrition is estimated per serving from reference data. Protein-rich means at least {grams} g per serving.",
+  "@discoverNutritionFootnote": {
+    "placeholders": {
+      "grams": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverNutritionFootnoteHidden": "Nutrition is estimated per serving from reference data (hidden in your preferences). Protein-rich means at least {grams} g per serving.",
+  "@discoverNutritionFootnoteHidden": {
+    "placeholders": {
+      "grams": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverProteinLabel": "{grams} g protein",
+  "@discoverProteinLabel": {
+    "placeholders": {
+      "grams": {
+        "type": "int"
+      }
+    }
+  },
+  "healthOpenLinkError": "Couldn't open the link.",
+  "healthNutritionEyebrow": "Nutrition",
+  "healthYourNutrition": "Your nutrition",
+  "healthDailyAverageSubtitle": "{count, plural, =1{Daily average across 1 logged day} other{Daily average across {count} logged days}}",
+  "@healthDailyAverageSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthInsights": "Insights",
+  "healthDaysSegment": "{count, plural, =1{1 day} other{{count} days}}",
+  "@healthDaysSegment": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthNoMealsTitle": "No meals logged yet",
+  "healthNoMealsMessage": "Cook with Chefii or log meals in your journal to see estimates here.",
+  "healthLogMeal": "Log a meal",
+  "healthEstimatesNote": "Estimates from recipes and reference data.",
+  "healthMissingDataNote": "Some meals had no nutrition data ({percent}%), so totals are likely low.",
+  "@healthMissingDataNote": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthDailyValueNote": "Daily Values are Health Canada's label reference — a yardstick, not a personal target.",
+  "healthNutrientBarSemantics": "{nutrient}: about {amount}",
+  "@healthNutrientBarSemantics": {
+    "placeholders": {
+      "nutrient": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "healthNutrientBarSemanticsDv": "{nutrient}: about {amount}, {percent} percent of the Daily Value",
+  "@healthNutrientBarSemanticsDv": {
+    "placeholders": {
+      "nutrient": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthPercentDv": "{percent}% DV",
+  "@healthPercentDv": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthNotEnoughHistory": "Not enough history yet",
+  "healthPerDay": "≈ {amount} a day",
+  "@healthPerDay": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "healthSteadyAt": "Steady at ≈ {amount} a day",
+  "@healthSteadyAt": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTrendUp": "Up {percent}% vs the week before",
+  "@healthTrendUp": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthTrendDown": "Down {percent}% vs the week before",
+  "@healthTrendDown": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthInsightsSubtitle": "Patterns from your journal, explained with evidence.",
+  "healthEvidenceLibrary": "Evidence library",
+  "healthInsightsEmptyTitle": "Insights need a few days of meals",
+  "healthInsightsEmptyMessage": "Keep cooking and logging — we'll look for patterns after a few days.",
+  "healthTrends": "Trends",
+  "healthVarietyThisWeek": "Variety this week",
+  "healthDifferentMeals": "{count, plural, =1{different meals} other{different meals}}",
+  "@healthDifferentMeals": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthPlantFoods": "{count, plural, =1{plant foods in Chefii recipes} other{plant foods in Chefii recipes}}",
+  "@healthPlantFoods": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthSomethingToTry": "Something to try",
+  "healthFibrePerServing": "≈ {grams} g fibre per serving",
+  "@healthFibrePerServing": {
+    "placeholders": {
+      "grams": {
+        "type": "int"
+      }
+    }
+  },
+  "healthAvailabilityLabel": "{count, plural, =0{Everything on hand} =1{1 ingredient to buy} other{{count} ingredients to buy}}",
+  "@healthAvailabilityLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthMoreToExplore": "More to explore",
+  "healthHairSkinNails": "Hair, skin & nails",
+  "healthSmileAndFood": "Smile & Food",
+  "healthEducationDisclaimer": "Chefii provides general nutrition education, not medical advice. For personal guidance, talk to a registered dietitian.",
+  "healthHairSubtitle": "A private notebook, plus what the evidence does — and doesn't — say.",
+  "healthHairCausesNote": "Changes in hair, skin and nails have many causes besides diet — hormones, thyroid, stress, medications, skin conditions and genetics. Sudden hair loss, rashes, or nail changes that don't settle are worth seeing a doctor, dermatologist or pharmacist about.",
+  "healthNoteAConcern": "Note a concern",
+  "healthConcernHair": "Hair",
+  "healthConcernSkin": "Skin",
+  "healthConcernNails": "Nails",
+  "healthConcernEnergy": "Energy",
+  "healthConcernDigestion": "Digestion",
+  "healthConcernOther": "Other",
+  "healthWhatHaveYouNoticed": "What have you noticed?",
+  "healthBotherLevel": "How much is it bothering you? ({severity} of 5)",
+  "@healthBotherLevel": {
+    "placeholders": {
+      "severity": {
+        "type": "int"
+      }
+    }
+  },
+  "healthBotherSemantics": "How much it bothers you, 1 to 5",
+  "healthSaveNote": "Save note",
+  "healthSavedPrivately": "Saved privately",
+  "healthYourNotes": "Your notes",
+  "healthDelete": "Delete",
+  "healthWhatEvidenceSays": "What the evidence says",
+  "healthShareWithDietitian": "Share with a dietitian",
+  "healthEvidence": "Evidence",
+  "healthHowWeKnow": "How we know",
+  "healthEvidenceSubtitle": "Every nutrition statement in Chefii, its sources and its limits.",
+  "healthReview": "Review",
+  "healthProfessionallyReviewed": "Professionally reviewed {date}",
+  "@healthProfessionallyReviewed": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "healthInternalSummary": "Internal summary ({date}), awaiting professional review",
+  "@healthInternalSummary": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "healthLimitations": "Limitations",
+  "healthFoods": "Foods",
+  "healthLabelColon": "{label}:",
+  "@healthLabelColon": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "healthCitationPending": "Source: citation pending review.",
+  "healthMethodNote": "Method: we prefer national guidelines and systematic reviews; single studies are not used for recommendations.",
+  "healthNutrientEyebrow": "Nutrient",
+  "healthNoDataYet": "No data yet",
+  "healthLogMealsForEstimate": "Log meals to see an estimate.",
+  "healthAverageThisWeek": "{count, plural, =1{Average over 1 logged day this week} other{Average over {count} logged days this week}}",
+  "@healthAverageThisWeek": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthReferenceDailyValue": "Reference: {amount} (Daily Value, Health Canada, Table of Daily Values)",
+  "@healthReferenceDailyValue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "healthReferenceOther": "Reference: {amount} ({kind}, {source})",
+  "@healthReferenceOther": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "kind": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "healthDataCompleteness": "Data completeness: {percent}% of meals had nutrition estimates.",
+  "@healthDataCompleteness": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "healthBiggestContributors": "Biggest contributors this week",
+  "healthRichSources": "Rich sources",
+  "healthPer100g": "{amount} / 100 g",
+  "@healthPer100g": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "healthIndividualNeeds": "Individual needs vary. Estimates can't account for exact brands, portions, or added salt.",
+  "healthWellnessEyebrow": "Wellness",
+  "healthSmileIntroSubtitle": "Learn how the timing of sugary and acidic foods affects your teeth.",
+  "healthTurnOnSmile": "Turn on Smile & Food",
+  "healthSmileOptionalNote": "This is optional education. It isn't a dental assessment, and your entries stay private unless you choose to share them.",
+  "healthSmileSubtitle": "Tap to log. It's about frequency and timing, not perfection.",
+  "healthHistory": "History",
+  "healthSugarExposuresToday": "sugar exposures today",
+  "healthAcidExposuresToday": "acid exposures today",
+  "healthHelpfulHabits": "helpful habits",
+  "healthLogNow": "Log now",
+  "healthLoggedMessage": "{item} logged",
+  "@healthLoggedMessage": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "healthKinderChoices": "Kinder choices",
+  "healthTipSweetsTitle": "Keep sweets with meals",
+  "healthTipSweetsBody": "One sugar exposure at dinner is gentler on teeth than the same amount spread through the afternoon.",
+  "healthTipFinishTitle": "Finish with water or cheese",
+  "healthTipFinishBody": "Rinsing with water or ending on cheese helps your mouth recover after eating.",
+  "healthTipSipTitle": "Sip, then stop",
+  "healthTipSipBody": "If you enjoy juice or soda, drinking it with a meal rather than over an hour limits acid time.",
+  "healthTipBrushTitle": "Wait to brush after acid",
+  "healthTipBrushBody": "Many dental professionals suggest waiting a while after acidic food or drink before brushing. Ask your dentist what's right for you.",
+  "healthSmileFooter": "Education only. For tooth pain, sensitivity or concerns, see your dentist.",
+  "healthHistoryExposuresPerDay": "About {rate} sugar or acid exposures a day this week",
+  "@healthHistoryExposuresPerDay": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "healthNothingLoggedYet": "Nothing logged yet",
+  "healthLogWillAppear": "Your log will appear here.",
+  "healthDiabetesConsentText": "I choose to store glucose readings I enter in Chefii. I understand Chefii does not diagnose, interpret readings, recommend insulin or medication, or replace my glucose meter's or CGM's alarms. My readings are private and only shared if I grant access.",
+  "healthOptionalEyebrow": "Optional",
+  "healthGlucoseJournal": "Glucose journal",
+  "healthDiabetesSubtitle": "For people who already track glucose and want it alongside their meals.",
+  "healthTurnOffGlucose": "Turn off glucose features",
+  "healthTurnOnGlucose": "Turn on glucose journal",
+  "healthGlucoseOn": "Glucose journal is on.",
+  "healthOpenGlucose": "Open glucose journal",
+  "healthDiabetesPointRecord": "Record readings you take, with the time and context.",
+  "healthDiabetesPointMeals": "See them next to the meals in your journal.",
+  "healthDiabetesPointNoAdvice": "No predictions, scores, diagnoses or dosing advice — ever.",
+  "healthDiabetesPointNotAlarm": "Not an alarm. Keep using your meter or CGM alerts.",
+  "healthDiabetesPointPrivate": "Private to you. Shared only with a professional you choose.",
+  "healthUnits": "Units",
+  "healthUnderstandJournal": "I understand this is a journal, not a medical device",
+  "healthConsentStore": "I consent to Chefii storing my glucose readings",
+  "healthSymptomsWarning": "If you have symptoms of very high or low blood sugar, follow your care plan or seek medical help.",
+  "healthEnterNumber": "Enter a number.",
+  "healthEnterPositive": "Enter a positive value.",
+  "healthValueOutOfRange": "That value looks outside what meters typically report. Please double-check it.",
+  "healthGlucoseOffTitle": "Glucose journal is off",
+  "healthGlucoseOffConsent": "Turn it on with explicit consent first.",
+  "healthSetUp": "Set up",
+  "healthGlucoseEyebrow": "Glucose",
+  "healthGlucoseSubtitle": "Your readings, as you entered them.",
+  "healthTimelineWithMeals": "Timeline with meals",
+  "healthAddReading": "Add reading",
+  "healthReading": "Reading",
+  "healthContextFasting": "Fasting",
+  "healthContextBeforeMeal": "Before meal",
+  "healthContextAfterMeal": "After meal",
+  "healthContextBedtime": "Bedtime",
+  "healthContextOther": "Other",
+  "healthDayAtTime": "{day} at {time}",
+  "@healthDayAtTime": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthReadings": "Readings",
+  "healthNoReadings": "No readings yet.",
+  "healthSourceManual": "entered by you",
+  "healthSourceHealthApp": "from Health app",
+  "healthSourceDevice": "from {device}",
+  "@healthSourceDevice": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "healthDevice": "device",
+  "healthEnteredAs": "entered as {value}",
+  "@healthEnteredAs": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "healthNoHealthImport": "Reading from Apple Health or Health Connect isn't available yet. Chefii never interprets readings.",
+  "healthGlucoseOffShort": "Turn it on first.",
+  "healthTimelineSubtitle": "Meals and readings in order. No interpretation.",
+  "healthPreviousDay": "Previous day",
+  "healthNextDay": "Next day",
+  "healthNothingRecorded": "Nothing recorded",
+  "healthTimelineEmptyMessage": "Meals and readings for this day will appear here.",
+  "healthTimelineFooter": "Discuss patterns with your diabetes care team. Chefii does not replace glucose alarms or medical advice.",
+  "journalNutritionTooltip": "Nutrition",
+  "journalMoreTooltip": "More",
+  "journalFullHistory": "Full history",
+  "journalEatingPatterns": "Eating patterns",
+  "journalMealReminders": "Meal reminders",
+  "journalEyebrow": "Journal",
+  "journalPreviousDay": "Previous day",
+  "journalNextDay": "Next day",
+  "journalLogAMeal": "Log a meal",
+  "journalEmptyTodayTitle": "Nothing logged yet today",
+  "journalEmptyTitle": "Nothing logged",
+  "journalEmptyMessage": "Meals you cook in Chefii are logged automatically. You can also add anything you ate.",
+  "journalPortionCount": "{count, plural, =1{{portions} portion} other{{portions} portions}}",
+  "@journalPortionCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      },
+      "portions": {
+        "type": "String"
+      }
+    }
+  },
+  "journalRepeatMeal": "Repeat {title}",
+  "@journalRepeatMeal": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "journalLoggedAgain": "Logged {title} again",
+  "@journalLoggedAgain": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "journalDaySoFar": "Day so far",
+  "journalEstimatedIntake": "Estimated intake",
+  "journalMealCount": "{count, plural, =1{1 meal} other{{count} meals}}",
+  "@journalMealCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "journalHistoryTitle": "Last 30 days",
+  "journalHistorySubtitle": "Tap any meal to correct it.",
+  "journalHistoryEmptyTitle": "No history yet",
+  "journalHistoryEmptyMessage": "Your meals will build up here.",
+  "journalEntryNotFoundTitle": "Entry not found",
+  "journalEntryNotFoundMessage": "It may have been deleted.",
+  "journalDelete": "Delete",
+  "journalDeleteTitle": "Delete this entry?",
+  "journalDeleteMessage": "This removes it from your journal. Your kitchen isn't changed.",
+  "journalSaveChanges": "Save changes",
+  "journalDayAtTime": "{day} at {time}",
+  "@journalDayAtTime": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "journalPortions": "Portions",
+  "journalEstimated": "Estimated",
+  "journalForPortions": "{count, plural, =1{for {portions} portion} other{for {portions} portions}}",
+  "@journalForPortions": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      },
+      "portions": {
+        "type": "String"
+      }
+    }
+  },
+  "journalViewRecipe": "View recipe",
+  "journalQuickTitle": "What did you eat?",
+  "journalLogMeal": "Log meal",
+  "journalAiFeatureEstimatingMeals": "estimating meals",
+  "journalMealLogged": "{title} logged",
+  "@journalMealLogged": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "journalQuickHint": "e.g. Greek yogurt with berries",
+  "journalListening": "Listening",
+  "journalSpeak": "Speak",
+  "journalVoiceUnavailable": "Voice isn't available — try your keyboard's dictation.",
+  "journalAddPhoto": "Add a photo",
+  "journalPhotoAdded": "Photo added",
+  "journalCameraOff": "Camera access is off. You can still describe the meal.",
+  "journalEstimateNutrition": "Estimate nutrition",
+  "journalSavedRecipe": "Saved recipe",
+  "journalDemoEstimate": "Demo estimate from reference data — no AI used.",
+  "journalDetails": "Details",
+  "journalRemindersSubtitle": "Gentle nudges, never nagging. Quiet hours are always respected.",
+  "journalSaveReminders": "Save reminders",
+  "journalNotificationsOff": "Notifications are off for Chefii in Settings.",
+  "journalReminderNotificationTitle": "{meal} time",
+  "@journalReminderNotificationTitle": {
+    "placeholders": {
+      "meal": {
+        "type": "String"
+      }
+    }
+  },
+  "journalReminderNotificationBody": "A gentle reminder from Chefii.",
+  "journalRemindersSaved": "Reminders saved",
+  "journalRemindersSavedSkipped": "{count, plural, =1{Saved. {meals} falls in quiet hours and won't notify.} other{Saved. {meals} fall in quiet hours and won't notify.}}",
+  "@journalRemindersSavedSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "meals": {
+        "type": "String"
+      }
+    }
+  },
+  "journalReminderOff": "Off",
+  "journalQuietHours": "Quiet hours",
+  "journalQuietHoursRange": "No reminders between {start}:00 and {end}:00.",
+  "@journalQuietHoursRange": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "journalWakeLabel": "Wake {hour}:00",
+  "@journalWakeLabel": {
+    "placeholders": {
+      "hour": {
+        "type": "String"
+      }
+    }
+  },
+  "journalSleepLabel": "Sleep {hour}:00",
+  "@journalSleepLabel": {
+    "placeholders": {
+      "hour": {
+        "type": "String"
+      }
+    }
+  },
+  "journalRemindersFootnote": "Snooze any reminder from the notification itself, or just ignore it — Chefii never repeats.",
+  "journalPatternsSubtitle": "The last two weeks, as recorded.",
+  "journalMealsPerDay": "meals logged per day",
+  "journalDaysNoRecords": "days with no records",
+  "journalUsualTimes": "Usual times",
+  "journalPatternsEmpty": "Log a few meals to see your rhythm.",
+  "journalWithinHour": "{percent}% within an hour of your reminder",
+  "@journalWithinHour": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "journalAround": "around {time}",
+  "@journalAround": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "journalLast14Days": "Last 14 days",
+  "journalDayMealsSemantics": "{count, plural, =1{{date}: 1 meal} other{{date}: {count} meals}}",
+  "@journalDayMealsSemantics": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "journalPatternsDisclaimer": "Gaps usually mean a meal wasn't logged, not that it wasn't eaten. Chefii describes your records; it doesn't predict blood sugar or judge your habits.",
+  "kitchenShoppingList": "Shopping list",
+  "kitchenTellChefii": "Tell Chefii",
+  "kitchenEyebrow": "Kitchen",
+  "kitchenMyKitchen": "My kitchen",
+  "kitchenItemsAcrossPlaces": "{count, plural, =1{1 item across {places} places} other{{count} items across {places} places}}",
+  "@kitchenItemsAcrossPlaces": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "places": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenScanReceipt": "Scan a receipt",
+  "kitchenOpening": "Opening your kitchen…",
+  "kitchenEmptyTitle": "Your kitchen is empty",
+  "kitchenEmptyMessage": "Scan a grocery receipt and Chefii fills it in for you — or add a few things by hand.",
+  "kitchenAddAnItem": "Add an item",
+  "kitchenScanFridgeInstead": "Scan the fridge instead",
+  "kitchenUseSoon": "Use soon",
+  "kitchenToVerify": "To verify",
+  "kitchenStatAdd": "Add",
+  "kitchenStatAnItem": "an item",
+  "kitchenStatSemantics": "{label}: {value}",
+  "@kitchenStatSemantics": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenFilterAll": "All",
+  "kitchenManagePlaces": "Manage places",
+  "kitchenSearchHint": "Search your kitchen",
+  "kitchenNoMatchTitle": "Nothing matches",
+  "kitchenNoMatchMessage": "Try a different search or filter.",
+  "kitchenScanFridge": "Scan fridge",
+  "kitchenSpendingWaste": "Spending & waste",
+  "kitchenReceipts": "Receipts",
+  "kitchenStorageEyebrow": "Storage",
+  "kitchenConfirmedOfTotal": "{confirmed} of {total} confirmed · soonest first",
+  "@kitchenConfirmedOfTotal": {
+    "placeholders": {
+      "confirmed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenVerifyTheseItems": "Verify these items",
+  "kitchenNothingHereTitle": "Nothing here yet",
+  "kitchenNothingHereMessage": "Items you add to {place} appear here.",
+  "@kitchenNothingHereMessage": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenItemNotFoundTitle": "Item not found",
+  "kitchenItemNotFoundMessage": "It may have been removed by someone in your household.",
+  "kitchenMore": "More",
+  "kitchenDiscardTitle": "Discard {name}?",
+  "@kitchenDiscardTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenDiscardMessage": "Records the remaining {amount} as food waste.",
+  "@kitchenDiscardMessage": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenDiscard": "Discard",
+  "kitchenMoveTo": "Move to {place}",
+  "@kitchenMoveTo": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenUpdateAmount": "Update amount",
+  "kitchenRecordedAmount": "Recorded amount",
+  "kitchenOriginally": "Originally",
+  "kitchenAdded": "Added",
+  "kitchenSource": "Source",
+  "kitchenSourceReceipt": "Receipt",
+  "kitchenSourceReceiptLine": "Receipt · \"{line}\"",
+  "@kitchenSourceReceiptLine": {
+    "placeholders": {
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenSourcePhotoScan": "Photo scan",
+  "kitchenSourceBarcode": "Barcode",
+  "kitchenSourceLeftover": "Leftovers you saved",
+  "kitchenSourceDemo": "Example ingredient",
+  "kitchenSourceManual": "Added by hand",
+  "kitchenPackage": "Package",
+  "kitchenDateOnPackage": "Date on package",
+  "kitchenEstimatedQuality": "Estimated quality",
+  "kitchenUnknown": "Unknown",
+  "kitchenSetDateFromPackage": "Set date from package",
+  "kitchenDatePrintedOnPackage": "Date printed on the package",
+  "kitchenEstimateWarning": "Our estimate suggests using this soon. Estimates are a guide only — check how it looks and smells, and follow the package date.",
+  "kitchenRecordedDatePast": "The date you recorded is past. Follow the package guidance; when in doubt, throw it out.",
+  "kitchenRecordedDateClose": "The date you recorded is close. Follow the package guidance; when in doubt, throw it out.",
+  "kitchenThisAmountIsRight": "This amount is right",
+  "kitchenNutritionReference": "Nutrition reference",
+  "kitchenPer100g": "per 100 g · {source}",
+  "@kitchenPer100g": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenActivity": "Activity",
+  "kitchenNoActivity": "No activity yet.",
+  "kitchenNewBarcode": "New barcode — tell us what it is once and we'll remember it.",
+  "kitchenChooseAnItem": "Choose an item",
+  "kitchenAddToKitchen": "Add to kitchen",
+  "kitchenWhatAreYouAdding": "What are you adding?",
+  "kitchenChange": "Change",
+  "kitchenScanBarcode": "Scan barcode",
+  "kitchenBarcodeValue": "Barcode {code}",
+  "@kitchenBarcodeValue": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenWillAddNew": "We'll add \"{name}\" as a new item.",
+  "@kitchenWillAddNew": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenHowMuch": "How much?",
+  "kitchenWhereDoesItLive": "Where does it live?",
+  "kitchenDateOnThePackage": "Date on the package",
+  "kitchenAddDateOptional": "Add a best-before or use-by date (optional)",
+  "kitchenScanABarcode": "Scan a barcode",
+  "kitchenPointAtBarcode": "Point at the barcode on the package",
+  "kitchenCamera": "Camera",
+  "kitchenBarcodeCameraWhy": "Chefii needs the camera to read barcodes. You can still type the item name.",
+  "kitchenTypeItInstead": "Type it instead",
+  "kitchenAiFeatureShelfScan": "scanning your shelves",
+  "kitchenEnterAmountFor": "Enter an amount for {name}.",
+  "@kitchenEnterAmountFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenScanSummary": "{count, plural, =1{Added 1 item from a photo} other{Added {count} items from a photo}}",
+  "@kitchenScanSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenScanTitle": "Scan your shelves",
+  "kitchenScanSubtitle": "We'll suggest what we can see. Nothing is added until you confirm it.",
+  "kitchenTakePhoto": "Take a photo",
+  "kitchenSelectItemsToAdd": "Select items to add",
+  "kitchenAddCount": "{count, plural, =1{Add 1 item} other{Add {count} items}}",
+  "@kitchenAddCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenCameraDeniedWhy": "Allow camera access in Settings to scan, or choose a photo from your library.",
+  "kitchenChooseFromLibrary": "Choose from library",
+  "kitchenOpenFridgeArt": "Open fridge",
+  "kitchenScanTips": "Tips: open the door fully, use good light, and take one photo per shelf for best results.",
+  "kitchenScanDemo": "Demo: sample suggestions — your photo was not analysed.",
+  "kitchenScanNothingTitle": "We couldn't spot anything",
+  "kitchenScanNothingMessage": "Try a brighter, closer photo of one shelf.",
+  "kitchenPercentSure": "{percent}% sure",
+  "@kitchenPercentSure": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenAmount": "Amount",
+  "kitchenEnterAmount": "Enter amount",
+  "kitchenTakeAnotherPhoto": "Take another photo",
+  "kitchenFreshnessSubtitle": "Things worth cooking, freezing or deciding on.",
+  "kitchenFindRecipes": "Find recipes that use these",
+  "kitchenNothingNeedsAttentionTitle": "Nothing needs attention",
+  "kitchenNothingNeedsAttentionMessage": "We'll let you know when something should be used soon.",
+  "kitchenDatePassed": "{days, plural, =1{date passed 1 day ago} other{date passed {days} days ago}}",
+  "@kitchenDatePassed": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenDateIsToday": "date is today",
+  "kitchenDaysLeft": "{days, plural, =1{1 day left} other{{days} days left}}",
+  "@kitchenDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenWithEstimate": "{text} (estimate)",
+  "@kitchenWithEstimate": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenCookWithThis": "Cook with this",
+  "kitchenFreeze": "Freeze",
+  "kitchenFoodSafety": "Food safety",
+  "kitchenFoodSafetyBody": "Chefii's dates are estimates from typical storage times, not safety guarantees. Follow \"use by\" and \"best before\" dates on packages, keep your fridge at 4 °C (40 °F) or below, and when in doubt, throw it out. For guidance, see Health Canada's food safety pages.",
+  "kitchenAllSquaredAway": "All squared away",
+  "kitchenBackToKitchen": "Back to kitchen",
+  "kitchenItemsVerified": "{count, plural, =1{1 item verified} other{{count} items verified}}",
+  "@kitchenItemsVerified": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenEveryAmountRight": "Every amount was already right.",
+  "kitchenAmountsCorrected": "{count, plural, =1{1 amount was corrected. You can undo from the kitchen.} other{{count} amounts were corrected. You can undo from the kitchen.}}",
+  "@kitchenAmountsCorrected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenQuickCheck": "Quick check",
+  "kitchenQuickCheckSubtitle": "{count, plural, =1{Adjust anything that's off, then confirm. 1 item.} other{Adjust anything that's off, then confirm. {count} items.}}",
+  "@kitchenQuickCheckSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kitchenConfirmAll": "Confirm all",
+  "kitchenEverythingAccurateTitle": "Everything looks accurate",
+  "kitchenEverythingAccurateMessage": "Nothing needs checking right now.",
+  "kitchenWasAmount": "was {amount}",
+  "@kitchenWasAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenAlreadyDone": "Already done — nothing changed.",
+  "kitchenRecorded": "Recorded: {amount}",
+  "@kitchenRecorded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenModeUsed": "Used",
+  "kitchenModeAdded": "Added",
+  "kitchenModeTossed": "Tossed",
+  "kitchenModeCount": "Count",
+  "kitchenAmountYouHaveNow": "Amount you have now",
+  "kitchenCountingConfirms": "Counting confirms this item as accurate.",
+  "kitchenUseAmount": "Use {amount}",
+  "@kitchenUseAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenAddAmount": "Add {amount}",
+  "@kitchenAddAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenDiscardAmount": "Discard {amount}",
+  "@kitchenDiscardAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenSetToAmount": "Set to {amount}",
+  "@kitchenSetToAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenMarkFinished": "Mark as finished",
+  "kitchenCommandTryHint": "Try \"I used two eggs\" or \"add 1 kg flour\".",
+  "kitchenVoiceUnavailable": "Voice isn't available. You can type instead — or use your keyboard's dictation.",
+  "kitchenCommandExamples": "\"I used two eggs\" · \"we're out of milk\" · \"add 1 kg flour\"",
+  "kitchenCommandFieldHint": "What happened in the kitchen?",
+  "kitchenListening": "Listening",
+  "kitchenSpeak": "Speak",
+  "kitchenCouldNotFind": "We couldn't find \"{query}\"",
+  "@kitchenCouldNotFind": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenHereIsWhatWillHappen": "Here's what will happen",
+  "kitchenTrySimplerName": "Try a simpler name, or add it from the Kitchen tab.",
+  "kitchenNoAmountSaid": "You didn't say how much — check the amount:",
+  "kitchenQuoted": "\"{text}\"",
+  "@kitchenQuoted": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenCommandMarkEmpty": "Mark {what} as used up",
+  "@kitchenCommandMarkEmpty": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenCommandSetCount": "Set {what} to {amount}",
+  "@kitchenCommandSetCount": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenCommandAction": "{action} {amount} {what}",
+  "@kitchenCommandAction": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenConfirm": "Confirm",
+  "kitchenRenamePlace": "Rename place",
+  "kitchenPlacesTitle": "Places in your kitchen",
+  "kitchenPlacesSubtitle": "Add spots like a garage freezer or a wine fridge.",
+  "kitchenBuiltIn": "Built in",
+  "kitchenKeptLike": "{kind, select, fridge{Kept like a fridge} freezer{Kept like a freezer} pantry{Kept like a pantry} other{Kept like a other}}",
+  "@kitchenKeptLike": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenRenameTooltip": "Rename {place}",
+  "@kitchenRenameTooltip": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenRemoveTooltip": "Remove {place}",
+  "@kitchenRemoveTooltip": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenRemovedPlace": "Removed {place}.",
+  "@kitchenRemovedPlace": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenAddedPlace": "Added {place}.",
+  "@kitchenAddedPlace": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "kitchenNewPlace": "New place",
+  "kitchenNewPlaceHint": "e.g. Garage freezer",
+  "kitchenKeptLikeHeader": "Kept like a…",
+  "kitchenAddPlace": "Add place",
+  "labelInventoryCommandActionConsume": "Use",
+  "labelInventoryCommandActionAdd": "Add",
+  "labelInventoryCommandActionDiscard": "Discard",
+  "labelInventoryCommandActionMarkEmpty": "Mark empty",
+  "labelInventoryCommandActionSetCount": "Set count",
+  "labelGlucoseUnitMmolL": "mmol/L",
+  "labelGlucoseUnitMgdL": "mg/dL",
+  "labelOralExposureKindSugaryDrink": "Sugary drink",
+  "labelOralExposureKindSweetSnack": "Sweet snack",
+  "labelOralExposureKindStickyFood": "Sticky or slow-dissolving sweet",
+  "labelOralExposureKindAcidicDrink": "Acidic drink",
+  "labelOralExposureKindCitrus": "Citrus or acidic fruit",
+  "labelOralExposureKindSipping": "Long sipping session",
+  "labelOralExposureKindWater": "Water after eating",
+  "labelOralExposureKindCheese": "Cheese or dairy finish",
+  "labelOralExposureKindBrushed": "Brushed teeth",
+  "labelStudyTypeGuideline": "Clinical/public-health guideline",
+  "labelStudyTypeSystematicReview": "Systematic review / meta-analysis",
+  "labelStudyTypeRct": "Randomised controlled trial",
+  "labelStudyTypeCohort": "Observational cohort",
+  "labelStudyTypeReference": "Reference values / authoritative body",
+  "labelEvidenceStrengthStrong": "Strong",
+  "labelEvidenceStrengthModerate": "Moderate",
+  "labelEvidenceStrengthLimited": "Limited",
+  "labelEvidenceStrengthInsufficient": "Insufficient",
+  "labelFoodCategoryProduce": "Produce",
+  "labelFoodCategoryDairy": "Dairy & eggs",
+  "labelFoodCategoryMeat": "Meat",
+  "labelFoodCategorySeafood": "Fish & seafood",
+  "labelFoodCategoryBakery": "Bakery",
+  "labelFoodCategoryGrains": "Grains & pasta",
+  "labelFoodCategoryPantry": "Pantry staples",
+  "labelFoodCategorySpices": "Herbs & spices",
+  "labelFoodCategoryCondiments": "Sauces & condiments",
+  "labelFoodCategoryFrozen": "Frozen",
+  "labelFoodCategoryBeverages": "Beverages",
+  "labelFoodCategorySnacks": "Snacks",
+  "labelFoodCategoryPrepared": "Prepared & leftovers",
+  "labelFoodCategoryOther": "Other",
+  "labelFoodCategoryNonFood": "Non-food",
+  "labelStorageKindFridge": "Fridge",
+  "labelStorageKindFreezer": "Freezer",
+  "labelStorageKindPantry": "Pantry",
+  "labelStorageKindCustom": "Other",
+  "labelInventoryStatusConfirmed": "Confirmed",
+  "labelInventoryStatusEstimated": "Estimated",
+  "labelInventoryStatusNeedsReview": "Needs review",
+  "labelInventoryStatusDepleted": "Used up",
+  "labelInventoryStatusPastRecordedDate": "Past recorded date",
+  "labelAdjustmentTypeIntake": "Added",
+  "labelAdjustmentTypeConsume": "Used",
+  "labelAdjustmentTypeDiscard": "Discarded",
+  "labelAdjustmentTypeCorrection": "Corrected",
+  "labelAdjustmentTypeTransferOut": "Moved out",
+  "labelAdjustmentTypeTransferIn": "Moved in",
+  "labelAdjustmentTypeReversal": "Undone",
+  "labelNutrientEnergyKcal": "Calories",
+  "labelNutrientProtein": "Protein",
+  "labelNutrientCarbohydrate": "Carbohydrates",
+  "labelNutrientFat": "Fat",
+  "labelNutrientSaturatedFat": "Saturated fat",
+  "labelNutrientFibre": "Fibre",
+  "labelNutrientSugars": "Total sugars",
+  "labelNutrientSodium": "Sodium",
+  "labelNutrientCalcium": "Calcium",
+  "labelNutrientIron": "Iron",
+  "labelNutrientPotassium": "Potassium",
+  "labelNutrientVitaminC": "Vitamin C",
+  "labelProfessionalKindDietitian": "Registered Dietitian",
+  "labelProfessionalKindDentist": "Dentist",
+  "labelProfessionalKindDentalHygienist": "Dental Hygienist",
+  "labelProfessionalKindPhysician": "Physician",
+  "labelProfessionalKindNurse": "Nurse / Diabetes Educator",
+  "labelShareCategoryJournal": "Food journal",
+  "labelShareCategoryNutrition": "Nutrition estimates",
+  "labelShareCategoryGlucose": "Glucose journal",
+  "labelShareCategoryOral": "Smile & Food log",
+  "labelShareCategoryConcerns": "Hair, skin & nails notes",
+  "labelShareCategoryDietary": "Allergies & preferences",
+  "labelDisclosureStatusNotAsked": "Not provided",
+  "labelDisclosureStatusProvided": "Provided",
+  "labelDisclosureStatusNoneKnown": "None known",
+  "labelDisclosureStatusPreferNotToSay": "Prefer not to say",
+  "labelCookingConfidenceBeginner": "Just starting",
+  "labelCookingConfidenceComfortable": "Comfortable",
+  "labelCookingConfidenceConfident": "Confident",
+  "labelCookingConfidenceAccomplished": "Accomplished",
+  "labelHouseholdTypeSingle": "Just me",
+  "labelHouseholdTypeCouple": "Two of us",
+  "labelHouseholdTypeFamily": "Family",
+  "labelReceiptStatusUploading": "Uploading",
+  "labelReceiptStatusUploaded": "Waiting to analyze",
+  "labelReceiptStatusProcessing": "Reading your receipt",
+  "labelReceiptStatusNeedsReview": "Ready for review",
+  "labelReceiptStatusImported": "Added to your kitchen",
+  "labelReceiptStatusFailed": "Could not read",
+  "labelReceiptStatusDuplicate": "Already imported",
+  "labelReceiptStatusCancelled": "Cancelled",
+  "labelMealTypeBreakfast": "Breakfast",
+  "labelMealTypeLunch": "Lunch",
+  "labelMealTypeDinner": "Dinner",
+  "labelMealTypeSnack": "Snack",
+  "labelDifficultyEasy": "Easy",
+  "labelDifficultyMedium": "Medium",
+  "labelDifficultyInvolved": "Involved",
+  "labelRecipeOriginCurated": "Chefii kitchen",
+  "labelRecipeOriginAi": "Created by your AI chef",
+  "labelRecipeOriginUser": "Your recipe",
+  "labelRecipeOriginProfessional": "From your professional",
+  "labelUnitMg": "mg",
+  "labelUnitG": "g",
+  "labelUnitKg": "kg",
+  "labelUnitOz": "oz",
+  "labelUnitLb": "lb",
+  "labelUnitMl": "ml",
+  "labelUnitL": "L",
+  "labelUnitTsp": "tsp",
+  "labelUnitTbsp": "tbsp",
+  "labelUnitCup": "cup",
+  "labelUnitPiece": "pc",
+  "labelUnitDozen": "dozen",
+  "allergenPeanut": "Peanuts",
+  "allergenTreeNut": "Tree nuts",
+  "allergenSesame": "Sesame",
+  "allergenMilk": "Milk",
+  "allergenEgg": "Eggs",
+  "allergenFish": "Fish",
+  "allergenShellfish": "Crustaceans & molluscs",
+  "allergenSoy": "Soy",
+  "allergenWheat": "Wheat & triticale",
+  "allergenMustard": "Mustard",
+  "allergenSulphites": "Sulphites",
+  "allergenGluten": "Gluten (wheat, barley, rye, oats)",
+  "restrictionVegetarian": "Vegetarian",
+  "restrictionVegan": "Vegan",
+  "restrictionPescatarian": "Pescatarian",
+  "restrictionHalal": "Halal",
+  "restrictionKosherStyle": "Kosher-style",
+  "restrictionNoPork": "No pork",
+  "restrictionNoAlcohol": "No alcohol",
+  "restrictionGlutenFree": "Gluten-free",
+  "restrictionDairyFree": "Dairy-free",
+  "intoleranceLactose": "Lactose",
+  "intoleranceGluten": "Gluten",
+  "intoleranceEgg": "Eggs",
+  "intoleranceSoy": "Soy",
+  "tag15Minute": "15 minutes",
+  "tagHighProtein": "High protein",
+  "tagVegan": "Vegan",
+  "tagVegetarian": "Vegetarian",
+  "tagBatch": "Batch cooking",
+  "tagComfort": "Comfort",
+  "tagMakeAhead": "Make ahead",
+  "tagNoCook": "No cooking",
+  "availabilityAllOnHand": "Everything on hand",
+  "availabilityToBuy": "{count, plural, =1{1 ingredient to buy} other{{count} ingredients to buy}}",
+  "@availabilityToBuy": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "morningStepWake": "Wake",
+  "morningStepGetReady": "Get ready",
+  "morningStepMake": "Make {recipe}",
+  "@morningStepMake": {
+    "placeholders": {
+      "recipe": {
+        "type": "String"
+      }
+    }
+  },
+  "morningStepEat": "Eat",
+  "morningStepTidy": "Tidy up",
+  "morningStepLeave": "Leave",
+  "morningEyebrow": "Mornings",
+  "morningSetupTitle": "A calmer morning",
+  "morningSetupSubtitle": "Tell us when you wake and when you leave. We'll plan the bit in between.",
+  "morningOnTheseDays": "On these days",
+  "morningWakeUp": "Wake up",
+  "morningOutTheDoorBy": "Out the door by",
+  "morningBufferValue": "Buffer before leaving: {minutes} min",
+  "@morningBufferValue": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "morningBuffer": "Buffer before leaving",
+  "morningMinutesShort": "{minutes} min",
+  "@morningMinutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "morningInvalidTimes": "Your departure time needs to be after your wake time plus the buffer.",
+  "morningTimeLeft": "{minutes, plural, other{That leaves {minutes} minutes for getting ready and breakfast.}}",
+  "@morningTimeLeft": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "morningBreakfastStyle": "Breakfast style",
+  "morningStyleQuick": "Quick & simple",
+  "morningStyleCooked": "Something warm",
+  "morningStyleNoCook": "No cooking",
+  "morningStyleGrabAndGo": "Grab and go",
+  "morningNotificationsOff": "Notifications are off for Chefii. Turn them on in Settings to use alarms.",
+  "morningAlarmNotificationBody": "Your morning plan is ready.",
+  "morningPreviewNotificationTitle": "Tomorrow's breakfast",
+  "morningPreviewNotificationBody": "Take a look at tomorrow morning's plan.",
+  "morningAlarmAt": "Alarm at {time}",
+  "@morningAlarmAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "morningPreviewAt": "Evening preview at {time}",
+  "@morningPreviewAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "morningAlarmTitle": "Alarm & reminders",
+  "morningSaveSchedule": "Save schedule",
+  "morningWakeWithChefii": "Wake me with Chefii",
+  "morningWakeWithChefiiSubtitle": "An alarm at {time} that opens your morning plan",
+  "@morningWakeWithChefiiSubtitle": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "morningEveningPreview": "Evening preview",
+  "morningEveningPreviewSubtitle": "A gentle note at {time} with tomorrow's breakfast",
+  "@morningEveningPreviewSubtitle": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "morningPlatformNote": "On Android, Chefii uses a system alarm clock entry. On iPhone, it uses a time-sensitive notification that respects Focus settings; it isn't a replacement for the Clock app, so keep a backup alarm for anything critical.",
+  "morningAllOff": "All morning notifications are off.",
+  "morningScheduled": "Scheduled: {items}",
+  "@morningScheduled": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "morningSeeTomorrow": "See tomorrow's plan",
+  "morningSetUpTitle": "Set up your mornings",
+  "morningSetUpMessage": "Chefii can plan breakfast around your wake and leave times.",
+  "morningSetUp": "Set up",
+  "morningPlannedTitle": "Your morning, planned",
+  "morningDayOffTitle": "Tomorrow is a day off",
+  "morningWindow": "{minutes} minutes from {wake} to {leave}",
+  "@morningWindow": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "wake": {
+        "type": "String"
+      },
+      "leave": {
+        "type": "String"
+      }
+    }
+  },
+  "morningEditRoutine": "Edit routine",
+  "morningSoundsGood": "Sounds good",
+  "morningBreakfastSet": "Breakfast is set for tomorrow.",
+  "morningNoBreakfastFits": "No breakfast fits",
+  "morningNoBreakfastFitsMessage": "Try a longer morning or a different breakfast style.",
+  "morningMissing": "Missing: {items}",
+  "@morningMissing": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "morningTimeline": "Timeline",
+  "morningOrChoose": "Or choose",
+  "morningItIs": "It is {time}",
+  "@morningItIs": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "morningImUp": "I'm up",
+  "morningSnooze": "Snooze 9 minutes",
+  "morningSnoozeTitle": "Time to get up",
+  "morningSnoozeBody": "Snooze is over. Your morning plan is waiting.",
+  "morningThisMorning": "This morning",
+  "morningTimeToGo": "Time to go",
+  "morningUntilYouLeave": "{minutes} min until you leave",
+  "@morningUntilYouLeave": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "morningRunningBehind": "Running behind? See faster options",
+  "morningRunningLate": "I'm running late",
+  "morningNoStress": "No stress",
+  "morningMinutesLeft": "{minutes, plural, other{{minutes} minutes left}}",
+  "@morningMinutesLeft": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "morningWhatStillWorks": "Here's what still works.",
+  "morningSkipBreakfast": "Skip breakfast today",
+  "morningSkipped": "Skipped. Nothing in your kitchen was changed.",
+  "morningNoCookNone": "Nothing no-cook fits your kitchen right now.",
+  "morningTenMinutes": "Ten minutes or less",
+  "morningNothingElse": "Nothing else fits in ten minutes.",
+  "onboardingSkipForNow": "Skip for now",
+  "onboardingSkip": "Skip",
+  "onboardingStepOf": "Step {step} of {total}",
+  "@onboardingStepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "onboardingWelcomeArtLabel": "A beautifully set kitchen table",
+  "onboardingWelcomeTitle": "Your kitchen,\nbeautifully taken care of.",
+  "onboardingWelcomeBody": "Chefii knows what's in your kitchen, suggests what to make, guides you through it — and keeps everything in order.",
+  "onboardingGetStarted": "Get started",
+  "onboardingHaveAccount": "I already have an account",
+  "onboardingMeetTitle": "Meet your chef",
+  "onboardingMeetSubtitle": "Three things Chefii does for you, every day.",
+  "onboardingBenefitKitchenTitle": "Knows your kitchen",
+  "onboardingBenefitKitchenBody": "Scan a receipt and your pantry, fridge and freezer stay up to date — with almost no typing.",
+  "onboardingBenefitDecideTitle": "Decides what to make",
+  "onboardingBenefitDecideBody": "Recipes matched to what you have, how much time you have, and everyone's dietary needs.",
+  "onboardingBenefitGuideTitle": "Guides you calmly",
+  "onboardingBenefitGuideBody": "Step-by-step cooking with timers, then one tap to update your kitchen.",
+  "onboardingTasteHeader": "A taste",
+  "onboardingExample": "Example",
+  "onboardingConsentRequired": "Please accept the Terms and Privacy Policy to continue.",
+  "onboardingDefaultName": "Friend",
+  "onboardingWelcomeBack": "Welcome back",
+  "onboardingSignInSubtitle": "Sign in to your kitchen.",
+  "onboardingCreateTitle": "Create your account",
+  "onboardingCreateSubtitle": "Your kitchen stays private to you and the people you invite.",
+  "onboardingSignIn": "Sign in",
+  "onboardingCreateAccount": "Create account",
+  "onboardingDemoBanner": "Demo mode: your account and data stay on this device only.",
+  "onboardingDemoAccount": "Continue with a demo account",
+  "onboardingContinueApple": "Continue with Apple",
+  "onboardingContinueGoogle": "Continue with Google",
+  "onboardingOrEmail": "or with email",
+  "onboardingFirstNameLabel": "Your first name",
+  "onboardingFirstNameError": "Please tell us what to call you",
+  "onboardingEmailLabel": "Email",
+  "onboardingEmailError": "Enter a valid email",
+  "onboardingPasswordLabel": "Password",
+  "onboardingPasswordError": "At least 8 characters",
+  "onboardingEnterEmailFirst": "Enter your email first.",
+  "onboardingResetSent": "If that email has an account, a reset link is on its way.",
+  "onboardingForgotPassword": "Forgot password?",
+  "onboardingConsentLabel": "I agree to the Terms of Service and Privacy Policy",
+  "onboardingReadThem": "Read them",
+  "onboardingSwitchToCreate": "New here? Create an account",
+  "onboardingSwitchToSignIn": "Already have an account? Sign in",
+  "onboardingDefaultHouseholdName": "{name}'s kitchen",
+  "@onboardingDefaultHouseholdName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingInviteCodeTitle": "Invite code",
+  "onboardingInviteCodeHint": "e.g. 7KQ2M9XA",
+  "onboardingJoin": "Join",
+  "onboardingJoinNeedsOnline": "Joining another household needs the online version of Chefii.",
+  "onboardingJoinFailed": "That code didn't work.",
+  "onboardingHouseholdTitle": "Your household",
+  "onboardingHouseholdSubtitle": "So portions and planning fit the way you live.",
+  "onboardingOptionSelected": "{option}, selected",
+  "@onboardingOptionSelected": {
+    "placeholders": {
+      "option": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingPortionsTitle": "Usual portions per meal",
+  "onboardingFewerPortions": "Fewer portions",
+  "onboardingMorePortions": "More portions",
+  "onboardingHouseholdNameLabel": "Household name (optional)",
+  "onboardingHouseholdNameHint": "e.g. The Laurier kitchen",
+  "onboardingHouseholdPrivacy": "You can invite others to share the kitchen later. Each person's health and journal stay private to them.",
+  "onboardingJoinWithCode": "Join a household with an invite code",
+  "onboardingAllergyQuestion": "Do you have any food allergies?",
+  "onboardingAllergyNoneKnown": "None that I know of",
+  "onboardingAllergyPreferNot": "Prefer not to say",
+  "onboardingCrossContactTitle": "Warn me about cross-contact",
+  "onboardingCrossContactSubtitle": "Reminders about \"may contain\" labels and shared equipment",
+  "onboardingNoAllergyAssumption": "We won't assume you have no allergies — recipes will remind you to check ingredients.",
+  "onboardingIntolerances": "Intolerances",
+  "onboardingDietaryPattern": "Dietary pattern",
+  "onboardingDislikes": "Foods you'd rather avoid",
+  "onboardingAddFoodLabel": "Add a food (e.g. cilantro)",
+  "onboardingAdd": "Add",
+  "onboardingDietaryNotice": "Chefii screens every recipe against these, but it can't see inside packaged foods. Always check labels. Allergies you list are shared with your household only to keep shared meals safe.",
+  "onboardingDietaryTitle": "Dietary safety",
+  "onboardingDietaryEditSubtitle": "Allergies, intolerances and preferences.",
+  "onboardingDietarySubtitle": "The most important thing we'll ask. You can change it any time.",
+  "onboardingCuisineItalian": "Italian",
+  "onboardingCuisineFrench": "French",
+  "onboardingCuisineMediterranean": "Mediterranean",
+  "onboardingCuisineMiddleEastern": "Middle Eastern",
+  "onboardingCuisineIndian": "Indian",
+  "onboardingCuisineJapanese": "Japanese",
+  "onboardingCuisineChinese": "Chinese",
+  "onboardingCuisineThai": "Thai",
+  "onboardingCuisineKorean": "Korean",
+  "onboardingCuisineMexican": "Mexican",
+  "onboardingCuisineGreek": "Greek",
+  "onboardingCuisineNordic": "Nordic",
+  "onboardingCuisineCanadian": "Canadian",
+  "onboardingFoodSalmon": "Salmon",
+  "onboardingFoodChicken": "Chicken",
+  "onboardingFoodPasta": "Pasta",
+  "onboardingFoodEggs": "Eggs",
+  "onboardingFoodTofu": "Tofu",
+  "onboardingFoodLentils": "Lentils",
+  "onboardingFoodVegetables": "Vegetables",
+  "onboardingFoodSalads": "Salads",
+  "onboardingFoodSoups": "Soups",
+  "onboardingFoodRiceBowls": "Rice bowls",
+  "onboardingFoodBaking": "Baking",
+  "onboardingEquipmentOven": "Oven",
+  "onboardingEquipmentStovetop": "Stovetop",
+  "onboardingEquipmentAirFryer": "Air fryer",
+  "onboardingEquipmentSlowCooker": "Slow cooker",
+  "onboardingEquipmentInstantPot": "Instant Pot",
+  "onboardingEquipmentBlender": "Blender",
+  "onboardingEquipmentMicrowave": "Microwave",
+  "onboardingEquipmentGrill": "Grill",
+  "onboardingSpiceNone": "None",
+  "onboardingSpiceMild": "Mild",
+  "onboardingSpiceMedium": "Medium",
+  "onboardingSpiceWarm": "Warm",
+  "onboardingSpiceHot": "Hot",
+  "onboardingCuisinesTitle": "Cuisines you love",
+  "onboardingFavouriteFoods": "Favourite foods",
+  "onboardingCookingConfidence": "Cooking confidence",
+  "onboardingSpice": "Spice",
+  "onboardingSpiceLevel": "Spice level",
+  "onboardingSpiceValue": "Spice: {level}",
+  "@onboardingSpiceValue": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingWeeknightTime": "Weeknight time",
+  "onboardingYourEquipment": "Your equipment",
+  "onboardingCulinaryEditTitle": "Culinary preferences",
+  "onboardingCulinaryTitle": "What you love to eat",
+  "onboardingCulinarySubtitle": "Pick as many or as few as you like.",
+  "onboardingInterestBalanced": "Balanced meals",
+  "onboardingInterestProtein": "More protein",
+  "onboardingInterestVariety": "More variety",
+  "onboardingInterestPlants": "More vegetables & plants",
+  "onboardingInterestEducation": "Learn about nutrition",
+  "onboardingWellnessQuestion": "Anything you'd like help with?",
+  "onboardingShowNutritionTitle": "Show nutrition on recipes",
+  "onboardingShowNutritionSubtitle": "Estimated protein, fibre and more",
+  "onboardingTrackCaloriesTitle": "Track calories",
+  "onboardingTrackCaloriesSubtitle": "Off by default. Chefii never sets targets for you.",
+  "onboardingSmileTitle": "Smile & Food",
+  "onboardingSmileSubtitle": "Education about sugar and acid exposure for your teeth",
+  "onboardingWellnessDisclaimer": "Chefii offers food and nutrition education. It isn't medical advice and doesn't diagnose or treat any condition.",
+  "onboardingWellnessEditTitle": "Wellness preferences",
+  "onboardingWellnessTitle": "Wellness, your way",
+  "onboardingWellnessSubtitle": "Entirely optional — and never about guilt.",
+  "onboardingKitchenTitle": "Build your kitchen",
+  "onboardingKitchenSubtitle": "The fastest way is your last grocery receipt.",
+  "onboardingKitchenLater": "I'll do this later",
+  "onboardingOptionSemantics": "{title}. {body}",
+  "@onboardingOptionSemantics": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "body": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingScanReceiptTitle": "Scan a receipt",
+  "onboardingScanReceiptBody": "Everything you bought, in about a minute",
+  "onboardingScanFridgeTitle": "Scan your fridge or pantry",
+  "onboardingScanFridgeBody": "Confirm what we spot",
+  "onboardingAddManualTitle": "Add items manually",
+  "onboardingAddManualBody": "Search, scan a barcode or speak",
+  "onboardingExampleKitchenTitle": "Start with example ingredients",
+  "onboardingExampleKitchenBody": "Explore Chefii with a sample kitchen",
+  "planningEyebrow": "Plan",
+  "planningWeekTitle": "Your week",
+  "planningPreviousWeek": "Previous week",
+  "planningNextWeek": "Next week",
+  "planningLeftoversBatch": "Leftovers & batch cooking",
+  "planningBuildShoppingList": "Build shopping list",
+  "planningHaveEverything": "You have everything this week needs.",
+  "planningItemsAdded": "{count, plural, =1{1 item added to your list} other{{count} items added to your list}}",
+  "@planningItemsAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningDayToday": "{day} · today",
+  "@planningDayToday": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "planningAdd": "Add",
+  "planningOptions": "Options",
+  "planningOpenRecipe": "Open recipe",
+  "planningAddToPlanTitle": "Add to your plan",
+  "planningChooseRecipe": "Choose a recipe",
+  "planningPlanMeal": "Plan {day} {meal}",
+  "@planningPlanMeal": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "meal": {
+        "type": "String"
+      }
+    }
+  },
+  "planningPlanned": "{title} planned",
+  "@planningPlanned": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planningChangeRecipe": "Change recipe",
+  "planningToBuy": "To buy: {items}",
+  "@planningToBuy": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "planningSearchRecipes": "Search recipes",
+  "planningLeftoversSubtitle": "Cook once, eat well all week.",
+  "planningInYourFridge": "In your fridge",
+  "planningNoLeftovers": "No saved leftovers. When you finish cooking, Chefii can save extra portions here.",
+  "planningLeftoverPortions": "{count, plural, =1{1 portion} other{{count} portions}}",
+  "@planningLeftoverPortions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningMadeOn": "made {day}",
+  "@planningMadeOn": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "planningEatWithin": "{count, plural, =1{eat within ~1 day} other{eat within ~{count} days}}",
+  "@planningEatWithin": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningEatPortion": "Eat a portion",
+  "planningFreeze": "Freeze",
+  "planningItemDetails": "Item details",
+  "planningGoodForBatch": "Good for batch cooking",
+  "planningLeftoversEntryTitle": "{name} (leftovers)",
+  "@planningLeftoversEntryTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planningKitchenEyebrow": "Kitchen",
+  "planningShoppingTitle": "Shopping list",
+  "planningToBuyCount": "{count} to buy",
+  "@planningToBuyCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningPutAway": "Put {count} away in kitchen",
+  "@planningPutAway": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningAddAmountsFirst": "Add amounts to checked items first, or scan your receipt instead.",
+  "planningAddItemHint": "Add an item",
+  "planningFromMealPlan": "From meal plan",
+  "planningClearChecked": "Clear checked",
+  "planningListEmptyTitle": "Your list is empty",
+  "planningListEmptyMessage": "Plan a few meals and Chefii will add exactly what's missing.",
+  "planningInBasket": "In the basket",
+  "planningAfterShopping": "After shopping, scan your receipt for exact amounts and prices — or put checked items away now.",
+  "planningForRecipes": "for {titles}",
+  "@planningForRecipes": {
+    "placeholders": {
+      "titles": {
+        "type": "String"
+      }
+    }
+  },
+  "planningRunningLow": "running low",
+  "planningDetails": "Details",
+  "planningItemRemovedTitle": "Item removed",
+  "planningItemRemovedMessage": "It may have been bought or removed.",
+  "planningPortions": "Portions",
+  "planningQuantity": "Quantity",
+  "planningPreferredProduct": "Preferred brand or product",
+  "planningExpectedPrice": "Expected price ($)",
+  "planningLastPaid": "Last paid {price} on a scanned receipt",
+  "@planningLastPaid": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "planningNote": "Note",
+  "planningAlternatives": "Alternatives",
+  "planningNeededFor": "Needed for",
+  "planningSpendingTitle": "Spending & waste",
+  "planningGroceriesThisMonth": "groceries this month",
+  "planningItemsDiscarded": "items discarded recently",
+  "planningLastSixWeeks": "Last six weeks",
+  "planningScanReceiptsEmpty": "Scan receipts to see spending trends.",
+  "planningThisWeek": "This week",
+  "planningWeeksAgo": "{count, plural, =1{1 week ago} other{{count} weeks ago}}",
+  "@planningWeeksAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningWeeksAgoShort": "{count} wk ago",
+  "@planningWeeksAgoShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planningWeekAmount": "{week}: {amount}",
+  "@planningWeekAmount": {
+    "placeholders": {
+      "week": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planningRecentlyDiscarded": "Recently discarded",
+  "planningNothingDiscarded": "Nothing thrown out recently. Lovely.",
+  "planningSpendingFootnote": "Spending comes from scanned receipts only. Waste counts items you marked as discarded.",
+  "prosEyebrow": "Professionals",
+  "prosCircleTitle": "My nutrition circle",
+  "prosCircleSubtitle": "Share exactly what you choose, for as long as you choose, with verified dietitians and dental professionals.",
+  "prosInvite": "Invite a professional",
+  "prosCodeHint": "Their Chefii code",
+  "prosFind": "Find",
+  "prosNoMatch": "No verified professional has that code. Check it with them.",
+  "prosDemoSample": "Demo: use a sample dietitian",
+  "prosWhoCanSee": "Who can see what",
+  "prosNothingShared": "You haven't shared anything. Nothing is visible to anyone.",
+  "prosGrantUntil": "{categories}\nUntil {date}",
+  "@prosGrantUntil": {
+    "placeholders": {
+      "categories": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRevokedOn": "Access revoked {date}",
+  "@prosRevokedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRevoked": "Access revoked",
+  "prosExpired": "Access expired",
+  "prosActive": "Active",
+  "prosEnded": "Ended",
+  "prosReviews": "Reviews",
+  "prosReadOnlyNote": "Professionals see read-only copies of what you share. They can't change your meals, kitchen or plans.",
+  "prosCredentialsVerified": "{body} · #{number} · verified",
+  "@prosCredentialsVerified": {
+    "placeholders": {
+      "body": {
+        "type": "String"
+      },
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "prosCredentialsNotVerified": "{body} · #{number} · not verified",
+  "@prosCredentialsNotVerified": {
+    "placeholders": {
+      "body": {
+        "type": "String"
+      },
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "prosUpdateSharing": "Update sharing",
+  "prosShareWith": "Share with {name}",
+  "@prosShareWith": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prosShareWithQuestion": "Share with {name}?",
+  "@prosShareWithQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prosShareConfirm": "{categories} from the last {days} days, until {date}. You can revoke any time.",
+  "@prosShareConfirm": {
+    "placeholders": {
+      "categories": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosShare": "Share",
+  "prosSharedWith": "Shared with {name}",
+  "@prosSharedWith": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prosWhatToShare": "What to share",
+  "prosHowFarBack": "How far back",
+  "prosOneYear": "1 year",
+  "prosDays": "{count, plural, =1{1 day} other{{count} days}}",
+  "@prosDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "prosAccessEndsAfter": "Access ends after",
+  "prosRevokeNow": "Revoke access now",
+  "prosRevokeQuestion": "Revoke access?",
+  "prosRevokeMessage": "{name} will immediately lose access to everything you shared.",
+  "@prosRevokeMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRevoke": "Revoke",
+  "prosAccessHistory": "Access history",
+  "prosNotViewedYet": "{name} hasn't viewed anything yet.",
+  "@prosNotViewedYet": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prosViewed": "Viewed {what}",
+  "@prosViewed": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "prosProfessionalReview": "Professional review",
+  "prosAcceptRecommendations": "Accept recommendations",
+  "prosRecommendations": "Recommendations",
+  "prosAcceptNote": "Accepting keeps these on your profile. Nothing in your plan or kitchen changes unless you change it.",
+  "prosDecline": "Decline",
+  "prosOpenPlanner": "Open meal planner",
+  "prosPortal": "Professional portal",
+  "prosVerificationPending": "Verification pending",
+  "prosVerificationPendingBody": "We're confirming your registration with {body}. You'll be able to see clients' shared records once verified.",
+  "@prosVerificationPendingBody": {
+    "placeholders": {
+      "body": {
+        "type": "String"
+      }
+    }
+  },
+  "prosDemoVerify": "Demo: simulate verification",
+  "prosClients": "Clients",
+  "prosClientCode": "Your client code: {code}",
+  "@prosClientCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "prosNoClients": "No active clients",
+  "prosNoClientsMessage": "Clients who share with you appear here while their access is active.",
+  "prosClientAccessUntil": "{categories}\nAccess until {date}",
+  "@prosClientAccessUntil": {
+    "placeholders": {
+      "categories": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRecordsNote": "Records are read-only and every view is logged for your client to see.",
+  "prosJoinTitle": "Join as a professional",
+  "prosJoinSubtitle": "For regulated health professionals. We verify every registration.",
+  "prosSubmit": "Submit for verification",
+  "prosProfession": "Profession",
+  "prosRegulatoryCollege": "Regulatory college",
+  "prosRegulatoryCollegeHint": "e.g. College of Dietitians of Ontario",
+  "prosRegistrationNumber": "Registration number",
+  "prosProvince": "Province",
+  "prosAccessEnded": "Access has ended",
+  "prosAccessEndedMessage": "This client's sharing has expired or been revoked.",
+  "prosClient": "Client",
+  "prosSharedSince": "Shared since {date} · read-only",
+  "@prosSharedSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosWriteAssessment": "Write assessment",
+  "prosChooseCategory": "Choose a category to view.",
+  "prosNoRecords": "No records in the shared range.",
+  "prosRecordMeal": "{title} · {meal} · {portions} portion(s)",
+  "@prosRecordMeal": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "meal": {
+        "type": "String"
+      },
+      "portions": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRecordMealKcal": "{title} · {meal} · {portions} portion(s) · ≈ {kcal} kcal",
+  "@prosRecordMealKcal": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "meal": {
+        "type": "String"
+      },
+      "portions": {
+        "type": "String"
+      },
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRecordGlucose": "{value} mmol/L · {context}",
+  "@prosRecordGlucose": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "context": {
+        "type": "String"
+      }
+    }
+  },
+  "prosGlucoseContext": "{context, select, other{{context}}}",
+  "@prosGlucoseContext": {
+    "placeholders": {
+      "context": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRecordConcern": "{area}: {description} ({severity}/5)",
+  "@prosRecordConcern": {
+    "placeholders": {
+      "area": {
+        "type": "String"
+      },
+      "description": {
+        "type": "String"
+      },
+      "severity": {
+        "type": "String"
+      }
+    }
+  },
+  "prosConcernArea": "{area, select, other{{area}}}",
+  "@prosConcernArea": {
+    "placeholders": {
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "prosRecordDietary": "Allergies: {allergies} · Restrictions: {restrictions}",
+  "@prosRecordDietary": {
+    "placeholders": {
+      "allergies": {
+        "type": "String"
+      },
+      "restrictions": {
+        "type": "String"
+      }
+    }
+  },
+  "prosAssessment": "Assessment",
+  "prosReviewing": "Reviewing {date} – today",
+  "@prosReviewing": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prosShareWithClient": "Share with client",
+  "prosSummary": "Summary",
+  "prosAddRecommendation": "Add a recommendation",
+  "prosAdd": "Add",
+  "prosSignedNote": "Your client must accept before anything changes. Signed as {name}, {kind}.",
+  "@prosSignedNote": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "prosSaveDraft": "Save as draft",
+  "prosDraftSaved": "Draft saved",
+  "receiptsEyebrow": "Receipt",
+  "receiptsCaptureTitle": "Scan a receipt",
+  "receiptsCaptureSubtitle": "Lay it flat in good light. Long receipts can be captured in a few pages.",
+  "receiptsScanReceipt": "Scan receipt",
+  "receiptsTakePhoto": "Take a photo",
+  "receiptsDemoCapture": "Demo mode: any photo works — we'll show a labelled sample receipt instead of reading it.",
+  "receiptsCameraPermission": "Camera",
+  "receiptsCameraWhy": "Allow camera access in Settings to scan receipts, or import a photo you already took.",
+  "receiptsImportPhoto": "Import a photo",
+  "receiptsArtworkLabel": "Receipt on a kitchen counter",
+  "receiptsTipLight": "Bright, even light — avoid shadows across the paper",
+  "receiptsTipFrame": "Include the store name at the top and the total at the bottom",
+  "receiptsTipPages": "For long receipts, capture each section as its own page",
+  "receiptsTipPrivacy": "Photos are stored privately for your household and used only to read your purchases",
+  "receiptsRegularCamera": "Use the regular camera",
+  "receiptsImportFromPhotos": "Import from photos",
+  "receiptsAiFeature": "reading receipts",
+  "receiptsPreviewTitle": "Check your photo",
+  "receiptsPreviewSubtitle": "{count, plural, =1{1 page} other{{count} pages}}. Make sure the text is sharp.",
+  "@receiptsPreviewSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsAnalyze": "Analyze receipt",
+  "receiptsNoPagesTitle": "No pages yet",
+  "receiptsNoPagesMessage": "Capture your receipt to continue.",
+  "receiptsCapture": "Capture",
+  "receiptsPageSemantics": "Receipt page {number}",
+  "@receiptsPageSemantics": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsPageLabel": "Page {number}",
+  "@receiptsPageLabel": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsRotate": "Rotate",
+  "receiptsRetake": "Retake",
+  "receiptsRemovePage": "Remove page",
+  "receiptsAddPage": "Add another page",
+  "receiptsStepUploading": "Uploading securely",
+  "receiptsStepReading": "Reading every line",
+  "receiptsStepChecking": "Checking totals and duplicates",
+  "receiptsStepMatching": "Matching to your kitchen",
+  "receiptsProcessingTitle": "Reading your receipt",
+  "receiptsProcessingSubtitle": "This usually takes under a minute. You can leave — we'll keep going.",
+  "receiptsProgressSemantics": "Progress {percent} percent",
+  "@receiptsProgressSemantics": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsContinueBackground": "Continue in the background",
+  "receiptsNotFound": "Receipt not found.",
+  "receiptsAlreadyInKitchenTitle": "Already in your kitchen",
+  "receiptsAlreadyImportedMessage": "This receipt was imported.",
+  "receiptsSeeSummary": "See summary",
+  "receiptsReviewTitle": "Review purchases",
+  "receiptsReviewSubtitle": "{count, plural, =1{1 item} other{{count} items}}",
+  "@receiptsReviewSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsReviewSubtitleToCheck": "{count, plural, =1{1 item} other{{count} items}} · {review} to check",
+  "@receiptsReviewSubtitleToCheck": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "review": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsResolveItems": "{count, plural, =1{Resolve 1 item} other{Resolve {count} items}}",
+  "@receiptsResolveItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsDemoReview": "Demo: this is a built-in sample receipt, not your photo.",
+  "receiptsTotalsMatch": "Items add up to the receipt subtotal.",
+  "receiptsTotalsMatchWithTotal": "Items add up to the receipt subtotal · total {total}.",
+  "@receiptsTotalsMatchWithTotal": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsTotalsMismatch": "Items add up to {linesTotal} but the subtotal reads {subtotal}. A line may be missing — you can add it.",
+  "@receiptsTotalsMismatch": {
+    "placeholders": {
+      "linesTotal": {
+        "type": "String"
+      },
+      "subtotal": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsAddMissingItem": "Add a missing item",
+  "receiptsUnknownItem": "Unknown item",
+  "receiptsAmountNeeded": "Amount needed",
+  "receiptsNotFood": "Not food",
+  "receiptsChecked": "Checked",
+  "receiptsPleaseCheck": "Please check",
+  "receiptsExcludedSemantics": "Excluded. Tap to include",
+  "receiptsIncludedSemantics": "Included. Tap to exclude",
+  "receiptsAddedByYou": "(added by you)",
+  "receiptsAddItemTitle": "Add an item",
+  "receiptsCorrectItemTitle": "Correct item",
+  "receiptsReceiptSays": "Receipt says: {text}",
+  "@receiptsReceiptSays": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsIsFood": "This is food",
+  "receiptsIsFoodSubtitle": "Non-food purchases are not added to your kitchen",
+  "receiptsProductName": "Product name",
+  "receiptsBrandOptional": "Brand (optional)",
+  "receiptsPackageOptional": "Package size (optional)",
+  "receiptsPackageHint": "e.g. 750 g tub",
+  "receiptsQuantity": "Quantity",
+  "receiptsCategory": "Category",
+  "receiptsStoreIn": "Store in",
+  "receiptsUnknownTitle": "A few to check",
+  "receiptsAllResolved": "All resolved.",
+  "receiptsUnknownSubtitle": "Tell us what these are, or leave them out.",
+  "receiptsStillNeedNameAmount": "{count} still need a name and amount",
+  "@receiptsStillNeedNameAmount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsNothingLeftTitle": "Nothing left to check",
+  "receiptsNothingLeftMessage": "Everything has a name and an amount.",
+  "receiptsCouldntTell": "We couldn't tell what this is",
+  "receiptsLooksLikeUnknownAmount": "Looks like: {name} (amount unknown)",
+  "@receiptsLooksLikeUnknownAmount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsLooksLikeWithAmount": "Looks like: {name} · {quantity}",
+  "@receiptsLooksLikeWithAmount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsFix": "Fix",
+  "receiptsLooksRight": "Looks right",
+  "receiptsLeaveOut": "Leave out",
+  "receiptsStorageTitle": "Where does it go?",
+  "receiptsStorageSubtitle": "We've suggested a spot for each. Tap to change.",
+  "receiptsAddToKitchen": "{count, plural, =1{Add 1 item to kitchen} other{Add {count} items to kitchen}}",
+  "@receiptsAddToKitchen": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsChangeStorage": "Change storage",
+  "receiptsDuplicateTitle": "Already scanned?",
+  "receiptsViewEarlier": "View the earlier receipt",
+  "receiptsDuplicateHeadline": "This looks like a receipt you've already added",
+  "receiptsDuplicateMessage": "To avoid counting groceries twice, we stopped here.",
+  "receiptsDuplicateMessageWithDate": "To avoid counting groceries twice, we stopped here. Earlier scan: {date}.",
+  "@receiptsDuplicateMessageWithDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptsDifferentReceipt": "It's a different receipt — continue",
+  "receiptsErrorTitle": "We couldn't read that one",
+  "receiptsRetakePhoto": "Retake photo",
+  "receiptsSomethingWrong": "Something went wrong",
+  "receiptsQualityMessage": "The photo may be blurry, too dark or cut off. Lay the receipt flat in bright light and include the whole thing.",
+  "receiptsSafeRetry": "Nothing was added to your kitchen, so it's safe to retry.",
+  "receiptsAddByHand": "Add items by hand instead",
+  "receiptsDoneTitle": "Your kitchen is up to date",
+  "receiptsViewKitchen": "View kitchen",
+  "receiptsMetricAdded": "{count, plural, other{items added}}",
+  "@receiptsMetricAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsMetricLeftOut": "{count, plural, other{left out}}",
+  "@receiptsMetricLeftOut": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsMetricTotal": "total",
+  "receiptsEstimatedNote": "{count, plural, =1{1 item is marked as estimated. Chefii will ask you to confirm next time you're in the kitchen.} other{{count} items are marked as estimated. Chefii will ask you to confirm next time you're in the kitchen.}}",
+  "@receiptsEstimatedNote": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "receiptsUndoImportButton": "Undo this import",
+  "receiptsUndoImportTitle": "Undo import?",
+  "receiptsUndoImportMessage": "Removes these items from your kitchen. Anything already used stays recorded.",
+  "receiptsUndoImportConfirm": "Undo import",
+  "receiptsScanAnother": "Scan another receipt",
+  "receiptsListEyebrow": "Kitchen",
+  "receiptsListTitle": "Receipts",
+  "receiptsListEmptyTitle": "No receipts yet",
+  "receiptsListEmptyMessage": "Scanned receipts appear here.",
+  "sharedAiConsentTitle": "Use AI for {feature}?",
+  "@sharedAiConsentTitle": {
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "sharedAiConsentMessage": "To do this, Chefii sends the photo or text to its AI provider (Google Gemini) through our secure servers in Canada. It isn't used to train their models under our agreements, and you can turn this off any time in Privacy & data.",
+  "sharedAiConsentAllow": "Allow",
+  "sharedAiConsentNotNow": "Not now",
+  "sharedTakePhoto": "Take a photo",
+  "sharedChooseFromLibrary": "Choose from library",
+  "todayNotifications": "Notifications",
+  "todayUnreadNotifications": "{count, plural, =1{1 unread notification} other{{count} unread notifications}}",
+  "@todayUnreadNotifications": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todayGreeting": "{greeting}.",
+  "@todayGreeting": {
+    "placeholders": {
+      "greeting": {
+        "type": "String"
+      }
+    }
+  },
+  "todayGreetingName": "{greeting},\n{name}.",
+  "@todayGreetingName": {
+    "placeholders": {
+      "greeting": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "todayScanReceipt": "Scan a receipt",
+  "todayStartCooking": "Start cooking",
+  "todayReceiptReady": "Your receipt is ready to review",
+  "todayReceiptReading": "Reading your receipt…",
+  "todayPlannedFor": "{mealType, select, other{Planned for {meal}}}",
+  "@todayPlannedFor": {
+    "placeholders": {
+      "mealType": {
+        "type": "String"
+      },
+      "meal": {
+        "type": "String"
+      }
+    }
+  },
+  "todayFor": "{mealType, select, other{For {meal}}}",
+  "@todayFor": {
+    "placeholders": {
+      "mealType": {
+        "type": "String"
+      },
+      "meal": {
+        "type": "String"
+      }
+    }
+  },
+  "todayMinutesChip": "{minutes} min",
+  "@todayMinutesChip": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "todayUsesExpiring": "Uses ingredients that need eating soon.",
+  "todayNothingFits": "Nothing fits in {minutes} minutes",
+  "@todayNothingFits": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "todayNothingFitsMessage": "Try more time, or ask your chef for an idea.",
+  "todayAskChef": "Ask the chef",
+  "todayDailyBriefing": "Daily briefing",
+  "todayYourKitchen": "Your kitchen",
+  "todayTileItems": "items",
+  "todayTileUseSoon": "use soon",
+  "todayTileToVerify": "to verify",
+  "todayScan": "Scan",
+  "todayIUsed": "I used…",
+  "todayReminders": "Reminders",
+  "todayUseSoon": "Use {name} soon",
+  "@todayUseSoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "todayEstimatedFromPurchase": "Estimated from purchase date",
+  "todayRecordedDate": "Recorded date {date}",
+  "@todayRecordedDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "todayRunningLow": "Running low on {name}",
+  "@todayRunningLow": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "todayAddedToShopping": "{name} added to your shopping list",
+  "@todayAddedToShopping": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "todayAddToList": "Add to list",
+  "todayAvailability": "{count, plural, =0{Everything on hand} =1{1 ingredient to buy} other{{count} ingredients to buy}}",
+  "@todayAvailability": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todayPrepStart": "Start {recipe} ({duration})",
+  "@todayPrepStart": {
+    "placeholders": {
+      "recipe": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "todayYourDayInFood": "Your day in food",
+  "todayPlanMeals": "Plan today's meals",
+  "todayMeals": "Meals",
+  "todayNothingPlanned": "Nothing planned yet — Today will suggest something at each meal.",
+  "todayPortions": "{count, plural, =1{1 portion} other{{count} portions}}",
+  "@todayPortions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todayPreparation": "Preparation",
+  "todayAround": "around {time}",
+  "@todayAround": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "todayKitchenAlerts": "Kitchen alerts",
+  "todayNothingUrgent": "Nothing urgent.",
+  "todayUseTodayIfYouCan": "{quantity} · use today if you can",
+  "@todayUseTodayIfYouCan": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "todayTomorrowMorning": "Tomorrow morning",
+  "todayMarkAllRead": "Mark all read",
+  "todayAllCaughtUp": "You're all caught up",
+  "todayAllCaughtUpMessage": "Receipt results, sharing invitations and reviews will appear here."
+}

@@ -1,0 +1,215 @@
+{
+  "cookingSessionNotFound": "This cooking session could not be found.",
+  "cookingBeforeYouBegin": "Before you begin",
+  "cookingPrepSubtitle": "{servings} servings · gather everything first",
+  "@cookingPrepSubtitle": {
+    "placeholders": {
+      "servings": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingBeginCooking": "Begin cooking",
+  "cookingBeginAnyway": "Begin anyway",
+  "cookingReadyCount": "{ready} of {total} ready",
+  "@cookingReadyCount": {
+    "placeholders": {
+      "ready": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingIngredients": "Ingredients",
+  "cookingEquipment": "Equipment",
+  "cookingKitchenShows": "Kitchen shows {quantity} — check you have enough",
+  "@cookingKitchenShows": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingNotInKitchen": "Not in your kitchen records",
+  "cookingStepSpeech": "Step {step}. {text}",
+  "@cookingStepSpeech": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingStopReadingAloud": "Stop reading steps aloud",
+  "cookingReadAloud": "Read steps aloud",
+  "cookingTimers": "Timers",
+  "cookingStepOf": "Step {step} of {total}",
+  "@cookingStepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingStepOfCaps": "STEP {step} OF {total}",
+  "@cookingStepOfCaps": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingStartNamedTimer": "Start {label} · {duration}",
+  "@cookingStartNamedTimer": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingStartTimer": "Start timer · {duration}",
+  "@cookingStartTimer": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingStepTimerLabel": "Step {step}",
+  "@cookingStepTimerLabel": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingFinishCooking": "Finish cooking",
+  "cookingNextStep": "Next step",
+  "cookingTimerChipDone": "{label} done",
+  "@cookingTimerChipDone": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingKitchenEyebrow": "Kitchen",
+  "cookingTimersSubtitle": "They'll alert you even if you leave the app.",
+  "cookingStartMinutesTimer": "Start {minutes} min timer",
+  "@cookingStartMinutesTimer": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingDefaultTimerName": "Timer",
+  "cookingNoTimersTitle": "No timers running",
+  "cookingNoTimersMessage": "Start one from a recipe step, or below.",
+  "cookingAddMinute": "+1 minute",
+  "cookingPause": "Pause",
+  "cookingResume": "Resume",
+  "cookingNewTimer": "New timer",
+  "cookingTimerName": "Name",
+  "cookingTimerNameHint": "e.g. Rice",
+  "cookingMinutesChip": "{minutes} min",
+  "@cookingMinutesChip": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingAlmostDone": "Almost done",
+  "cookingWhatDidYouUse": "What did you use?",
+  "cookingConfirmSubtitle": "Adjust anything that differed. This updates your kitchen once.",
+  "cookingConfirmAndUpdate": "Confirm and update kitchen",
+  "cookingDiscrepancies": "{count, plural, =1{Kitchen updated. 1 item wasn't fully recorded — we'll ask you to check later.} other{Kitchen updated. {count} items weren't fully recorded — we'll ask you to check later.}}",
+  "@cookingDiscrepancies": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingNothingTracked": "None of these ingredients are tracked in your kitchen, so nothing will change.",
+  "cookingInclude": "Include",
+  "cookingDidntUse": "Didn't use",
+  "cookingRecipeAmount": "Recipe: {quantity}",
+  "@cookingRecipeAmount": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingAmountUsed": "Amount of {ingredient} used",
+  "@cookingAmountUsed": {
+    "placeholders": {
+      "ingredient": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingBonAppetit": "Bon appétit",
+  "cookingKitchenUpdated": "Your kitchen has been updated.",
+  "cookingFinish": "Finish",
+  "cookingLoggedWithLeftovers": "Logged, and {count, plural, =1{1 portion} other{{count} portions}} saved in the fridge.",
+  "@cookingLoggedWithLeftovers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingLoggedToJournal": "Logged to your journal.",
+  "cookingHowWasIt": "How was it?",
+  "cookingStars": "{count, plural, =1{1 star} other{{count} stars}}",
+  "@cookingStars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cookingYourPortion": "Your portion",
+  "cookingPortionsYouAte": "Portions you ate",
+  "cookingYourMeal": "Your meal",
+  "cookingPortionCount": "{count, plural, =1{1 portion} other{{amount} portions}}",
+  "@cookingPortionCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingLeftovers": "Leftovers",
+  "cookingPortionsToSave": "Portions to save",
+  "cookingLeftoversReminder": "We'll add them to your fridge with a reminder to eat them within 3 days.",
+  "cookingSaveFavourite": "Save to favourites",
+  "cookingTimerNotificationTitle": "{label} is done",
+  "@cookingTimerNotificationTitle": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "cookingTimerNotificationBody": "Your Chefii timer has finished."
+}

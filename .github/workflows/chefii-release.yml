@@ -1,0 +1,149 @@
+name: Chefii release
+
+# Builds signed store releases and uploads them for testing:
+#   Android → Google Play internal testing track
+#   iOS     → TestFlight
+# Run it from GitHub › Actions › "Chefii release" › Run workflow, after the
+# Chefii Firebase project is connected (tool/setup_firebase.sh) and the
+# secrets in chefii/docs/RELEASE_AUTOMATION.md are added. Each platform is
+# skipped (not failed) while its secrets are missing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Build number (must increase every upload, e.g. 2, 3, 4…)"
+        required: true
+
+defaults:
+  run:
+    working-directory: chefii
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Firebase must be connected to a Chefii project
+        run: |
+          if grep -q "PLACEHOLDER" lib/firebase_options.dart; then
+            echo "::error::Run tool/setup_firebase.sh <chefii-project-id> and commit lib/firebase_options.dart first."
+            exit 1
+          fi
+          PROJECT=$(python3 -c "import json;print(json.load(open('.firebaserc'))['projects']['default'])")
+          bash tool/guard_firebase_project.sh "$PROJECT"
+
+  android:
+    needs: preflight
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 != '' }}
+      HAS_PLAY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip without signing secrets
+        if: env.HAS_KEY != 'true'
+        run: echo "::notice::ANDROID_UPLOAD_KEYSTORE_BASE64 not set; skipping Android release."
+      - uses: actions/setup-java@v4
+        if: env.HAS_KEY == 'true'
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        if: env.HAS_KEY == 'true'
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - name: Signing key
+        if: env.HAS_KEY == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          {
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyPassword=$KEY_PASSWORD"
+            echo "keyAlias=${KEY_ALIAS:-upload}"
+            echo "storeFile=$RUNNER_TEMP/upload.jks"
+          } > android/key.properties
+      - name: Install Android NDK
+        if: env.HAS_KEY == 'true'
+        run: |
+          for i in 1 2 3; do
+            (yes || true) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" > /dev/null && exit 0
+            sleep $((i * 15))
+          done
+          exit 1
+      - name: Build signed app bundle
+        if: env.HAS_KEY == 'true'
+        run: flutter build appbundle --release --dart-define=CHEFII_BACKEND=firebase --build-number=${{ inputs.build_number }}
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_KEY == 'true'
+        with:
+          name: chefii-android-release
+          path: chefii/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+      - name: Upload to Google Play (internal testing)
+        if: env.HAS_KEY == 'true' && env.HAS_PLAY == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ca.chefii.chefii
+          releaseFiles: chefii/build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: draft
+
+  ios:
+    needs: preflight
+    runs-on: macos-15
+    env:
+      HAS_ASC: ${{ secrets.ASC_KEY_ID != '' && secrets.ASC_ISSUER_ID != '' && secrets.ASC_KEY_P8_BASE64 != '' && secrets.APPLE_TEAM_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip without App Store Connect secrets
+        if: env.HAS_ASC != 'true'
+        run: echo "::notice::App Store Connect secrets not set; skipping iOS release."
+      - uses: subosito/flutter-action@v2
+        if: env.HAS_ASC == 'true'
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - name: App Store Connect API key
+        if: env.HAS_ASC == 'true'
+        env:
+          P8_B64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          echo "$P8_B64" | base64 --decode > "$RUNNER_TEMP/asc/AuthKey.p8"
+      - name: Build (no signing yet)
+        if: env.HAS_ASC == 'true'
+        run: flutter build ios --release --no-codesign --dart-define=CHEFII_BACKEND=firebase --build-number=${{ inputs.build_number }}
+      - name: Archive, sign and upload to TestFlight
+        if: env.HAS_ASC == 'true'
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey.p8" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release \
+            -archivePath "$RUNNER_TEMP/Chefii.xcarchive" -destination 'generic/platform=iOS' \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic "${AUTH[@]}" archive
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Chefii.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" "${AUTH[@]}"

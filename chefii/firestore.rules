@@ -1,0 +1,223 @@
+rules_version = '2';
+
+// Chefii security model (see docs/SECURITY_MODEL.md):
+//  * households/{hid}/**  shared kitchen data — members only
+//  * users/{uid}/**        private personal & health data — owner only, plus
+//                          read-only access for a verified professional while
+//                          an explicit, unexpired share grant covers it
+//  * inventory ledger      adjustments are append-only; operations immutable
+//                          except for the undo marker
+//  * AI usage, rate limits, verification status: server (Admin SDK) only
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function isOwner(uid) { return signedIn() && me() == uid; }
+    function household(hid) { return get(/databases/$(database)/documents/households/$(hid)).data; }
+    function isMember(hid) { return signedIn() && me() in household(hid).memberUids; }
+    function unchanged(keys) { return !request.resource.data.diff(resource.data).affectedKeys().hasAny(keys); }
+    function onlyChanges(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+
+    // ---------------------------------------------------------- professionals
+    function grantFor(owner) {
+      return get(/databases/$(database)/documents/shareGrants/$(owner + '__' + me())).data;
+    }
+    function proVerified(uid) {
+      return get(/databases/$(database)/documents/professionals/$(uid)).data.status == 'verified';
+    }
+    // A grant only works while the professional is still verified: a later
+    // rejection closes every client's records at once.
+    function grantActive(owner) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/shareGrants/$(owner + '__' + me()))
+        && grantFor(owner).status == 'active'
+        && grantFor(owner).expiresAt > request.time
+        && proVerified(me());
+    }
+    function proCanRead(owner, category, at) {
+      return grantActive(owner) && category in grantFor(owner).categories && at >= grantFor(owner).rangeStart;
+    }
+
+    // ---------------------------------------------------------- users (private)
+    // householdId may only point at a household that lists the user as a
+    // member after this write (creating one, or joining via the server), or
+    // be cleared. The server trusts it, so it must never name someone else's.
+    function householdLinkOk() {
+      let after = request.resource.data.get('householdId', null);
+      let before = resource == null ? null : resource.data.get('householdId', null);
+      return after == before || after == null
+        || me() in getAfter(/databases/$(database)/documents/households/$(after)).data.memberUids;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && request.resource.data.get('isProfessional', false) == false && householdLinkOk();
+      allow update: if isOwner(uid) && unchanged(['isProfessional']) && householdLinkOk();
+      allow delete: if false; // deleteAccountData (server)
+
+      match /private/{doc} {
+        allow read, write: if isOwner(uid);
+        allow read: if doc == 'dietary' && grantActive(uid) && 'dietary' in grantFor(uid).categories;
+      }
+      match /journal/{id} {
+        allow read, write: if isOwner(uid);
+        allow read: if proCanRead(uid, 'journal', resource.data.eatenAt) || proCanRead(uid, 'nutrition', resource.data.eatenAt);
+      }
+      match /glucose/{id} {
+        allow read, write: if isOwner(uid);
+        allow read: if proCanRead(uid, 'glucose', resource.data.measuredAt);
+      }
+      match /oralExposures/{id} {
+        allow read, write: if isOwner(uid);
+        allow read: if proCanRead(uid, 'oral', resource.data.occurredAt);
+      }
+      match /concerns/{id} {
+        allow read, write: if isOwner(uid);
+        allow read: if proCanRead(uid, 'concerns', resource.data.recordedAt);
+      }
+      // Append-only histories.
+      match /consents/{id} {
+        allow read, create: if isOwner(uid);
+        allow update, delete: if false;
+      }
+      match /audit/{id} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && request.resource.data.actorUid == uid;
+        allow update, delete: if false;
+      }
+      match /{other}/{id} {
+        // notifications, favourites, reminders, feedback
+        allow read, write: if isOwner(uid) && other in ['notifications', 'favourites', 'reminders', 'feedback'];
+      }
+    }
+
+    // ---------------------------------------------------------- households (shared)
+    match /households/{hid} {
+      allow read: if isMember(hid);
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == me()
+        && request.resource.data.memberUids == [me()];
+      // Members edit name/portions; membership changes: owner may only remove.
+      allow update: if isMember(hid) && (
+        unchanged(['memberUids', 'ownerUid'])
+        || (me() == resource.data.ownerUid && unchanged(['ownerUid'])
+            && resource.data.memberUids.hasAll(request.resource.data.memberUids)
+            && me() in request.resource.data.memberUids)
+      );
+      allow delete: if false;
+
+      match /members/{memberUid} {
+        allow read: if isMember(hid);
+        // Created with the household (same transaction), for its owner only.
+        allow create: if signedIn() && memberUid == me()
+          && getAfter(/databases/$(database)/documents/households/$(hid)).data.ownerUid == me();
+        allow update: if memberUid == me() && isMember(hid) && onlyChanges(['sharedAllergens', 'displayName']);
+        allow delete: if isMember(hid) && household(hid).ownerUid == me() && memberUid != me();
+      }
+
+      match /invites/{code} {
+        allow read: if isMember(hid);
+        allow create: if isMember(hid) && household(hid).ownerUid == me() && request.resource.data.used == false;
+        allow update, delete: if false; // acceptHouseholdInvite (server)
+      }
+
+      // Immutable inventory ledger.
+      match /adjustments/{id} {
+        allow read, create: if isMember(hid);
+        allow update, delete: if false;
+      }
+      // An undo is written together with its marker on the original
+      // (undo_<id>), so neither can be faked or written ahead of time.
+      match /operations/{id} {
+        allow read: if isMember(hid);
+        allow create: if isMember(hid)
+          && request.resource.data.createdBy == me()
+          && (!id.matches('undo_.+')
+              || getAfter(/databases/$(database)/documents/households/$(hid)/operations/$(id.replace('^undo_', ''))).data.get('undoneByOperationId', null) == id);
+        allow update: if isMember(hid) && onlyChanges(['undoneByOperationId']) && !('undoneByOperationId' in resource.data)
+          && request.resource.data.undoneByOperationId == 'undo_' + id
+          && existsAfter(/databases/$(database)/documents/households/$(hid)/operations/$('undo_' + id));
+        allow delete: if false;
+      }
+      match /lots/{id} {
+        allow read: if isMember(hid);
+        allow create, update: if isMember(hid)
+          && request.resource.data.householdId == hid
+          && request.resource.data.quantity.amount >= 0;
+        allow delete: if false; // lots are never deleted, only depleted
+      }
+      match /receipts/{id} {
+        allow read, create, update: if isMember(hid);
+        allow delete: if false;
+      }
+      match /receiptFingerprints/{fp} {
+        allow read, create: if isMember(hid);
+        allow update, delete: if false;
+      }
+      match /{coll}/{id} {
+        allow read, write: if isMember(hid)
+          && coll in ['products', 'recipes', 'cookingSessions', 'mealPlan', 'shoppingItems', 'storageLocations'];
+      }
+    }
+
+    // ---------------------------------------------------------- sharing
+    match /shareGrants/{grantId} {
+      allow get: if signedIn() && (resource.data.ownerUid == me() || resource.data.professionalUid == me());
+      allow list: if signedIn() && (resource.data.ownerUid == me() || resource.data.professionalUid == me());
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == me()
+        && grantId == me() + '__' + request.resource.data.professionalUid
+        && get(/databases/$(database)/documents/professionals/$(request.resource.data.professionalUid)).data.status == 'verified'
+        && request.resource.data.status == 'active'
+        && request.resource.data.expiresAt <= request.time + duration.value(366, 'd');
+      // Re-sharing replaces the grant (same checks as creating); revoking flips status.
+      allow update: if signedIn() && resource.data.ownerUid == me() && unchanged(['ownerUid', 'professionalUid'])
+        && (request.resource.data.status == 'revoked'
+            || (request.resource.data.status == 'active'
+                && proVerified(request.resource.data.professionalUid)
+                && request.resource.data.expiresAt <= request.time + duration.value(366, 'd')));
+      allow delete: if false;
+
+      match /accessLog/{id} {
+        allow create: if signedIn()
+          && get(/databases/$(database)/documents/shareGrants/$(grantId)).data.professionalUid == me()
+          && request.resource.data.viewerUid == me();
+        allow read: if signedIn() && get(/databases/$(database)/documents/shareGrants/$(grantId)).data.ownerUid == me();
+        allow update, delete: if false;
+      }
+    }
+
+    match /professionals/{proUid} {
+      // Verified profiles are readable so clients can confirm a registration
+      // (one at a time, by invite code); applications stay private.
+      allow get: if isOwner(proUid) || (signedIn() && resource.data.status == 'verified');
+      allow list: if signedIn() && resource.data.status == 'verified' && request.query.limit <= 1;
+      allow create: if isOwner(proUid) && request.resource.data.status == 'pending';
+      // Once verified, the checked identity is frozen (re-apply to change it).
+      allow update: if isOwner(proUid) && unchanged(['status', 'verifiedAt', 'inviteCode'])
+        && (resource.data.status != 'verified'
+            || unchanged(['displayName', 'kind', 'registrationNumber', 'regulatoryBody', 'email', 'province']));
+      allow delete: if isOwner(proUid);
+    }
+
+    match /assessments/{id} {
+      allow read: if signedIn() && (
+        resource.data.professionalUid == me()
+        || (resource.data.clientUid == me() && resource.data.status in ['sharedWithClient', 'acknowledged', 'accepted', 'declined']));
+      allow create: if signedIn()
+        && request.resource.data.professionalUid == me()
+        && grantActive(request.resource.data.clientUid)
+        && request.resource.data.grantId == request.resource.data.clientUid + '__' + me();
+      allow update: if signedIn() && (
+        (resource.data.professionalUid == me() && resource.data.status == 'draft' && unchanged(['clientUid', 'professionalUid']))
+        || (resource.data.clientUid == me() && onlyChanges(['status', 'clientRespondedAt'])
+            && request.resource.data.status in ['acknowledged', 'accepted', 'declined']));
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------- server only
+    match /aiUsage/{id} { allow read, write: if false; }
+    match /rateLimits/{id} { allow read, write: if false; }
+  }
+}

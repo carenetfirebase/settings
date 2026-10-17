@@ -1,0 +1,348 @@
+{
+  "coreErrorTitle": "Something went wrong",
+  "coreErrorOffline": "You appear to be offline, so nothing was changed. Please try again when you're connected.",
+  "coreErrorPermissionDenied": "You don't have access to this. If it was shared with you, the owner may have changed permissions.",
+  "coreErrorGeneric": "Please try again in a moment.",
+  "corePermissionOff": "{permission} is turned off",
+  "@corePermissionOff": {
+    "placeholders": {
+      "permission": {
+        "type": "String"
+      }
+    }
+  },
+  "coreOpenSettings": "Open Settings",
+  "coreInProgress": "{label}, in progress",
+  "@coreInProgress": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "coreLess": "Less",
+  "coreMore": "More",
+  "coreClearSearch": "Clear search",
+  "corePhotoFrameHint": "Fit the whole receipt inside the frame",
+  "coreIllustration": "Illustration",
+  "coreIllustrationFor": "Illustration for {label}",
+  "@coreIllustrationFor": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "coreStatus": "Status: {status}",
+  "@coreStatus": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "coreMinutesSpoken": "{minutes, plural, other{{minutes} minutes}}",
+  "@coreMinutesSpoken": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "coreMinutesShort": "{minutes} min",
+  "@coreMinutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "coreKcalApprox": "≈ {kcal} kcal",
+  "@coreKcalApprox": {
+    "placeholders": {
+      "kcal": {
+        "type": "int"
+      }
+    }
+  },
+  "coreLikelyPastBest": "Likely past best",
+  "corePastRecordedDate": "Past recorded date",
+  "coreDaysLeft": "{days, plural, =1{1 day left} other{{days} days left}}",
+  "@coreDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "coreDaysLeftApprox": "{days, plural, =1{~1 day left} other{~{days} days left}}",
+  "@coreDaysLeftApprox": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "coreUseSome": "Use some",
+  "coreNutritionTitle": "Nutrition",
+  "corePerServing": "per serving",
+  "coreEstimate": "Estimate",
+  "coreNutrientAbout": "{nutrient} about {amount}",
+  "@coreNutrientAbout": {
+    "placeholders": {
+      "nutrient": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "coreNutritionNoData": "We don't have nutrition data for these ingredients yet.",
+  "coreNutritionPartial": "Based on {percent}% of ingredients — some couldn't be estimated.",
+  "@coreNutritionPartial": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "coreMealAt": "{meal} at {time}: {title}",
+  "@coreMealAt": {
+    "placeholders": {
+      "meal": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "coreMealAtDone": "{meal} at {time}: {title}, done",
+  "@coreMealAtDone": {
+    "placeholders": {
+      "meal": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "coreMorningRoutine": "Morning routine",
+  "coreSetUpMornings": "Set up your mornings",
+  "coreMorningSummary": "Up {wake} · out by {departure} · {minutes} min free",
+  "@coreMorningSummary": {
+    "placeholders": {
+      "wake": {
+        "type": "String"
+      },
+      "departure": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "coreMorningPitch": "A calm plan from alarm to door, with breakfast decided.",
+  "coreBreakfastLine": "Breakfast: {title}",
+  "@coreBreakfastLine": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "coreChefDemoNote": "Demo · curated suggestions, no AI",
+  "coreSaidByYou": "You: {text}",
+  "@coreSaidByYou": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "coreSaidByChef": "Chef: {text}",
+  "@coreSaidByChef": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "coreEvidenceStrength": "{strength} evidence",
+  "@coreEvidenceStrength": {
+    "placeholders": {
+      "strength": {
+        "type": "String"
+      }
+    }
+  },
+  "coreReviewed": "Reviewed {date}",
+  "@coreReviewed": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "coreInternalSummary": "Internal summary, {date} · awaiting professional review",
+  "@coreInternalSummary": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "coreOverMinutes": "over {minutes} min",
+  "@coreOverMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "coreHelpfulHabit": "helpful habit",
+  "coreDelete": "Delete",
+  "coreShareJournal": "Meals you logged, portions and times",
+  "coreShareNutrition": "Estimated nutrients from your journal",
+  "coreShareGlucose": "Glucose readings you entered",
+  "coreShareOral": "Sugar and acid exposure log",
+  "coreShareConcerns": "Hair, skin & nail notes",
+  "coreShareDietary": "Allergies, intolerances and preferences",
+  "coreAssessmentNew": "New",
+  "coreAssessmentRead": "Read",
+  "coreAssessmentAccepted": "Accepted",
+  "coreAssessmentDeclined": "Declined",
+  "coreAssessmentDraft": "Draft",
+  "coreDemoBanner": "Demo mode — sample data, no AI used.",
+  "coreTabToday": "Today",
+  "coreTabKitchen": "Kitchen",
+  "coreTabDiscover": "Discover",
+  "coreTabJournal": "Journal",
+  "coreTabYou": "You",
+  "corePageNotFound": "Page not found",
+  "corePageNotFoundMessage": "That link doesn't lead anywhere in Chefii.",
+  "coreGoToToday": "Go to Today",
+  "coreAppLoading": "Chefii is loading",
+  "coreSnoozeWakeBody": "Your snoozed alarm. Tap to start your morning.",
+  "coreSnoozeEveningTitle": "Tomorrow morning",
+  "coreSnoozeEveningBody": "Your snoozed evening preview.",
+  "coreSnoozeReminderTitle": "A gentle reminder",
+  "coreSnoozeReminderBody": "Your snoozed reminder from Chefii.",
+  "coreSnoozeAction": "Snooze 10 min",
+  "coreChannelReminders": "Meal reminders",
+  "coreChannelRemindersDescription": "Gentle reminders for meals and kitchen tasks",
+  "coreChannelAlarm": "Morning alarm",
+  "coreChannelAlarmDescription": "Your morning routine alarm",
+  "coreChannelTimers": "Cooking timers",
+  "coreChannelTimersDescription": "Alerts when a cooking timer finishes",
+  "coreErrNotSignedIn": "Please sign in to continue.",
+  "coreErrReceiptDuplicate": "This receipt looks like one you already scanned.",
+  "coreErrPlaceNameLength": "Give the place a name of up to 30 characters.",
+  "coreErrPlaceNameTaken": "You already have a place called {name}.",
+  "@coreErrPlaceNameTaken": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "coreErrPlaceLimit": "You can have up to 12 places.",
+  "coreErrBuiltInRename": "The built-in places can't be renamed.",
+  "coreErrBuiltInRemove": "The built-in places can't be removed.",
+  "coreErrPlaceNotEmpty": "Move or use up what's stored there first.",
+  "coreErrNothingToAdd": "Nothing to add.",
+  "coreErrQuantityNotPositive": "{product}: quantity must be greater than zero.",
+  "@coreErrQuantityNotPositive": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "coreErrNothingToDeduct": "Nothing to deduct.",
+  "coreErrNothingToCorrect": "Nothing to correct.",
+  "coreErrNegativeCount": "Counts cannot be negative.",
+  "coreErrItemGone": "That item no longer exists.",
+  "coreErrWrongUnit": "{product}: use {unit} for this item.",
+  "@coreErrWrongUnit": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "coreErrNothingToUndo": "Nothing to undo.",
+  "coreErrAlreadyUndone": "This change has already been undone.",
+  "coreErrUndoOfUndo": "An undo cannot itself be undone.",
+  "coreErrProductNotRecorded": "No {product} recorded in your kitchen.",
+  "@coreErrProductNotRecorded": {
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
+  "coreErrReceiptNotFound": "Receipt not found.",
+  "coreErrReceiptNotEditable": "This receipt can no longer be edited.",
+  "coreErrReceiptNotReady": "This receipt is not ready to import.",
+  "coreErrReceiptLinesIncomplete": "{count, plural, =1{1 item needs a name and quantity before importing.} other{{count} items need a name and quantity before importing.}}",
+  "@coreErrReceiptLinesIncomplete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "coreErrReceiptNoFoodItems": "There are no food items to add.",
+  "coreErrReceiptNoPhotos": "Add at least one photo.",
+  "coreErrReceiptTooManyPages": "Up to {max} pages per receipt.",
+  "@coreErrReceiptTooManyPages": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "coreErrImageEmpty": "That image appears to be empty.",
+  "coreErrImageTooLarge": "That image is too large (over 12 MB). Try a closer, single-page photo.",
+  "coreErrImageFormat": "Please use a JPEG, PNG, HEIC or WebP photo.",
+  "coreErrAiUnavailable": "The kitchen assistant is unavailable right now.",
+  "coreErrAuthCredentialMismatch": "That email and password don't match.",
+  "coreErrAuthEmailInUse": "An account already exists for that email. Try signing in.",
+  "coreErrAuthWeakPassword": "Please choose a longer password (at least 8 characters).",
+  "coreErrAuthInvalidEmail": "That email address doesn't look right.",
+  "coreErrAuthOffline": "You appear to be offline. Please try again.",
+  "coreErrAuthTooManyRequests": "Too many attempts. Please wait a moment and try again.",
+  "coreErrAuthRecentLogin": "For your security, please sign in again to continue.",
+  "coreErrAuthCancelled": "Sign-in was cancelled.",
+  "coreErrAuthFailed": "Sign-in failed.",
+  "coreErrAuthFailedRetry": "Sign-in failed. Please try again.",
+  "coreErrAuthNoGoogleToken": "Google did not return an identity token.",
+  "coreErrAuthSignInAgain": "Please sign in again.",
+  "coreErrAuthPasswordRequired": "Enter your password to continue.",
+  "coreErrAuthAppleNeedsFirebase": "Apple sign-in needs Firebase configured. Use the demo account.",
+  "coreErrAuthGoogleNeedsFirebase": "Google sign-in needs Firebase configured. Use the demo account.",
+  "coreErrOwnerNotRemovable": "The owner cannot be removed.",
+  "coreErrProfessionalNotVerified": "Only verified professionals can be granted access.",
+  "coreErrNoShareCategories": "Choose at least one category to share.",
+  "coreErrNoActivePermission": "No active permission for {category}.",
+  "@coreErrNoActivePermission": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  }
+}

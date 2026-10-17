@@ -1,0 +1,95 @@
+/// Canadian French display names and matching aliases for the built-in
+/// catalogue. Aliases include common Québec receipt spellings (receipts are
+/// often printed in French and in capitals without accents) and everyday
+/// spoken forms for voice commands. Matching folds accents, so "oeufs" and
+/// "œufs" are equivalent.
+class CatalogFrench {
+  const CatalogFrench(this.name, [this.aliases = const []]);
+  final String name;
+  final List<String> aliases;
+}
+
+const catalogFrench = <String, CatalogFrench>{
+  // Produits laitiers et œufs
+  'egg': CatalogFrench('Œufs', ['oeufs', 'oeuf', 'gros oeufs', 'oeufs gros', 'oeufs calibre gros', 'oeufs omega 3', 'douzaine oeufs', 'oeufs gros cal']),
+  'milk': CatalogFrench('Lait (2 %)', ['lait', 'lait 2%', 'lait 2 %', 'lait partiellement ecreme', 'lait 2 pc']),
+  'butter': CatalogFrench('Beurre', ['beurre', 'beurre sale', 'beurre non sale', 'beurre doux']),
+  'greek_yogurt': CatalogFrench('Yogourt grec', ['yogourt grec', 'yogourt', 'yaourt grec', 'yog grec']),
+  'cheddar': CatalogFrench('Cheddar vieilli', ['cheddar', 'fromage cheddar', 'cheddar fort', 'cheddar vieilli']),
+  'parmesan': CatalogFrench('Parmigiano Reggiano', ['parmesan', 'parmigiano', 'fromage parmesan']),
+  'feta': CatalogFrench('Feta', ['feta', 'fromage feta']),
+  'ricotta': CatalogFrench('Ricotta', ['ricotta']),
+  'cream': CatalogFrench('Crème à fouetter (35 %)', ['creme 35%', 'creme a fouetter', 'creme 35 %', 'creme epaisse']),
+  // Viandes, poissons et protéines
+  'chicken_breast': CatalogFrench('Poitrine de poulet', ['poitrine de poulet', 'poitrines poulet', 'poulet poitrine', 'poitr poulet']),
+  'ground_beef': CatalogFrench('Bœuf haché maigre', ['boeuf hache', 'boeuf hache maigre', 'hache maigre', 'boeuf hache mi maigre']),
+  'salmon': CatalogFrench('Filet de saumon', ['saumon', 'filet de saumon', 'saumon atlantique']),
+  'shrimp': CatalogFrench('Crevettes', ['crevettes', 'crevette', 'crevettes cuites', 'crevettes crues']),
+  'cod': CatalogFrench('Filet de morue', ['morue', 'filet de morue', 'cabillaud']),
+  'smoked_salmon': CatalogFrench('Saumon fumé', ['saumon fume']),
+  'tofu': CatalogFrench('Tofu ferme', ['tofu', 'tofu ferme', 'tofu extra ferme']),
+  'chickpeas': CatalogFrench('Pois chiches (cuits)', ['pois chiches', 'pois chiche']),
+  'black_beans': CatalogFrench('Haricots noirs (cuits)', ['haricots noirs', 'feves noires']),
+  'lentils': CatalogFrench('Lentilles rouges (sèches)', ['lentilles rouges', 'lentilles']),
+  // Céréales et pâtes
+  'rice': CatalogFrench('Riz basmati', ['riz basmati', 'riz']),
+  'pasta': CatalogFrench('Pâtes sèches', ['pates', 'pates alimentaires', 'spaghetti', 'penne', 'macaroni']),
+  'oats': CatalogFrench('Flocons d’avoine', ["flocons d'avoine", 'flocons avoine', 'gruau', 'avoine']),
+  'quinoa': CatalogFrench('Quinoa', ['quinoa']),
+  'bread': CatalogFrench('Pain au levain', ['pain au levain', 'pain', 'pain levain']),
+  'flour': CatalogFrench('Farine tout usage', ['farine', 'farine tout usage', 'farine blanche']),
+  'tortilla': CatalogFrench('Tortillas de maïs', ['tortillas de mais', 'tortillas mais', 'tortillas']),
+  // Fruits et légumes
+  'spinach': CatalogFrench('Bébés épinards', ['epinards', 'bebes epinards', 'jeunes epinards']),
+  'kale': CatalogFrench('Chou frisé', ['chou frise', 'kale']),
+  'tomato': CatalogFrench('Tomates', ['tomates', 'tomate', 'tomates rouges']),
+  'cherry_tomato': CatalogFrench('Tomates cerises', ['tomates cerises', 'tomate cerise', 'tomates raisins']),
+  'crushed_tomato': CatalogFrench('Tomates broyées (conserve)', ['tomates broyees', 'tomates concassees']),
+  'onion': CatalogFrench('Oignons jaunes', ['oignons', 'oignon', 'oignons jaunes', 'oignon jaune']),
+  'garlic': CatalogFrench('Ail', ['ail', 'gousses ail', "gousse d'ail", 'tete ail']),
+  'carrot': CatalogFrench('Carottes', ['carottes', 'carotte']),
+  'bell_pepper': CatalogFrench('Poivron rouge', ['poivron rouge', 'poivron', 'poivrons']),
+  'broccoli': CatalogFrench('Brocoli', ['brocoli', 'brocolis']),
+  'zucchini': CatalogFrench('Courgette', ['courgette', 'courgettes', 'zucchini']),
+  'mushroom': CatalogFrench('Champignons cremini', ['champignons', 'champignon', 'champignons bruns', 'cremini']),
+  'potato': CatalogFrench('Pommes de terre Yukon Gold', ['pommes de terre', 'patates', 'patate', 'pdt yukon', 'pommes de terre yukon']),
+  'sweet_potato': CatalogFrench('Patate douce', ['patate douce', 'patates douces']),
+  'avocado': CatalogFrench('Avocats', ['avocats', 'avocat']),
+  'lemon': CatalogFrench('Citrons', ['citrons', 'citron']),
+  'lime': CatalogFrench('Limes', ['limes', 'lime']),
+  'apple': CatalogFrench('Pommes', ['pommes', 'pomme', 'pommes mcintosh', 'pommes gala']),
+  'banana': CatalogFrench('Bananes', ['bananes', 'banane']),
+  'blueberries': CatalogFrench('Bleuets', ['bleuets', 'bleuet', 'myrtilles']),
+  'strawberries': CatalogFrench('Fraises', ['fraises', 'fraise']),
+  'cucumber': CatalogFrench('Concombre anglais', ['concombre', 'concombre anglais']),
+  'greens': CatalogFrench('Mesclun', ['mesclun', 'laitue melangee', 'salade melangee', 'laitue']),
+  'ginger': CatalogFrench('Gingembre frais', ['gingembre']),
+  'parsley': CatalogFrench('Persil italien', ['persil', 'persil italien', 'persil plat']),
+  'basil': CatalogFrench('Basilic frais', ['basilic']),
+  'cilantro': CatalogFrench('Coriandre', ['coriandre']),
+  'peas': CatalogFrench('Petits pois surgelés', ['petits pois', 'pois verts', 'pois surgeles']),
+  // Garde-manger
+  'olive_oil': CatalogFrench('Huile d’olive extra vierge', ["huile d'olive", 'huile olive', 'huile olive extra vierge']),
+  'sesame_oil': CatalogFrench('Huile de sésame grillé', ['huile de sesame', 'huile sesame']),
+  'soy_sauce': CatalogFrench('Sauce soya', ['sauce soya', 'sauce soja']),
+  'miso': CatalogFrench('Miso blanc', ['miso', 'miso blanc']),
+  'tahini': CatalogFrench('Tahini', ['tahini', 'tahin', 'beurre de sesame']),
+  'coconut_milk': CatalogFrench('Lait de coco (conserve)', ['lait de coco', 'lait coco']),
+  'stock': CatalogFrench('Bouillon de légumes réduit en sodium', ['bouillon de legumes', 'bouillon legumes', 'bouillon']),
+  'honey': CatalogFrench('Miel', ['miel']),
+  'maple_syrup': CatalogFrench('Sirop d’érable', ["sirop d'erable", 'sirop erable', 'sirop']),
+  'sugar': CatalogFrench('Sucre granulé', ['sucre', 'sucre granule', 'sucre blanc']),
+  'salt': CatalogFrench('Sel de mer', ['sel', 'sel de mer']),
+  'black_pepper': CatalogFrench('Poivre noir', ['poivre', 'poivre noir']),
+  'cumin': CatalogFrench('Cumin moulu', ['cumin', 'cumin moulu']),
+  'chili_flakes': CatalogFrench('Flocons de piment', ['flocons de piment', 'piment broye', 'piment fort']),
+  'almonds': CatalogFrench('Amandes', ['amandes', 'amande']),
+  'walnuts': CatalogFrench('Noix de Grenoble', ['noix de grenoble', 'noix']),
+  'peanut_butter': CatalogFrench('Beurre d’arachide naturel', ["beurre d'arachide", 'beurre arachide', 'beurre arachides']),
+  'chia': CatalogFrench('Graines de chia', ['graines de chia', 'chia']),
+  'dark_chocolate': CatalogFrench('Chocolat noir (70 %)', ['chocolat noir', 'chocolat 70%']),
+  'balsamic': CatalogFrench('Vinaigre balsamique', ['vinaigre balsamique', 'balsamique']),
+  'dijon': CatalogFrench('Moutarde de Dijon', ['moutarde de dijon', 'moutarde dijon', 'moutarde']),
+  'orange_juice': CatalogFrench('Jus d’orange', ["jus d'orange", 'jus orange']),
+  'sparkling_water': CatalogFrench('Eau pétillante', ['eau petillante', 'eau gazeuse']),
+};

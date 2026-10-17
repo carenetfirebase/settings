@@ -1,0 +1,22 @@
+{
+  "commonContinue": "Continuer",
+  "commonCancel": "Annuler",
+  "commonSave": "Enregistrer",
+  "commonDone": "Terminé",
+  "commonBack": "Retour",
+  "commonTryAgain": "Réessayer",
+  "commonUndo": "Annuler l'action",
+  "commonRemove": "Retirer",
+  "commonEdit": "Modifier",
+  "commonClose": "Fermer",
+  "commonYes": "Oui",
+  "commonNo": "Non",
+  "commonLoading": "Chargement",
+  "commonItemCount": "{count, plural, =1{1 article} other{{count} articles}}",
+  "commonToday": "Aujourd'hui",
+  "commonYesterday": "Hier",
+  "commonTomorrow": "Demain",
+  "commonGoodMorning": "Bonjour",
+  "commonGoodAfternoon": "Bon après-midi",
+  "commonGoodEvening": "Bonsoir"
+}

@@ -1,0 +1,93 @@
+name: chefii
+description: "Chefii — premium AI kitchen, culinary & nutrition concierge."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  cloud_firestore: ^6.10.0
+  cloud_functions: ^6.5.0
+  collection: ^1.19.1
+  crypto: ^3.0.7
+  cunning_document_scanner: ^3.0.3
+  firebase_analytics: ^12.6.0
+  firebase_app_check: ^0.4.8
+  firebase_auth: ^6.7.0
+  firebase_core: ^4.15.0
+  firebase_crashlytics: ^5.4.0
+  firebase_storage: ^13.6.0
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_local_notifications: ^22.3.2
+  flutter_riverpod: ^3.4.3
+  flutter_timezone: ^5.1.1
+  flutter_tts: ^4.2.5
+  go_router: ^18.1.0
+  google_sign_in: ^7.2.0
+  image: ^4.12.0
+  image_picker: ^1.2.4
+  intl: ^0.20.3
+  material_ui: ^1.7.0
+  mobile_scanner: ^7.4.2
+  path_provider: ^2.1.6
+  share_plus: ^13.3.1
+  shared_preferences: ^2.5.6
+  speech_to_text: ^7.5.0
+  timezone: ^0.11.2
+  url_launcher: ^6.3.3
+  uuid: ^4.6.0
+  wakelock_plus: ^1.8.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
+
+flutter:
+  uses-material-design: true
+  generate: true
+  fonts:
+    # Editorial serif for headlines (SIL Open Font License 1.1).
+    - family: Cormorant
+      fonts:
+        - asset: assets/fonts/CormorantGaramond-Variable.ttf
+        - asset: assets/fonts/CormorantGaramond-Italic-Variable.ttf
+          style: italic
+    # Sans-serif for UI, instructions and data (SIL Open Font License 1.1).
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+
+flutter_launcher_icons:
+  image_path: assets/brand/icon.png
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#344439"
+  adaptive_icon_foreground: assets/brand/icon_foreground.png
+  adaptive_icon_monochrome: assets/brand/icon_foreground.png
+  min_sdk_android: 24
+  web:
+    generate: true
+    image_path: assets/brand/icon.png
+    background_color: "#F7F4EE"
+    theme_color: "#344439"
+
+flutter_native_splash:
+  color: "#F7F4EE"
+  image: assets/brand/splash.png
+  color_dark: "#151815"
+  android_12:
+    color: "#F7F4EE"
+    image: assets/brand/icon_foreground.png
+    icon_background_color: "#344439"
+    color_dark: "#151815"
+  web: true

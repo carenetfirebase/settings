@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    { "collectionGroup": "lots", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "productId", "order": "ASCENDING" }, { "fieldPath": "depleted", "order": "ASCENDING" } ] },
+    { "collectionGroup": "adjustments", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "productId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "shareGrants", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "ownerUid", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "assessments", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "clientUid", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "assessments", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "professionalUid", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "professionals", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "inviteCode", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" } ] }
+  ],
+  "fieldOverrides": [
+    { "collectionGroup": "invites", "fieldPath": "code", "indexes": [
+      { "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" } ] },
+    { "collectionGroup": "rateLimits", "fieldPath": "expiresAt", "ttl": true, "indexes": [] }
+  ]
+}

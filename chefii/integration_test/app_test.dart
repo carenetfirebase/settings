@@ -64,6 +64,8 @@ void main() {
     await waitFor(tester, find.textContaining('Alex')); // Today greets the user
 
     // Guided cooking from Today's suggestion (keeps the screen awake).
+    // Today → recipe page → prep checklist → step-by-step.
+    await tap(tester, find.text('Start cooking'), frames: 20);
     await tap(tester, find.text('Start cooking'), frames: 20);
     await tap(tester, find.textContaining(RegExp(r'^Begin (cooking|anyway)$')), frames: 20);
     await waitFor(tester, find.textContaining('STEP 1'));
@@ -71,15 +73,17 @@ void main() {
     await waitFor(tester, find.textContaining('STEP 2'));
 
     // Back to the kitchen tab.
-    await tester.pageBack();
-    await settle(tester, 10);
-    await tester.pageBack();
-    await settle(tester, 10);
-    await tap(tester, find.text('Kitchen'), frames: 15);
+    // Back (system back) until the tab bar shows again.
+    final kitchenTab = find.descendant(of: find.byType(NavigationBar), matching: find.text('Kitchen'));
+    for (var i = 0; i < 6 && kitchenTab.evaluate().isEmpty; i++) {
+      await tester.binding.handlePopRoute();
+      await settle(tester, 10);
+    }
+    await tap(tester, kitchenTab, frames: 15);
     await waitFor(tester, find.text('My kitchen'));
 
     // Switch the whole app to Canadian French.
-    await tap(tester, find.text('You'), frames: 15);
+    await tap(tester, find.descendant(of: find.byType(NavigationBar), matching: find.text('You')), frames: 15);
     await tap(tester, find.text('Accessibility & language'), frames: 15);
     await tap(tester, find.text('Français (Canada)'), frames: 20);
     await waitFor(tester, find.textContaining(RegExp("^Aujourd['’]hui\$"))); // navigation is now in French

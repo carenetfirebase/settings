@@ -11,11 +11,12 @@ Status as of 2026-10-15, branch `claude/chefii-flutter-app`.
 | Check | Result |
 |---|---|
 | `flutter analyze` | No issues |
-| `flutter test` | 251 tests passing (incl. 192-case allergen red-team set) |
-| `functions`: `tsc` + `vitest` | Builds; 209 unit tests + 13 callable integration tests (emulators) passing |
-| Firestore + Storage rules (emulator) | 19 tests (Storage tests run in CI) |
+| `flutter test` | 333 tests passing (incl. allergen red-team set, accessibility guidelines, French at 100–200% text, reduce-motion cooking) |
+| `functions`: `tsc` + `vitest` | Builds; 213 unit tests + 18 callable integration tests (emulators) passing |
+| Firestore + Storage rules (emulator) | 25 tests (19 Firestore, 6 Storage) |
 | `flutter build web --release` | Builds; key screens screenshot-checked in Chromium at 390×844 |
-| iOS / Android builds | Built in GitHub Actions (Android debug APK + release AAB on Ubuntu; iOS release no-codesign + simulator on macOS). ⚠️ Not yet run on physical devices. |
+| iOS / Android builds | Built in GitHub Actions (Android debug APK + release AAB on Ubuntu; iOS release no-codesign + simulator on macOS). |
+| On-device tests | The real app runs on an iPhone simulator and an Android API 34 emulator in CI (`integration_test/app_test.dart`): onboarding with an allergy, Today, guided cooking, kitchen, switching to French. ⚠️ Not yet run on physical phones. |
 | Live AI providers | ⚠️ **Not called.** The router, schemas, validation and safety screening are tested with a fake provider; real Gemini/OpenAI calls need keys and model ids. |
 | Firebase project | ⚠️ Not configured: `lib/firebase_options.dart` is a placeholder until `flutterfire configure` is run. |
 
@@ -90,7 +91,7 @@ Status as of 2026-10-15, branch `claude/chefii-flutter-app`.
 - Spreadsheet export (optional per the directive; JSON export exists).
 - Licensed food photography (illustrations are used and labelled as such).
 - Push notifications from the server (receipt-ready notices are written in-app; FCM not wired).
-- Automated end-to-end device tests (integration_test on iOS/Android).
+
 
 ## Original directive
 

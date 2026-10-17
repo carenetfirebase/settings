@@ -22,8 +22,10 @@ void main() {
     for (var i = 0; i < 120 && f.evaluate().isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 150));
       final scrollables = find.byType(Scrollable);
+      // Try below the fold first, then back above it (earlier steps may have
+      // scrolled the target off the top).
       if (i % 10 == 9 && scrollables.evaluate().isNotEmpty) {
-        await tester.drag(scrollables.last, const Offset(0, -300), warnIfMissed: false);
+        await tester.drag(scrollables.last, Offset(0, i < 50 ? -300 : 300), warnIfMissed: false);
       }
     }
     if (f.evaluate().isEmpty) {

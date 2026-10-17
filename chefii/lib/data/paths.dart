@@ -7,6 +7,8 @@
 /// and is never readable by other household members.
 library;
 
+import 'store/doc_store.dart';
+
 class HouseholdPaths {
   const HouseholdPaths(this.householdId);
   final String householdId;
@@ -63,3 +65,8 @@ const shareGrantsCollection = 'shareGrants';
 String shareGrantId(String ownerUid, String professionalUid) => '${ownerUid}__$professionalUid';
 const professionalsCollection = 'professionals';
 const assessmentsCollection = 'assessments';
+
+/// Clients may only read assessments a professional has shared (never
+/// drafts). Rules reject a query that could return a draft, so client
+/// queries must carry this filter.
+const clientVisibleAssessments = Where('status', WhereOp.whereIn, ['sharedWithClient', 'acknowledged', 'accepted', 'declined']);

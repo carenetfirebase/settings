@@ -19,6 +19,7 @@ typedef RecipeQuery = ({MealType? mealType, int? maxMinutes, String? tag});
 /// Recipes that pass the household's dietary screen, ranked by what's in
 /// the kitchen (cookable first, then those rescuing food that's due).
 final rankedRecipesProvider = Provider.family<List<AvailabilityReport>, RecipeQuery>((ref, q) {
+  if (!ref.watch(householdDietaryLoadedProvider)) return const [];
   final dietary = ref.watch(householdDietaryProvider);
   final lots = ref.watch(lotsProvider).value ?? const [];
   final today = ref.watch(todayProvider);
@@ -37,6 +38,14 @@ final recipeSafetyProvider = Provider.family<SafetyReport, Recipe>((ref, r) {
   final dietary = ref.watch(householdDietaryProvider);
   return const AllergenGuard().checkRecipe(r, dietary, productAllergens: catalogAllergens);
 });
+
+/// [r] if it may be featured for this user: the household diet has loaded
+/// and the recipe passes it. Planned recipes need this too, because another
+/// member planned them without seeing this user's private allergies.
+Recipe? showableRecipe(WidgetRef ref, Recipe? r) {
+  if (r == null || !ref.watch(householdDietaryLoadedProvider)) return null;
+  return ref.watch(recipeSafetyProvider(r)).isBlocked ? null : r;
+}
 
 final recipeAvailabilityProvider = Provider.family<AvailabilityReport, Recipe>((ref, r) {
   final lots = ref.watch(lotsProvider).value ?? const [];

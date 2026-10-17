@@ -23,21 +23,37 @@ service cloud.firestore {
     function grantFor(owner) {
       return get(/databases/$(database)/documents/shareGrants/$(owner + '__' + me())).data;
     }
+    function proVerified(uid) {
+      return get(/databases/$(database)/documents/professionals/$(uid)).data.status == 'verified';
+    }
+    // A grant only works while the professional is still verified: a later
+    // rejection closes every client's records at once.
     function grantActive(owner) {
       return signedIn()
         && exists(/databases/$(database)/documents/shareGrants/$(owner + '__' + me()))
         && grantFor(owner).status == 'active'
-        && grantFor(owner).expiresAt > request.time;
+        && grantFor(owner).expiresAt > request.time
+        && proVerified(me());
     }
     function proCanRead(owner, category, at) {
       return grantActive(owner) && category in grantFor(owner).categories && at >= grantFor(owner).rangeStart;
     }
 
     // ---------------------------------------------------------- users (private)
+    // householdId may only point at a household that lists the user as a
+    // member after this write (creating one, or joining via the server), or
+    // be cleared. The server trusts it, so it must never name someone else's.
+    function householdLinkOk() {
+      let after = request.resource.data.get('householdId', null);
+      let before = resource == null ? null : resource.data.get('householdId', null);
+      return after == before || after == null
+        || me() in getAfter(/databases/$(database)/documents/households/$(after)).data.memberUids;
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
-      allow create: if isOwner(uid) && request.resource.data.get('isProfessional', false) == false;
-      allow update: if isOwner(uid) && unchanged(['isProfessional']);
+      allow create: if isOwner(uid) && request.resource.data.get('isProfessional', false) == false && householdLinkOk();
+      allow update: if isOwner(uid) && unchanged(['isProfessional']) && householdLinkOk();
       allow delete: if false; // deleteAccountData (server)
 
       match /private/{doc} {
@@ -111,9 +127,17 @@ service cloud.firestore {
         allow read, create: if isMember(hid);
         allow update, delete: if false;
       }
+      // An undo is written together with its marker on the original
+      // (undo_<id>), so neither can be faked or written ahead of time.
       match /operations/{id} {
-        allow read, create: if isMember(hid);
-        allow update: if isMember(hid) && onlyChanges(['undoneByOperationId']) && !('undoneByOperationId' in resource.data);
+        allow read: if isMember(hid);
+        allow create: if isMember(hid)
+          && request.resource.data.createdBy == me()
+          && (!id.matches('undo_.+')
+              || getAfter(/databases/$(database)/documents/households/$(hid)/operations/$(id.replace('^undo_', ''))).data.get('undoneByOperationId', null) == id);
+        allow update: if isMember(hid) && onlyChanges(['undoneByOperationId']) && !('undoneByOperationId' in resource.data)
+          && request.resource.data.undoneByOperationId == 'undo_' + id
+          && existsAfter(/databases/$(database)/documents/households/$(hid)/operations/$('undo_' + id));
         allow delete: if false;
       }
       match /lots/{id} {
@@ -147,8 +171,12 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/professionals/$(request.resource.data.professionalUid)).data.status == 'verified'
         && request.resource.data.status == 'active'
         && request.resource.data.expiresAt <= request.time + duration.value(366, 'd');
-      // Re-sharing replaces the grant; revoking flips status.
-      allow update: if signedIn() && resource.data.ownerUid == me() && unchanged(['ownerUid', 'professionalUid']);
+      // Re-sharing replaces the grant (same checks as creating); revoking flips status.
+      allow update: if signedIn() && resource.data.ownerUid == me() && unchanged(['ownerUid', 'professionalUid'])
+        && (request.resource.data.status == 'revoked'
+            || (request.resource.data.status == 'active'
+                && proVerified(request.resource.data.professionalUid)
+                && request.resource.data.expiresAt <= request.time + duration.value(366, 'd')));
       allow delete: if false;
 
       match /accessLog/{id} {
@@ -161,17 +189,22 @@ service cloud.firestore {
     }
 
     match /professionals/{proUid} {
-      // Readable so clients can confirm a professional's registration.
-      allow read: if signedIn();
+      // Verified profiles are readable so clients can confirm a registration
+      // (one at a time, by invite code); applications stay private.
+      allow get: if isOwner(proUid) || (signedIn() && resource.data.status == 'verified');
+      allow list: if signedIn() && resource.data.status == 'verified' && request.query.limit <= 1;
       allow create: if isOwner(proUid) && request.resource.data.status == 'pending';
-      allow update: if isOwner(proUid) && unchanged(['status', 'verifiedAt', 'inviteCode']);
+      // Once verified, the checked identity is frozen (re-apply to change it).
+      allow update: if isOwner(proUid) && unchanged(['status', 'verifiedAt', 'inviteCode'])
+        && (resource.data.status != 'verified'
+            || unchanged(['displayName', 'kind', 'registrationNumber', 'regulatoryBody', 'email', 'province']));
       allow delete: if isOwner(proUid);
     }
 
     match /assessments/{id} {
       allow read: if signedIn() && (
         resource.data.professionalUid == me()
-        || (resource.data.clientUid == me() && resource.data.status != 'draft'));
+        || (resource.data.clientUid == me() && resource.data.status in ['sharedWithClient', 'acknowledged', 'accepted', 'declined']));
       allow create: if signedIn()
         && request.resource.data.professionalUid == me()
         && grantActive(request.resource.data.clientUid)

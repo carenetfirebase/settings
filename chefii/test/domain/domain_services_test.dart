@@ -100,8 +100,17 @@ void main() {
         const DietaryProfile(allergyStatus: DisclosureStatus.provided, allergies: ['milk'], dislikes: ['basil']),
       );
       expect(report.isBlocked, isTrue);
-      expect(report.blocking.single.ingredient, 'Parmigiano Reggiano');
+      expect(report.blocking.first.ingredient, 'Parmigiano Reggiano');
       expect(report.conflicts.any((c) => c.severity == ConflictSeverity.dislike), isTrue);
+    });
+
+    test('allergens named only in steps, tips or preparation still block', () {
+      final r = curatedById['tomato-basil-spaghetti']!;
+      const peanut = DietaryProfile(allergyStatus: DisclosureStatus.provided, allergies: ['peanut']);
+      expect(guard.checkRecipe(r, peanut).isBlocked, isFalse);
+      Recipe withStep(RecipeStep s) => Recipe.fromMap(r.id, {...r.toMap(), 'steps': [...r.steps.map((x) => x.toMap()), s.toMap()]});
+      expect(guard.checkRecipe(withStep(const RecipeStep(text: 'Garnish with crushed peanuts.')), peanut).isBlocked, isTrue);
+      expect(guard.checkRecipe(withStep(const RecipeStep(text: 'Serve.', tip: 'Lovely fried in peanut oil.')), peanut).isBlocked, isTrue);
     });
 
     test('product allergen tags catch what names miss', () {

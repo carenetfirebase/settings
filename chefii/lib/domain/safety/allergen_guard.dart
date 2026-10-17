@@ -229,11 +229,29 @@ class AllergenGuard {
     return found;
   }
 
+  /// Screens the ingredients and every other piece of recipe text (title,
+  /// summary, preparations, steps, tips, storage notes): a step such as
+  /// "garnish with peanuts" must block just like a listed ingredient.
   SafetyReport checkRecipe(Recipe recipe, DietaryProfile profile, {Map<String, List<String>> productAllergens = const {}}) =>
       checkIngredients(
-        recipe.ingredients.map((i) => (i.name, productAllergens[i.productId] ?? const <String>[])).toList(),
+        [
+          ...recipe.ingredients.map((i) => (i.name, productAllergens[i.productId] ?? const <String>[])),
+          for (final text in recipeFreeText(recipe)) (_excerpt(text), const <String>[]),
+        ],
         profile,
       );
+
+  /// Recipe text other than ingredient names that can name a food.
+  static List<String> recipeFreeText(Recipe recipe) => [
+        recipe.title,
+        recipe.summary,
+        for (final i in recipe.ingredients)
+          if (i.preparation != null) i.preparation!,
+        for (final s in recipe.steps) ...[s.text, if (s.tip != null) s.tip!],
+        if (recipe.storageNotes != null) recipe.storageNotes!,
+      ].where((t) => t.trim().isNotEmpty).toList();
+
+  static String _excerpt(String text) => text.length <= 60 ? text : '${text.substring(0, 57)}…';
 
   SafetyReport checkIngredients(List<(String, List<String>)> ingredients, DietaryProfile profile) {
     final conflicts = <DietaryConflict>[];

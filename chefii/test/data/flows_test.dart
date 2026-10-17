@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:chefii/data/ai/demo_ai_gateway.dart';
+import 'package:chefii/data/errors.dart';
 import 'package:chefii/data/paths.dart';
 import 'package:chefii/data/repositories/health_repositories.dart';
 import 'package:chefii/data/repositories/inventory_repository.dart';
@@ -35,8 +36,8 @@ void main() {
     importer = ReceiptImportService(store, inventory);
   });
 
-  Future<PurchaseReceipt> demoReceipt() async {
-    final id = await receipts.createJob(householdId: hid, uid: uid, imageHashes: ['abc']);
+  Future<PurchaseReceipt> demoReceipt({String hash = 'abc'}) async {
+    final id = await receipts.createJob(householdId: hid, uid: uid, imageHashes: [hash]);
     await receipts.markUploaded(hid, id, ['demo://x']);
     final ai = DemoAiGateway(
       receipts: receipts,
@@ -101,6 +102,32 @@ void main() {
       final updated = (await receipts.get(hid, r.id))!;
       expect(updated.status, ReceiptStatus.imported);
       expect(() => receipts.saveLines(hid, r.id, updated.lines), throwsA(isA<ReceiptValidationException>()));
+    });
+
+    test('the same receipt scanned twice is imported only once', () async {
+      Future<PurchaseReceipt> reviewed(String hash) async {
+        final r = await demoReceipt(hash: hash);
+        final fixed = r.lines.map((l) {
+          if (l.id == 'l9') return l.copyWith(quantity: const Quantity(4, Unit.piece), userEdited: true);
+          if (l.id == 'l12') return l.copyWith(excluded: true);
+          return l;
+        }).toList();
+        await receipts.saveLines(hid, r.id, fixed);
+        return (await receipts.get(hid, r.id))!;
+      }
+
+      final a = await reviewed('scan1');
+      final b = await reviewed('scan2');
+      expect(a.fingerprint, b.fingerprint);
+      await importer.confirm(receipt: a, uid: uid, locationIds: locations);
+      await expectLater(
+        importer.confirm(receipt: b, uid: uid, locationIds: locations),
+        throwsA(isA<ReceiptValidationException>().having((e) => e.code, 'code', AppErrorCode.receiptDuplicate)),
+      );
+      expect(await inventory.activeLots(hid), hasLength(10), reason: 'stock is not added twice');
+      // Re-importing the first copy is still a harmless retry.
+      final again = await importer.confirm(receipt: (await receipts.get(hid, a.id))!, uid: uid, locationIds: locations);
+      expect(again.alreadyApplied, isTrue);
     });
 
     test('cancelled receipts are not processed', () async {

@@ -7,7 +7,7 @@
     { "collectionGroup": "shareGrants", "queryScope": "COLLECTION", "fields": [
       { "fieldPath": "ownerUid", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
     { "collectionGroup": "assessments", "queryScope": "COLLECTION", "fields": [
-      { "fieldPath": "clientUid", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+      { "fieldPath": "clientUid", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
     { "collectionGroup": "assessments", "queryScope": "COLLECTION", "fields": [
       { "fieldPath": "professionalUid", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
     { "collectionGroup": "professionals", "queryScope": "COLLECTION", "fields": [

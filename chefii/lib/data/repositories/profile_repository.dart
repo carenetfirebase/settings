@@ -150,9 +150,10 @@ class HouseholdRepository {
     required String name,
     required HouseholdType type,
     required int portions,
-  }) {
+  }) async {
     final id = _store.newId();
     final p = HouseholdPaths(id);
+    await _clearStaleHousehold(uid);
     return _store.transaction((tx) async {
       final profile = await tx.get(UserPaths(uid).root);
       final existing = profile?.data['householdId'] as String?;
@@ -175,6 +176,22 @@ class HouseholdRepository {
       tx.set(UserPaths(uid).root, {'householdId': id}, merge: true);
       return h;
     });
+  }
+
+  /// Someone removed from a household keeps its id on their profile until
+  /// the server clears it, and can no longer read it; a transaction reading
+  /// it would fail. Drop such a pointer first.
+  Future<void> _clearStaleHousehold(String uid) async {
+    final existing = (await _store.get(UserPaths(uid).root))?.data['householdId'] as String?;
+    if (existing == null) return;
+    var stale = false;
+    try {
+      final hd = await _store.get(HouseholdPaths(existing).root);
+      stale = hd == null || !((hd.data['memberUids'] as List?)?.contains(uid) ?? false);
+    } on Object {
+      stale = true; // permission denied: no longer a member
+    }
+    if (stale) await _store.set(UserPaths(uid).root, {'householdId': null}, merge: true);
   }
 
   Future<void> updateHousehold(Household h) => _store.set(HouseholdPaths(h.id).root, h.toMap(), merge: true);

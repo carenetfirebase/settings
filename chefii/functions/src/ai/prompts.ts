@@ -35,7 +35,20 @@ Hard rules:
 
 export const CHAT_SYSTEM = `${CHEF_SYSTEM}
 You are in a conversation. Reply briefly and kindly in "text". Include up to 3 recipes only when the user wants cooking ideas.
-If asked for medical or diagnostic advice, say you can't help with that and suggest a qualified professional.`;
+If asked for medical or diagnostic advice, say you can't help with that and suggest a qualified professional.
+Never name a food the household must avoid in "text", not even to say you left it out; the app screens every reply.`;
+
+/** Shown instead of a chat reply that named a food the household must avoid. */
+export const CHAT_TEXT_WITHHELD: Record<ReplyLanguage, string> = {
+  en: 'I started to suggest something that doesn\'t suit your household\'s dietary needs, so I\'ve held that reply back. Could you ask me again, maybe a little differently?',
+  fr: 'J\'allais suggérer quelque chose qui ne convient pas aux besoins alimentaires de votre foyer, alors j\'ai retenu cette réponse. Pouvez-vous me reposer la question, peut-être autrement?',
+};
+
+/** Appended when a suggested recipe was filtered out for safety. */
+export const CHAT_FILTERED_NOTE: Record<ReplyLanguage, string> = {
+  en: ' (I left out an idea that didn\'t suit your household\'s dietary needs.)',
+  fr: ' (J\'ai écarté une idée qui ne convenait pas aux besoins alimentaires de votre foyer.)',
+};
 
 export const MEAL_SYSTEM = `You identify the foods in a meal the user describes (and optional photo) for a food journal.
 List each food with an estimated portion in grams when reasonably inferable, else null. Do not provide calories or nutrients.`;

@@ -245,6 +245,34 @@ void main() {
       expect(await eggCount(), 0);
     });
 
+    test('undoing the intake and then the use does not create stock', () async {
+      await repo.addLots(householdId: hid, operationId: 'add', actorUid: uid, inputs: [lotOf(eggs, const Quantity(6, Unit.piece))]);
+      await repo.consume(
+        householdId: hid,
+        operationId: 'use',
+        actorUid: uid,
+        requests: const [ConsumeRequest(productId: 'egg', productName: 'Eggs', quantity: Quantity(2, Unit.piece))],
+      );
+      await repo.undo(householdId: hid, targetOperationId: 'add', actorUid: uid);
+      await repo.undo(householdId: hid, targetOperationId: 'use', actorUid: uid);
+      expect(await eggCount(), 0, reason: 'adding 6 and using 2, both undone, leaves nothing');
+    });
+
+    test('undoing the use and then the intake also ends at zero', () async {
+      await repo.addLots(householdId: hid, operationId: 'add', actorUid: uid, inputs: [lotOf(eggs, const Quantity(6, Unit.piece))]);
+      await repo.consume(
+        householdId: hid,
+        operationId: 'use',
+        actorUid: uid,
+        requests: const [ConsumeRequest(productId: 'egg', productName: 'Eggs', quantity: Quantity(2, Unit.piece))],
+      );
+      await repo.undo(householdId: hid, targetOperationId: 'use', actorUid: uid);
+      expect(await eggCount(), 6);
+      final r = await repo.undo(householdId: hid, targetOperationId: 'add', actorUid: uid);
+      expect(r.discrepancies, isEmpty);
+      expect(await eggCount(), 0);
+    });
+
     test('correction confirms the lot and records the delta', () async {
       final add = await repo.addLots(
         householdId: hid,

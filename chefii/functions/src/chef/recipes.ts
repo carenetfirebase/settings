@@ -70,6 +70,27 @@ export function toAppRecipe(r: AiRecipe, model: string): AppRecipe {
   };
 }
 
+/**
+ * Recipe text other than ingredient names: a step such as "garnish with
+ * peanuts" or a preparation "fried in peanut oil" must block like an
+ * ingredient would.
+ */
+export function recipeFreeText(r: AppRecipe): string[] {
+  return [
+    r.title,
+    r.summary,
+    ...r.ingredients.map((i) => String(i.preparation ?? '')),
+    ...r.steps.flatMap((s) => [String(s.text ?? ''), String(s.tip ?? '')]),
+    r.storageNotes ?? '',
+  ].filter((t) => t.trim());
+}
+
+/** True when free text (e.g. a chat reply) names something the household must avoid. */
+export function textConflicts(text: string, dietary: DietaryProfile): boolean {
+  const sentences = text.split(/(?<=[.!?\n])\s+/).filter((t) => t.trim());
+  return isBlocked(checkIngredients(sentences.map((name) => ({ name })), dietary));
+}
+
 /** Converts, screens and filters generated recipes. */
 export function screenRecipes(recipes: AiRecipe[], dietary: DietaryProfile, model: string): { recipes: AppRecipe[]; rationales: string[]; filtered: number } {
   const out: AppRecipe[] = [];
@@ -82,7 +103,10 @@ export function screenRecipes(recipes: AiRecipe[], dietary: DietaryProfile, mode
     }
     const app = toAppRecipe(r, model);
     const conflicts = checkIngredients(
-      app.ingredients.map((i) => ({ name: String(i.name), allergens: catalogById.get(String(i.productId ?? ''))?.allergens ?? [] })),
+      [
+        ...app.ingredients.map((i) => ({ name: String(i.name), allergens: catalogById.get(String(i.productId ?? ''))?.allergens ?? [] })),
+        ...recipeFreeText(app).map((name) => ({ name })),
+      ],
       dietary,
     );
     if (isBlocked(conflicts)) {

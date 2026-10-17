@@ -98,10 +98,13 @@ Future<List<Override>> _firebaseOverrides(AppConfig config) async {
   FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true, cacheSizeBytes: 100 * 1024 * 1024);
 
   if (!kIsWeb) {
-    // Crash reports carry stack traces only — no user content, no health data.
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    // Crash reports carry stack traces and the error type only. Messages are
+    // dropped: they can quote user content (a food name, a typed note).
+    final crashlytics = FirebaseCrashlytics.instance;
+    FlutterError.onError = (details) =>
+        crashlytics.recordError(RedactedError(details.exception), details.stack, fatal: true);
     PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      crashlytics.recordError(RedactedError(error), stack, fatal: true);
       return true;
     };
   }
@@ -112,7 +115,9 @@ Future<List<Override>> _firebaseOverrides(AppConfig config) async {
   // Data residency: Canadian region for Functions (see docs/SECURITY_MODEL.md).
   final functions = FirebaseFunctions.instanceFor(region: 'northamerica-northeast1');
   final analytics = FirebaseAnalyticsSink(FirebaseAnalytics.instance);
-  await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(false); // until the user opts in
+  // Off until the user opts in; the sink turns it on when settings load with
+  // consent (and the native flag keeps it off before this line runs).
+  await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(false);
 
   return [
     appConfigProvider.overrideWithValue(config),

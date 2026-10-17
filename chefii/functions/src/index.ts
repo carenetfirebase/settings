@@ -2,8 +2,9 @@ import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
-import { CHAT_SYSTEM, CHEF_SYSTEM, kitchenContext, languageInstruction, MEAL_SYSTEM, PROMPT_VERSION, RECEIPT_SYSTEM, replyLanguage, SCAN_SYSTEM } from './ai/prompts';
-import { nutritionForEstimate, screenRecipes } from './chef/recipes';
+import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
+import { CHAT_FILTERED_NOTE, CHAT_SYSTEM, CHAT_TEXT_WITHHELD, CHEF_SYSTEM, kitchenContext, languageInstruction, MEAL_SYSTEM, PROMPT_VERSION, RECEIPT_SYSTEM, replyLanguage, SCAN_SYSTEM } from './ai/prompts';
+import { nutritionForEstimate, screenRecipes, textConflicts } from './chef/recipes';
 import {
   db, enforceRateLimit, FieldValue, fmtQty, householdDietary, makeRouter, mapProviderError, requireAiConsent, requireAuth,
   requireMember, Timestamp,
@@ -124,6 +125,14 @@ async function inventorySummary(hid: string) {
   return lots.docs.map((d) => ({ name: String(d.get('productName')), amount: fmtQty(d.get('quantity')) }));
 }
 
+const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+/** Untrusted string lists for prompts: strings only, short, few. */
+function shortStrings(v: unknown, max: number, len = 40): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is string => typeof x === 'string' && x.trim() !== '').slice(0, max).map((x) => x.trim().slice(0, len));
+}
+
 export const chefRecommend = onCall(opts, async (req) => {
   const uid = requireAuth(req);
   const d = (req.data ?? {}) as Record<string, unknown>;
@@ -131,22 +140,26 @@ export const chefRecommend = onCall(opts, async (req) => {
   const settings = await requireAiConsent(uid);
   await enforceRateLimit(uid, 'chef_recipes');
   const dietary = await householdDietary(uid, hid);
-  const count = Math.min(Math.max(Number(d.count ?? 3), 1), 5);
+  const count = Math.min(Math.max(Number(d.count ?? 3), 1), 5) || 3;
+  const mealType = MEAL_TYPES.includes(String(d.mealType)) ? String(d.mealType) : '';
+  const cuisines = shortStrings(d.cuisines, 5);
+  const exclusions = shortStrings(d.exclusions, 10);
+  const equipment = shortStrings(d.equipment, 10);
   const brief = [
     `Suggest ${count} recipes.`,
-    d.mealType ? `Meal: ${d.mealType}.` : '',
-    d.maxMinutes ? `Total time at most ${Number(d.maxMinutes)} minutes.` : '',
-    `Servings: ${Math.min(Math.max(Number(d.servings ?? 2), 1), 16)}.`,
-    Array.isArray(d.cuisines) && d.cuisines.length ? `Cuisines: ${d.cuisines.slice(0, 5).join(', ')}.` : '',
+    mealType ? `Meal: ${mealType}.` : '',
+    Number(d.maxMinutes) > 0 ? `Total time at most ${Math.min(Math.round(Number(d.maxMinutes)), 600)} minutes.` : '',
+    `Servings: ${Math.min(Math.max(Number(d.servings ?? 2), 1), 16) || 2}.`,
+    cuisines.length ? `Cuisines: ${cuisines.join(', ')}.` : '',
     d.useWhatIHave !== false ? 'Strongly prefer what is already in the kitchen.' : '',
     typeof d.nutritionFocus === 'string' ? `Nutrition focus: ${d.nutritionFocus.slice(0, 40)}.` : '',
-    Array.isArray(d.exclusions) && d.exclusions.length ? `Also leave out: ${d.exclusions.slice(0, 10).join(', ')}.` : '',
+    exclusions.length ? `Also leave out: ${exclusions.join(', ')}.` : '',
     typeof d.prompt === 'string' ? `Request: ${d.prompt.slice(0, 300)}` : '',
   ].filter(Boolean).join(' ');
   const context = kitchenContext({
     inventory: await inventorySummary(hid),
-    dietary: { ...dietary, dislikes: [...dietary.dislikes, ...(Array.isArray(d.exclusions) ? (d.exclusions as string[]).slice(0, 10) : [])] },
-    equipment: Array.isArray(d.equipment) ? (d.equipment as string[]).slice(0, 10) : undefined,
+    dietary: { ...dietary, dislikes: [...dietary.dislikes, ...exclusions] },
+    equipment: equipment.length ? equipment : undefined,
   });
   try {
     const { data, response } = await makeRouter(uid, settings.allowOptionalAiProvider).run<{ recipes: AiRecipe[] }>({
@@ -186,8 +199,14 @@ export const chefChat = onCall(opts, async (req) => {
       temperature: 0.7,
     });
     const screened = screenRecipes(data.recipes, dietary, `${response.provider}:${response.model}`);
-    const note = screened.filtered ? ' (I left out an idea that didn\'t suit your household\'s dietary needs.)' : '';
-    return { text: `${data.text.slice(0, 2000)}${note}`, recipes: screened.recipes };
+    const lang = replyLanguage(d.language);
+    // The reply text is screened too: it must never suggest a food the
+    // household has to avoid, even outside a structured recipe.
+    if (textConflicts(data.text, dietary)) {
+      return { text: CHAT_TEXT_WITHHELD[lang], recipes: screened.recipes, filteredForSafety: screened.filtered + 1 };
+    }
+    const note = screened.filtered ? CHAT_FILTERED_NOTE[lang] : '';
+    return { text: `${data.text.slice(0, 2000)}${note}`, recipes: screened.recipes, filteredForSafety: screened.filtered };
   } catch (e) {
     mapProviderError(e);
   }
@@ -281,9 +300,12 @@ export const acceptHouseholdInvite = onCall(light, async (req) => {
   await db.runTransaction(async (tx) => {
     const inv = await tx.get(inviteRef);
     const profile = await tx.get(db.doc(`users/${uid}`));
+    const currentHid = profile.get('householdId') as string | undefined;
+    // A stale pointer (removed from that household) doesn't count.
+    const current = currentHid ? await tx.get(db.doc(`households/${currentHid}`)) : null;
     if (inv.get('used') === true) throw new HttpsError('failed-precondition', 'This invite has already been used.');
     if ((inv.get('expiresAt') as Timestamp).toMillis() < Date.now()) throw new HttpsError('failed-precondition', 'This invite has expired.');
-    if (profile.get('householdId')) throw new HttpsError('failed-precondition', 'You already belong to a household.');
+    if (((current?.get('memberUids') as string[] | undefined) ?? []).includes(uid)) throw new HttpsError('failed-precondition', 'You already belong to a household.');
     tx.update(householdRef, { memberUids: FieldValue.arrayUnion(uid) });
     tx.set(householdRef.collection('members').doc(uid), {
       displayName: user.displayName ?? profile.get('displayName') ?? 'Member',
@@ -314,11 +336,13 @@ export const deleteAccountData = onCall({ ...light, timeoutSeconds: 300 }, async
   const uid = requireAuth(req);
   const authTime = Number(req.auth?.token.auth_time ?? 0) * 1000;
   if (Date.now() - authTime > 5 * 60_000) throw new HttpsError('unauthenticated', 'Please sign in again to delete your account.');
-  const profile = await db.doc(`users/${uid}`).get();
-  const hid = profile.get('householdId') as string | undefined;
-  if (hid) {
-    const hRef = db.doc(`households/${hid}`);
-    const h = await hRef.get();
+  // Membership comes from the households themselves, never from the
+  // user-editable profile pointer: a former member must not be able to
+  // delete a household they were removed from.
+  const households = await db.collection('households').where('memberUids', 'array-contains', uid).get();
+  for (const h of households.docs) {
+    const hid = h.id;
+    const hRef = h.ref;
     const members: string[] = h.get('memberUids') ?? [];
     if (members.length <= 1) {
       await db.recursiveDelete(hRef);
@@ -329,14 +353,34 @@ export const deleteAccountData = onCall({ ...light, timeoutSeconds: 300 }, async
       await hRef.collection('members').doc(uid).delete();
     }
   }
-  const grants = await db.collection('shareGrants').where('ownerUid', '==', uid).get();
-  for (const g of grants.docs) await db.recursiveDelete(g.ref);
-  const assessments = await db.collection('assessments').where('clientUid', '==', uid).get();
-  for (const a of assessments.docs) await a.ref.delete();
+  // Grants and assessments on either side (as client or as professional).
+  for (const field of ['ownerUid', 'professionalUid']) {
+    const grants = await db.collection('shareGrants').where(field, '==', uid).get();
+    for (const g of grants.docs) await db.recursiveDelete(g.ref);
+  }
+  for (const field of ['clientUid', 'professionalUid']) {
+    const assessments = await db.collection('assessments').where(field, '==', uid).get();
+    for (const a of assessments.docs) await a.ref.delete();
+  }
+  const usage = await db.collection('aiUsage').where('uid', '==', uid).get();
+  for (const u of usage.docs) await u.ref.delete();
   await db.recursiveDelete(db.doc(`users/${uid}`));
   await db.doc(`professionals/${uid}`).delete().catch(() => undefined);
   logger.info('account data deleted', { uidHash: uid.slice(0, 4) });
   return { ok: true };
+});
+
+/**
+ * When someone is removed from a household, clear their profile's pointer
+ * so they can create or join another one.
+ */
+export const onMemberRemoved = onDocumentDeleted({ region: REGION, document: 'households/{hid}/members/{uid}' }, async (event) => {
+  const { hid, uid } = event.params;
+  const ref = db.doc(`users/${uid}`);
+  await db.runTransaction(async (tx) => {
+    const profile = await tx.get(ref);
+    if (profile.get('householdId') === hid) tx.update(ref, { householdId: FieldValue.delete() });
+  });
 });
 
 // ------------------------------------------------------------------ professionals

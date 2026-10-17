@@ -629,7 +629,9 @@ class InventoryRepository {
 
   /// Reverses a previous operation by appending inverse ledger entries.
   /// Undoing twice is a no-op. Quantities are clamped at zero if the stock
-  /// was used in the meantime, and that is reported as a discrepancy.
+  /// was used in the meantime, and that is reported as a discrepancy; the
+  /// clamped amount is kept on the lot (`undoShortfall`) so undoing that later
+  /// use afterwards doesn't bring back stock that no longer exists.
   Future<OperationResult> undo({
     required String householdId,
     required String targetOperationId,
@@ -671,12 +673,17 @@ class InventoryRepository {
         final lot = lots[a.lotId];
         if (lot == null) continue;
         final isMove = a.type == AdjustmentType.transferIn;
-        var after = lot.quantity - a.delta;
+        // Earlier undos that couldn't remove used stock are owed first.
+        var after = lot.quantity - a.delta - Quantity(lot.undoShortfall, lot.quantity.unit);
+        var shortfall = 0.0;
         if (after.isNegative) {
-          discrepancies.add('${lot.productName}: some was already used, so it was set to zero');
+          if (lot.undoShortfall <= Quantity.epsilon) {
+            discrepancies.add('${lot.productName}: some was already used, so it was set to zero');
+          }
+          shortfall = -after.amount;
           after = Quantity(0, after.unit);
         }
-        var updated = lot.copyWith(quantity: after, updatedAt: now, version: lot.version + 1);
+        var updated = lot.copyWith(quantity: after, updatedAt: now, version: lot.version + 1, undoShortfall: shortfall);
         if (isMove) {
           final from = a.reason?.split(' ').elementAtOrNull(2);
           if (from != null) updated = updated.copyWith(locationId: from);

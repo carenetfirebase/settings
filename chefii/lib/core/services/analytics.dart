@@ -47,6 +47,15 @@ Map<String, Object> sanitizeAnalyticsParams(Map<String, Object?> params) {
   return out;
 }
 
+/// Stands in for an error in crash reports: keeps the type, drops the
+/// message (which may quote user content).
+class RedactedError {
+  RedactedError(Object error) : type = error.runtimeType.toString();
+  final String type;
+  @override
+  String toString() => type;
+}
+
 String countBucket(int n) => n == 0 ? '0' : n <= 5 ? '1_5' : n <= 15 ? '6_15' : n <= 40 ? '16_40' : '40_plus';
 
 abstract class Analytics {
@@ -68,6 +77,18 @@ class DebugAnalytics extends Analytics {
 class FirebaseAnalyticsSink extends Analytics {
   FirebaseAnalyticsSink(this._fa);
   final FirebaseAnalytics _fa;
+  bool _enabled = false;
+
+  /// Also switches the SDK's own collection (automatic events), which is
+  /// off at install (native manifest flags) and at every launch.
+  @override
+  bool get enabled => _enabled;
+  @override
+  set enabled(bool value) {
+    if (value == _enabled) return;
+    _enabled = value;
+    _fa.setAnalyticsCollectionEnabled(value);
+  }
 
   @override
   void log(String event, [Map<String, Object?> params = const {}]) {

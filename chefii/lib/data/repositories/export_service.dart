@@ -32,7 +32,7 @@ class DataExportService {
       'audit': await col(u.audit),
       'favourites': await col(u.favourites),
       'shareGrants': (await _store.query(shareGrantsCollection, QuerySpec(where: [Where.eq('ownerUid', uid)]))).map((d) => {'id': d.id, ...d.data}).toList(),
-      'assessments': (await _store.query(assessmentsCollection, QuerySpec(where: [Where.eq('clientUid', uid)]))).map((d) => {'id': d.id, ...d.data}).toList(),
+      'assessments': (await _store.query(assessmentsCollection, QuerySpec(where: [Where.eq('clientUid', uid), clientVisibleAssessments]))).map((d) => {'id': d.id, ...d.data}).toList(),
     };
     if (householdId != null) {
       final h = HouseholdPaths(householdId);

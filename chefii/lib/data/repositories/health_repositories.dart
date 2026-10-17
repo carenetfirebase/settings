@@ -164,7 +164,7 @@ class SharingRepository {
   }
 
   Stream<List<ProfessionalAssessment>> watchAssessmentsForClient(String uid) => _store
-      .watchQuery(assessmentsCollection, QuerySpec(where: [Where.eq('clientUid', uid)], orderBy: 'createdAt', descending: true))
+      .watchQuery(assessmentsCollection, QuerySpec(where: [Where.eq('clientUid', uid), clientVisibleAssessments], orderBy: 'createdAt', descending: true))
       .map((ds) => ds.map((d) => ProfessionalAssessment.fromMap(d.id, d.data)).where((a) => a.status != AssessmentStatus.draft).toList());
 
   Stream<List<ProfessionalAssessment>> watchAssessmentsByProfessional(String proUid) => _store

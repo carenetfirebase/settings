@@ -32,7 +32,7 @@ export async function requireMember(householdId: unknown, uid: string): Promise<
 
 export async function userSettings(uid: string): Promise<{ aiProcessingConsent: boolean; allowOptionalAiProvider: boolean }> {
   const s = (await db.doc(`users/${uid}/private/settings`).get()).data() ?? {};
-  return { aiProcessingConsent: s.aiProcessingConsent === true, allowOptionalAiProvider: s.allowOptionalAiProvider !== false };
+  return { aiProcessingConsent: s.aiProcessingConsent === true, allowOptionalAiProvider: s.allowOptionalAiProvider === true };
 }
 
 /** AI processing of personal content requires explicit consent. */

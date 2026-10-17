@@ -306,7 +306,7 @@ class EveningPreviewScreen extends ConsumerWidget {
     final planned = plan.where((e) => e.date == tomorrow && e.mealType == MealType.breakfast).firstOrNull;
     final options = breakfastOptions(ref, r);
     final chosenId = planned?.recipeId ?? r.tomorrowRecipeId ?? options.firstOrNull?.recipe.id;
-    final recipe = chosenId == null ? null : ref.watch(recipeByIdProvider(chosenId));
+    final recipe = (chosenId == null ? null : showableRecipe(ref, ref.watch(recipeByIdProvider(chosenId)))) ?? options.firstOrNull?.recipe;
     final report = recipe == null ? null : ref.watch(recipeAvailabilityProvider(recipe));
     final l = context.l10n;
     final timeline = morningTimeline(l, r, tomorrow, recipe);
@@ -461,7 +461,8 @@ class _MorningChecklistScreenState extends ConsumerState<MorningChecklistScreen>
   Widget build(BuildContext context) {
     final r = ref.watch(morningRoutineProvider).value ?? const MorningRoutine();
     final today = ref.watch(todayProvider);
-    final recipe = r.tomorrowRecipeId == null ? breakfastOptions(ref, r).firstOrNull?.recipe : ref.watch(recipeByIdProvider(r.tomorrowRecipeId!));
+    final recipe = (r.tomorrowRecipeId == null ? null : showableRecipe(ref, ref.watch(recipeByIdProvider(r.tomorrowRecipeId!)))) ??
+        breakfastOptions(ref, r).firstOrNull?.recipe;
     final l = context.l10n;
     final timeline = morningTimeline(l, r, today, recipe);
     final leave = timeline.last.$2;

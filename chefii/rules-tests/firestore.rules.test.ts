@@ -1,5 +1,5 @@
 import { assertFails, assertSucceeds, initializeTestEnvironment, RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp, writeBatch, collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 
@@ -48,10 +48,38 @@ describe('households', () => {
     await assertFails(deleteDoc(doc(as('alice'), 'households/h1/adjustments/a1')));
   });
 
-  it('operations can only be marked undone, once', async () => {
-    await assertFails(updateDoc(doc(as('bob'), 'households/h1/operations/o1'), { summary: 'changed' }));
-    await assertSucceeds(updateDoc(doc(as('bob'), 'households/h1/operations/o1'), { undoneByOperationId: 'undo_o1' }));
-    await assertFails(updateDoc(doc(as('bob'), 'households/h1/operations/o1'), { undoneByOperationId: 'undo_again' }));
+  it('operations can only be marked undone, once, together with the real undo', async () => {
+    const db = as('bob');
+    await assertFails(updateDoc(doc(db, 'households/h1/operations/o1'), { summary: 'changed' }));
+    // A bare marker, a wrong marker, or an undo written ahead of time are refused.
+    await assertFails(updateDoc(doc(db, 'households/h1/operations/o1'), { undoneByOperationId: 'undo_o1' }));
+    await assertFails(setDoc(doc(db, 'households/h1/operations/undo_o1'), { householdId: 'h1', createdBy: 'bob', undoesOperationId: 'o1' }));
+    const wrong = writeBatch(db);
+    wrong.update(doc(db, 'households/h1/operations/o1'), { undoneByOperationId: 'x' });
+    wrong.set(doc(db, 'households/h1/operations/x'), { householdId: 'h1', createdBy: 'bob' });
+    await assertFails(wrong.commit());
+    const undo = writeBatch(db);
+    undo.update(doc(db, 'households/h1/operations/o1'), { undoneByOperationId: 'undo_o1' });
+    undo.set(doc(db, 'households/h1/operations/undo_o1'), { householdId: 'h1', createdBy: 'bob', undoesOperationId: 'o1' });
+    await assertSucceeds(undo.commit());
+    await assertFails(updateDoc(doc(db, 'households/h1/operations/o1'), { undoneByOperationId: 'undo_again' }));
+    // Operations are attributed to whoever writes them.
+    await assertFails(setDoc(doc(db, 'households/h1/operations/o2'), { householdId: 'h1', createdBy: 'alice' }));
+    await assertSucceeds(setDoc(doc(db, 'households/h1/operations/o2'), { householdId: 'h1', createdBy: 'bob' }));
+  });
+
+  it('a profile can only point at a household that lists the user', async () => {
+    await assertFails(updateDoc(doc(as('alice'), 'users/alice'), { householdId: 'h-other' }));
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'users/mallory'), { displayName: 'M' }));
+    await assertFails(updateDoc(doc(as('mallory'), 'users/mallory'), { householdId: 'h1' }));
+    await assertSucceeds(updateDoc(doc(as('alice'), 'users/alice'), { householdId: 'h1' }));
+    await assertSucceeds(updateDoc(doc(as('alice'), 'users/alice'), { householdId: null }));
+    const db = as('carol');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'households/hc'), { name: 'C', ownerUid: 'carol', memberUids: ['carol'] });
+    batch.set(doc(db, 'households/hc/members/carol'), { displayName: 'Carol', role: 'owner' });
+    batch.set(doc(db, 'users/carol'), { householdId: 'hc' }, { merge: true });
+    await assertSucceeds(batch.commit());
   });
 
   it('household creation must make the creator the sole owner-member', async () => {
@@ -76,6 +104,20 @@ describe('private health data', () => {
     await assertSucceeds(getDoc(doc(as('alice'), 'users/alice/journal/j1')));
     await assertFails(getDoc(doc(as('bob'), 'users/alice/journal/j1')));
     await assertFails(getDoc(doc(as('bob'), 'users/alice/glucose/g1')));
+  });
+
+  it('professional applications are private; verified profiles are looked up one at a time', async () => {
+    await assertSucceeds(getDoc(doc(as('alice'), 'professionals/pro')));
+    await assertFails(getDoc(doc(as('alice'), 'professionals/pending')));
+    await assertSucceeds(getDoc(doc(as('pending'), 'professionals/pending')));
+    await assertFails(getDocs(collection(as('alice'), 'professionals')));
+    await assertSucceeds(getDocs(query(collection(as('alice'), 'professionals'), where('inviteCode', '==', 'RDX'), where('status', '==', 'verified'), limit(1))));
+  });
+
+  it('a verified professional cannot change their checked identity', async () => {
+    await assertFails(updateDoc(doc(as('pro'), 'professionals/pro'), { registrationNumber: 'someone-else' }));
+    await assertFails(updateDoc(doc(as('pro'), 'professionals/pro'), { displayName: 'Another RD' }));
+    await assertSucceeds(updateDoc(doc(as('pending'), 'professionals/pending'), { displayName: 'Pending RD' }));
   });
 
   it('users cannot grant themselves professional status', async () => {
@@ -118,6 +160,33 @@ describe('professional sharing', () => {
     await assertSucceeds(getDoc(doc(as('pro'), 'users/alice/journal/j1')));
     await assertFails(getDoc(doc(as('pro'), 'users/alice/journal/old')), 'before rangeStart');
     await assertSucceeds(getDocs(query(collection(as('pro'), 'users/alice/journal'), where('eatenAt', '>=', Timestamp.fromMillis(Date.now() - 30 * day)))));
+  });
+
+  it('a professional rejected after sharing loses access, and grants cannot be re-opened for them', async () => {
+    await setDoc(doc(as('alice'), 'shareGrants/alice__pro'), grant());
+    await assertSucceeds(getDoc(doc(as('pro'), 'users/alice/glucose/g1')));
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), 'professionals/pro'), { status: 'rejected' }));
+    await assertFails(getDoc(doc(as('pro'), 'users/alice/glucose/g1')));
+    await updateDoc(doc(as('alice'), 'shareGrants/alice__pro'), { status: 'revoked' });
+    await assertFails(updateDoc(doc(as('alice'), 'shareGrants/alice__pro'), { status: 'active' }));
+  });
+
+  it('re-sharing keeps the one-year cap', async () => {
+    await setDoc(doc(as('alice'), 'shareGrants/alice__pro'), grant());
+    await assertFails(updateDoc(doc(as('alice'), 'shareGrants/alice__pro'), { expiresAt: Timestamp.fromMillis(Date.now() + 900 * day) }));
+    await assertFails(updateDoc(doc(as('alice'), 'shareGrants/alice__pro'), { status: 'paused' }));
+  });
+
+  it('clients can list their shared assessments but never drafts', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'assessments/shared'), { clientUid: 'alice', professionalUid: 'pro', status: 'sharedWithClient', createdAt: Timestamp.now() });
+      await setDoc(doc(ctx.firestore(), 'assessments/draft'), { clientUid: 'alice', professionalUid: 'pro', status: 'draft', createdAt: Timestamp.now() });
+    });
+    const visible = ['sharedWithClient', 'acknowledged', 'accepted', 'declined'];
+    const q = await assertSucceeds(getDocs(query(collection(as('alice'), 'assessments'), where('clientUid', '==', 'alice'), where('status', 'in', visible))));
+    if (q.docs.map((d) => d.id).join() !== 'shared') throw new Error(`unexpected ${q.docs.map((d) => d.id)}`);
+    await assertFails(getDocs(query(collection(as('alice'), 'assessments'), where('clientUid', '==', 'alice'))));
+    await assertFails(getDoc(doc(as('alice'), 'assessments/draft')));
   });
 
   it('revoked or expired grants close access immediately', async () => {

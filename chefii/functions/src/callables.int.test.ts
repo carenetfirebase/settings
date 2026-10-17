@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FakeProvider } from './ai/fake';
 import { StructuredRequest } from './ai/provider';
 import { db, testHooks, Timestamp } from './common';
-import { acceptHouseholdInvite, chefRecommend, deleteAccountData, processReceipt } from './index';
+import { acceptHouseholdInvite, chefRecommend, deleteAccountData, onMemberRemoved, processReceipt } from './index';
 import { AiRecipe, ReceiptExtraction } from './schemas';
 
 /**
@@ -83,6 +83,22 @@ describe('acceptHouseholdInvite', () => {
     await expectCode(call(acceptHouseholdInvite, null, { code: 'JOINME42' }), 'unauthenticated');
   });
 
+  it('lets someone removed from another household join (a stale pointer does not count)', async () => {
+    await invite();
+    await db.doc('households/h2').set({ name: 'Old', ownerUid: 'zed', memberUids: ['zed'] });
+    await db.doc('users/carol').set({ householdId: 'h2' }, { merge: true });
+    await expect(call(acceptHouseholdInvite, 'carol', { code: 'JOINME42' })).resolves.toEqual({ householdId: 'h1' });
+  });
+
+  it('clears the profile pointer when someone is removed from a household', async () => {
+    const run = (onMemberRemoved as unknown as { run: (e: unknown) => Promise<unknown> }).run;
+    await run({ params: { hid: 'h1', uid: 'bob' } });
+    expect((await db.doc('users/bob').get()).get('householdId')).toBeUndefined();
+    await db.doc('users/carol').set({ householdId: 'h9' }, { merge: true });
+    await run({ params: { hid: 'h1', uid: 'carol' } });
+    expect((await db.doc('users/carol').get()).get('householdId')).toBe('h9');
+  });
+
   it('cannot escalate to owner through the invite role', async () => {
     await invite({ role: 'owner' });
     await call(acceptHouseholdInvite, 'carol', { code: 'JOINME42' });
@@ -115,6 +131,28 @@ describe('deleteAccountData', () => {
     expect((await db.doc('shareGrants/g1').get()).exists).toBe(false);
     expect((await db.doc('assessments/a1').get()).exists).toBe(false);
     expect((await db.doc('assessments/a2').get()).exists).toBe(true);
+  });
+
+  it('never deletes a household the user is not a member of, whatever their profile says', async () => {
+    // Alice removed Bob; Bob's profile still names h1 (or he set it himself).
+    await db.doc('households/h1').update({ memberUids: ['alice'] });
+    await db.doc('households/h1/lots/l1').set({ productName: 'Eggs' });
+    await call(deleteAccountData, 'bob', {});
+    expect((await db.doc('households/h1').get()).get('memberUids')).toEqual(['alice']);
+    expect((await db.doc('households/h1/lots/l1').get()).exists).toBe(true);
+    expect((await db.doc('users/bob').get()).exists).toBe(false);
+  });
+
+  it('removes grants and assessments on the professional side and AI usage records', async () => {
+    await db.doc('shareGrants/alice__bob').set({ ownerUid: 'alice', professionalUid: 'bob' });
+    await db.doc('assessments/a3').set({ clientUid: 'alice', professionalUid: 'bob' });
+    await db.doc('aiUsage/u1').set({ uid: 'bob', task: 'chat' });
+    await db.doc('aiUsage/u2').set({ uid: 'alice', task: 'chat' });
+    await call(deleteAccountData, 'bob', {});
+    expect((await db.doc('shareGrants/alice__bob').get()).exists).toBe(false);
+    expect((await db.doc('assessments/a3').get()).exists).toBe(false);
+    expect((await db.doc('aiUsage/u1').get()).exists).toBe(false);
+    expect((await db.doc('aiUsage/u2').get()).exists).toBe(true);
   });
 
   it('deletes the household, its subcollections and receipt images when the last member leaves', async () => {

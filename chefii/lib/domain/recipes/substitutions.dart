@@ -106,10 +106,14 @@ class SubstitutionFinder {
   /// change so the modified recipe never overwrites the original.
   Recipe apply(Recipe r, SubstitutionOption o) {
     final next = [for (final i in r.ingredients) identical(i, o.original) || (i.name == o.original.name && i.productId == o.original.productId) ? o.replacement : i];
+    // Steps, title and notes name the old ingredient too; swap the name so
+    // the text matches (the safety check screens all recipe text).
+    final from = RegExp(RegExp.escape(o.original.name), caseSensitive: false);
+    String swap(String t) => t.replaceAll(from, o.replacement.name);
     final modified = Recipe(
       id: '${r.id}~${o.replacement.productId}',
-      title: r.title,
-      summary: r.summary,
+      title: swap(r.title),
+      summary: swap(r.summary),
       cuisine: r.cuisine,
       mealTypes: r.mealTypes,
       servings: r.servings,
@@ -117,12 +121,15 @@ class SubstitutionFinder {
       cookMinutes: r.cookMinutes,
       difficulty: r.difficulty,
       ingredients: next,
-      steps: r.steps,
+      steps: [
+        for (final st in r.steps)
+          RecipeStep(text: swap(st.text), timerSeconds: st.timerSeconds, timerLabel: st.timerLabel, tip: st.tip == null ? null : swap(st.tip!)),
+      ],
       origin: r.origin == RecipeOrigin.curated ? RecipeOrigin.user : r.origin,
       tags: r.tags,
       equipment: r.equipment,
       imageKey: r.imageKey,
-      storageNotes: r.storageNotes,
+      storageNotes: r.storageNotes == null ? null : swap(r.storageNotes!),
     );
     return modified;
   }

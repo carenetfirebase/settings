@@ -108,6 +108,13 @@ final householdDietaryProvider = Provider<DietaryProfile>((ref) {
   return mine.copyWith(allergies: {...mine.allergies, ...shared}.toList());
 });
 
+/// Whether [householdDietaryProvider] is complete. Until it is, recipes are
+/// not suggested: an empty diet would let blocked recipes through.
+final householdDietaryLoadedProvider = Provider<bool>((ref) {
+  if (!ref.watch(dietaryProvider).hasValue) return false;
+  return ref.watch(householdIdProvider) == null || ref.watch(membersProvider).hasValue;
+});
+
 final wellnessProvider = StreamProvider<WellnessPreferences>(
   (ref) => _userStream(ref, const WellnessPreferences(), (uid) => ref.watch(profileRepoProvider).watchWellness(uid)),
 );

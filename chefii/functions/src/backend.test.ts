@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FakeProvider } from './ai/fake';
 import { ProviderError } from './ai/provider';
 import { AiRouter, UsageEvent } from './ai/router';
-import { nutritionForEstimate, screenRecipes } from './chef/recipes';
+import { nutritionForEstimate, screenRecipes, textConflicts } from './chef/recipes';
 import { bestMatch } from './matching';
 import { validateExtraction, validDate } from './receipts/validate';
 import { checkIngredients, detectAllergens, isBlocked } from './safety/allergens';
@@ -129,6 +129,28 @@ describe('AI recipes are screened deterministically', () => {
     expect(r.recipes.map((x) => x.title)).toEqual(['Garlic rice']);
     expect(r.recipes[0].ingredients[0]).toMatchObject({ productId: 'rice', quantity: { amount: 150, unit: 'g' } });
     expect(r.recipes[0].origin).toBe('ai');
+  });
+
+  it('blocks allergens named only in steps, tips, preparation or notes', () => {
+    const peanut = { allergies: ['peanut'], intolerances: [], restrictions: [], dislikes: [] };
+    const rice = [{ name: 'basmati rice', quantity: 150, unit: 'g', preparation: null, optional: false }];
+    const step = (text: string, tip: string | null = null) => ({ text, timerMinutes: null, timerLabel: null, tip });
+    const variants = [
+      recipe({ title: 'Rice', ingredients: rice, steps: [step('Cook the rice.'), step('Garnish with crushed peanuts.')] }),
+      recipe({ title: 'Rice', ingredients: rice, steps: [step('Cook the rice.', 'Lovely fried in peanut oil.')] }),
+      recipe({ title: 'Rice', ingredients: [{ ...rice[0], preparation: 'fried in peanut oil' }], steps: [step('Cook the rice.')] }),
+      recipe({ title: 'Rice', ingredients: rice, steps: [step('Cook the rice.')], storageNotes: 'Keeps well with arachides on top.' }),
+    ];
+    const r = screenRecipes(variants, peanut, 'x');
+    expect(r.filtered).toBe(variants.length);
+    expect(screenRecipes([recipe({ title: 'Rice', ingredients: rice, steps: [step('Cook the rice.')] })], peanut, 'x').recipes).toHaveLength(1);
+  });
+
+  it('flags chat text that names a food the household must avoid', () => {
+    const peanut = { allergies: ['peanut'], intolerances: [], restrictions: [], dislikes: [] };
+    expect(textConflicts('Try pad thai. Toss it with crushed peanuts!', peanut)).toBe(true);
+    expect(textConflicts('Essayez un sauté. Ajoutez des arachides grillées.', peanut)).toBe(true);
+    expect(textConflicts('How about a lemony rice bowl with herbs?', peanut)).toBe(false);
   });
 
   it('rejects implausible recipes', () => {

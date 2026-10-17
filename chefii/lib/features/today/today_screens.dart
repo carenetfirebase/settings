@@ -51,7 +51,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final minutes = _minutes ?? profile?.culinary.weeknightMinutes ?? 30;
     final ranked = ref.watch(rankedRecipesProvider((mealType: meal, maxMinutes: minutes, tag: null)));
     final plannedNow = plan.where((e) => e.date == today && e.mealType == meal && !e.cooked).firstOrNull;
-    final featured = plannedNow != null ? ref.watch(recipeByIdProvider(plannedNow.recipeId)) ?? plannedNow.recipeSnapshot : ranked.firstOrNull?.recipe;
+    final planned = plannedNow == null ? null : showableRecipe(ref, ref.watch(recipeByIdProvider(plannedNow.recipeId)) ?? plannedNow.recipeSnapshot);
+    final featured = planned ?? ranked.firstOrNull?.recipe;
     final featuredReport = featured == null ? null : ranked.where((r) => r.recipe.id == featured.id).firstOrNull;
 
     final dueSoon = lots.where((l) => (l.daysLeft(today) ?? 99) <= 2).toList();
@@ -95,7 +96,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               ),
             ),
           ),
-        Text((plannedNow != null ? l.todayPlannedFor(meal.name, context.labelOf(meal)) : l.todayFor(meal.name, context.labelOf(meal))).toUpperCase(), style: context.text.labelSmall),
+        Text((planned != null ? l.todayPlannedFor(meal.name, context.labelOf(meal)) : l.todayFor(meal.name, context.labelOf(meal))).toUpperCase(), style: context.text.labelSmall),
         const SizedBox(height: Space.xs),
         Wrap(
           spacing: Space.xs,

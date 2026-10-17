@@ -239,6 +239,16 @@ class ReceiptImportService {
       ));
     }
 
+    // The same receipt scanned twice: once one copy is imported, the other
+    // must not add the items again (the fingerprint can't be overwritten).
+    final fpPath = receipt.fingerprint == null ? null : HouseholdPaths(receipt.householdId).receiptFingerprint(receipt.fingerprint!);
+    if (fpPath != null) {
+      final fp = await _store.get(fpPath);
+      if (fp != null && fp.data['receiptId'] != receipt.id) {
+        throw ReceiptValidationException('This receipt looks like one you already imported.', code: AppErrorCode.receiptDuplicate);
+      }
+    }
+
     final opId = operationIdFor(receipt.id);
     final result = await _inventory.addLots(
       householdId: receipt.householdId,
@@ -250,13 +260,14 @@ class ReceiptImportService {
     );
     await _store.transaction((tx) async {
       final p = HouseholdPaths(receipt.householdId);
+      final writeFingerprint = fpPath != null && await tx.get(fpPath) == null;
       tx.set(p.receipt(receipt.id), {
         'status': ReceiptStatus.imported.name,
         'importOperationId': opId,
         'updatedAt': _clock(),
       }, merge: true);
-      if (receipt.fingerprint != null) {
-        tx.set(p.receiptFingerprint(receipt.fingerprint!), {'receiptId': receipt.id, 'at': _clock()});
+      if (writeFingerprint) {
+        tx.set(fpPath, {'receiptId': receipt.id, 'at': _clock()});
       }
     });
     return result;

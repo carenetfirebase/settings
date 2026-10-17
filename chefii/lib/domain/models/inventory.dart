@@ -189,6 +189,7 @@ class InventoryLot {
     this.receiptId,
     this.preparedFromRecipeId,
     this.version = 0,
+    this.undoShortfall = 0,
   });
 
   final String id;
@@ -216,6 +217,11 @@ class InventoryLot {
 
   /// Incremented on every mutation; used for optimistic UI and audit.
   final int version;
+
+  /// Amount (in [quantity]'s unit) an undo couldn't remove because it had
+  /// already been used. A later undo that would add stock back offsets this
+  /// first, so undoing "add 6, use 2" in either order ends at zero.
+  final double undoShortfall;
 
   bool get isDepleted => quantity.amount <= Quantity.epsilon;
 
@@ -248,6 +254,7 @@ class InventoryLot {
     DateTime? updatedAt,
     String? productName,
     int? version,
+    double? undoShortfall,
   }) =>
       InventoryLot(
         id: id,
@@ -269,6 +276,7 @@ class InventoryLot {
         receiptId: receiptId,
         preparedFromRecipeId: preparedFromRecipeId,
         version: version ?? this.version,
+        undoShortfall: undoShortfall ?? this.undoShortfall,
       );
 
   Map<String, dynamic> toMap() => {
@@ -291,6 +299,7 @@ class InventoryLot {
         if (receiptId != null) 'receiptId': receiptId,
         if (preparedFromRecipeId != null) 'preparedFromRecipeId': preparedFromRecipeId,
         'version': version,
+        if (undoShortfall > 0) 'undoShortfall': undoShortfall,
       };
 
   static InventoryLot fromMap(String id, Map<String, dynamic> m) => InventoryLot(
@@ -313,6 +322,7 @@ class InventoryLot {
         receiptId: m['receiptId'] as String?,
         preparedFromRecipeId: m['preparedFromRecipeId'] as String?,
         version: readInt(m, 'version', 0),
+        undoShortfall: (m['undoShortfall'] as num?)?.toDouble() ?? 0,
       );
 }
 
